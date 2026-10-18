@@ -1,5 +1,11 @@
 # PrusaConnect ESP32-CAM
 
+> **Fork para a XIAO ESP32-S3 Sense na Prusa Core One.** Este repositório é um fork de
+> [prusa3d/Prusa-Firmware-ESP32-Cam](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam) v1.1.2,
+> com 11 bugs corrigidos, migração para o Prusa Camera Service, proteção térmica e integração com o PrusaLink.
+> **Lê primeiro o [LEIA-ME_CORE_ONE.md](LEIA-ME_CORE_ONE.md)** (explicações, compilação e gravação).
+> O firmware já compilado está em [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/).
+
 This repository includes source code and firmware releases for the **ESP32-cam** module programmed in the **Arduino IDE**. Currently, several versions of boards built on **ESP32/ESP32S3** processors with a camera chip are supported. You can find a list of supported boards below. Additionally, for each supported board, there is a guide on how to upload the firmware, how to compile code for it, some basic information and a list of known issues for this particular board.
 
 This project uses other libraries. It is necessary to install them in the Arduino IDE:
