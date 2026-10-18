@@ -78,12 +78,17 @@ size_t AsyncBufferResponse::_fillBuffer(uint8_t *buf, size_t maxLen) {
  * @return size_t 
  */
 size_t AsyncBufferResponse::_content(uint8_t *buffer, size_t maxLen, size_t index) {
-  memcpy(buffer, _buf + index, maxLen);
-  if ((index + maxLen) == _len) {
+  if ((_buf == nullptr) || (index >= _len)) {
+    return 0;
+  }
+
+  size_t len = min(maxLen, _len - index);
+  memcpy(buffer, _buf + index, len);
+  if ((index + len) == _len) {
     free(_buf);
     _buf = nullptr;
   }
-  return maxLen;
+  return len;
 }
 
 /**
@@ -144,12 +149,17 @@ size_t AsyncFrameResponse::_fillBuffer(uint8_t *buf, size_t maxLen) {
  * @return size_t 
  */
 size_t AsyncFrameResponse::_content(uint8_t *buffer, size_t maxLen, size_t index) {
-  memcpy(buffer, fb->buf + index, maxLen);
-  if ((index + maxLen) == fb->len) {
+  if ((fb == nullptr) || (index >= fb->len)) {
+    return 0;
+  }
+
+  size_t len = min(maxLen, fb->len - index);
+  memcpy(buffer, fb->buf + index, len);
+  if ((index + len) == fb->len) {
     esp_camera_fb_return(fb);
     fb = nullptr;
   }
-  return maxLen;
+  return len;
 }
 
 /**
@@ -240,15 +250,20 @@ size_t AsyncJpegStreamResponse::_content(uint8_t *buffer, size_t maxLen, size_t 
       return RESPONSE_TRY_AGAIN;
     }
 
-    /* get frame */
-    _frame.index = 0;
-    camera->CaptureStream(&_dframe);
-    _frame.fb = &_dframe;
+    /* stop the stream when the MCU is too hot. The client can start it again later */
+    if (true == McuTemperature.ThermalThrottling) {
+      log->AddEvent(LogLevel_Warning, F("Stream stopped, MCU temperature is too high"));
+      return 0;
+    }
 
-    if (_frame.fb == NULL) {
+    /* get frame. Returning 0 ends the stream */
+    _frame.index = 0;
+    _frame.fb = NULL;
+    if (false == camera->CaptureStream(&_dframe)) {
       log->AddEvent(LogLevel_Error, F("Stream capture frame failed"));
       return 0;
     }
+    _frame.fb = &_dframe;
 
     /* send boundary */
     size_t blen = 0;

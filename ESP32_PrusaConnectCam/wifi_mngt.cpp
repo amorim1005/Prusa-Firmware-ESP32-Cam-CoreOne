@@ -191,8 +191,11 @@ void WiFiMngt::WiFiReconnect() {
     log->AddEvent(LogLevel_Info, "WiFi status: " + String(cstr));
   }
 
-  if (Connect.GetBackendAvailabilitStatus() == BackendUnavailable) {
-    log->AddEvent(LogLevel_Warning, F("Reconnecting to WiFi. STA. Problem with connecting to backend!"));
+  /* A backend outage is not a WiFi problem: the upload backoff handles it, and the local stream keeps working.
+     Reconnect WiFi only when many consecutive connections to the backend failed, it can be a broken DNS or a stuck STA state */
+  if ((WiFi.status() == WL_CONNECTED) && (Connect.GetConnectFailCounter() >= BACKEND_CONNECT_FAIL_WIFI_RECONNECT)) {
+    log->AddEvent(LogLevel_Warning, "Reconnecting to WiFi. STA. Failed connections to backend: " + String(Connect.GetConnectFailCounter()));
+    Connect.ClearConnectFailCounter();
     WiFi.disconnect();
     WiFi.reconnect();
     Connect.SetBackendAvailabilitStatus(WaitForFirstConnection);

@@ -32,7 +32,7 @@ public:
   bool CheckActifeWifiCfgFlag();
   void CheckResetCfg();
 
-  void SaveRefreshInterval(uint8_t);
+  void SaveRefreshInterval(uint16_t);
   void SaveToken(String);
   void SaveFingerprint(String);
   void SavePhotoQuality(uint8_t);
@@ -76,8 +76,12 @@ public:
   void SaveTimeLapseFunctionStatus(bool);
   void SaveExternalTemperatureSensorEnable(bool);
   void SaveExternalTemperatureSensorUnit(uint8_t);
+  void SavePrusaLinkEnable(bool);
+  void SavePrusaLinkHost(String);
+  void SavePrusaLinkUser(String);
+  void SavePrusaLinkPassword(String);
 
-  uint8_t LoadRefreshInterval();
+  uint16_t LoadRefreshInterval();
   String LoadToken();
   String LoadFingerprint();
   uint8_t LoadPhotoQuality();
@@ -120,6 +124,10 @@ public:
   bool LoadTimeLapseFunctionStatus();
   bool LoadExternalTemperatureSensorEnable();
   uint8_t LoadExternalTemperatureSensorUnit();
+  bool LoadPrusaLinkEnable();
+  String LoadPrusaLinkHost();
+  String LoadPrusaLinkUser();
+  String LoadPrusaLinkPassword();
 
 private:
   Logs *Log;              ///< Pointer to Logs object

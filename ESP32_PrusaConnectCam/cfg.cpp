@@ -177,6 +177,10 @@ void Configuration::DefaultCfg() {
   SaveTimeLapseFunctionStatus(FACTORY_CFG_TIMELAPS_ENABLE);
   SaveExternalTemperatureSensorEnable(FACTORY_CFG_ENABLE_EXT_SENSOR);
   SaveExternalTemperatureSensorUnit(FACTORY_CFG_EXT_SENSOR_UNIT);
+  SavePrusaLinkEnable(FACTORY_CFG_PRUSALINK_ENABLE);
+  SavePrusaLinkHost(FACTORY_CFG_PRUSALINK_HOST);
+  SavePrusaLinkUser(FACTORY_CFG_PRUSALINK_USER);
+  SavePrusaLinkPassword(FACTORY_CFG_PRUSALINK_PASSWORD);
   Log->AddEvent(LogLevel_Warning, F("+++++++++++++++++++++++++++"));
 }
 
@@ -432,13 +436,14 @@ String Configuration::LoadIpAddress(uint16_t address) {
 }
 
 /**
-   @info save refresh interval to eeprom
-   @param uint8_t - refresh interval
+   @info save refresh interval to eeprom. 10/30/60 s are stored as seconds, 10 min is stored as REFRESH_INTERVAL_TEN_MIN_EEPROM
+   @param uint16_t - refresh interval [s]
    @return none
 */
-void Configuration::SaveRefreshInterval(uint8_t i_interval) {
+void Configuration::SaveRefreshInterval(uint16_t i_interval) {
   Log->AddEvent(LogLevel_Verbose, F("Save RefreshInterval: "), String(i_interval));
-  SaveUint8(EEPROM_ADDR_REFRESH_INTERVAL_START, i_interval);
+  uint8_t value = (i_interval >= REFRESH_INTERVAL_TEN_MIN) ? REFRESH_INTERVAL_TEN_MIN_EEPROM : (uint8_t)i_interval;
+  SaveUint8(EEPROM_ADDR_REFRESH_INTERVAL_START, value);
 }
 
 /**
@@ -447,7 +452,8 @@ void Configuration::SaveRefreshInterval(uint8_t i_interval) {
    @return none
 */
 void Configuration::SaveToken(String i_token) {
-  Log->AddEvent(LogLevel_Verbose, F("Save Token["), String(i_token.length()) + "]: " + i_token);
+  /* the token is a secret, never write it to the log (the log is stored on the SD card) */
+  Log->AddEvent(LogLevel_Verbose, F("Save Token, length: "), String(i_token.length()));
   SaveString(EEPROM_ADDR_TOKEN_START, EEPROM_ADDR_TOKEN_LENGTH, i_token);
 }
 
@@ -875,12 +881,64 @@ void Configuration::SaveExternalTemperatureSensorUnit(uint8_t i_data) {
 }
 
 /**
+   @info save PrusaLink enable flag
+   @param bool - enable
+   @return none
+*/
+void Configuration::SavePrusaLinkEnable(bool i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save PrusaLink enable: "), String(i_data));
+  SaveBool(EEPROM_ADDR_PRUSALINK_ENABLE_START, i_data);
+}
+
+/**
+   @info save PrusaLink printer hostname or IP address
+   @param String - hostname
+   @return none
+*/
+void Configuration::SavePrusaLinkHost(String i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save PrusaLink host: "), i_data);
+  SaveString(EEPROM_ADDR_PRUSALINK_HOST_START, EEPROM_ADDR_PRUSALINK_HOST_LENGTH, i_data);
+}
+
+/**
+   @info save PrusaLink user name
+   @param String - user name
+   @return none
+*/
+void Configuration::SavePrusaLinkUser(String i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save PrusaLink user: "), i_data);
+  SaveString(EEPROM_ADDR_PRUSALINK_USER_START, EEPROM_ADDR_PRUSALINK_USER_LENGTH, i_data);
+}
+
+/**
+   @info save PrusaLink password
+   @param String - password
+   @return none
+*/
+void Configuration::SavePrusaLinkPassword(String i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save PrusaLink password, length: "), String(i_data.length()));
+  SaveString(EEPROM_ADDR_PRUSALINK_PASSWORD_START, EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH, i_data);
+}
+
+/**
    @info load refresh interval from eeprom 
    @param none
-   @return uint8_t - refresh interval
+   @return uint16_t - refresh interval [s]. Always one of the Camera Service trigger schemes 10 s, 30 s, 60 s, 10 min
 */
-uint8_t Configuration::LoadRefreshInterval() {
-  uint8_t ret = EEPROM.read(EEPROM_ADDR_REFRESH_INTERVAL_START);
+uint16_t Configuration::LoadRefreshInterval() {
+  uint8_t value = EEPROM.read(EEPROM_ADDR_REFRESH_INTERVAL_START);
+  uint16_t ret = REFRESH_INTERVAL_THIRTY_SEC;
+
+  /* older firmware stored any value 10-240 s. Use the nearest trigger scheme */
+  if (REFRESH_INTERVAL_TEN_MIN_EEPROM == value) {
+    ret = REFRESH_INTERVAL_TEN_MIN;
+  } else if (value <= 20) {
+    ret = REFRESH_INTERVAL_TEN_SEC;
+  } else if (value <= 45) {
+    ret = REFRESH_INTERVAL_THIRTY_SEC;
+  } else {
+    ret = REFRESH_INTERVAL_SIXTY_SEC;
+  }
   Log->AddEvent(LogLevel_Info, F("Refresh interval: "), String(ret));
 
   return ret;
@@ -1418,4 +1476,56 @@ uint8_t Configuration::LoadExternalTemperatureSensorUnit() {
 
 }
 
-/* EOF */
+/**
+ * @brief Load PrusaLink enable flag. After a firmware upgrade the EEPROM cell is 0xFF, it means disabled
+ *
+ * @return bool - enable
+ */
+bool Configuration::LoadPrusaLinkEnable() {
+  bool ret = (EEPROM.read(EEPROM_ADDR_PRUSALINK_ENABLE_START) == 1);
+  Log->AddEvent(LogLevel_Info, F("PrusaLink enable: "), String(ret));
+
+  return ret;
+}
+
+/**
+ * @brief Load PrusaLink printer hostname or IP address
+ *
+ * @return String - hostname
+ */
+String Configuration::LoadPrusaLinkHost() {
+  Log->AddEvent(LogLevel_Info, F("PrusaLink host: "), false);
+  String ret = LoadString(EEPROM_ADDR_PRUSALINK_HOST_START, EEPROM_ADDR_PRUSALINK_HOST_LENGTH, true);
+
+  return ret;
+}
+
+/**
+ * @brief Load PrusaLink user name
+ *
+ * @return String - user name. Default user name when it is not saved
+ */
+String Configuration::LoadPrusaLinkUser() {
+  Log->AddEvent(LogLevel_Info, F("PrusaLink user: "), false);
+  String ret = LoadString(EEPROM_ADDR_PRUSALINK_USER_START, EEPROM_ADDR_PRUSALINK_USER_LENGTH, true);
+
+  if (ret.length() == 0) {
+    ret = PRUSALINK_DEFAULT_USER;
+  }
+
+  return ret;
+}
+
+/**
+ * @brief Load PrusaLink password
+ *
+ * @return String - password
+ */
+String Configuration::LoadPrusaLinkPassword() {
+  Log->AddEvent(LogLevel_Info, F("PrusaLink password: "), false);
+  String ret = LoadString(EEPROM_ADDR_PRUSALINK_PASSWORD_START, EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH, false);
+
+  return ret;
+}
+
+/* EOF */

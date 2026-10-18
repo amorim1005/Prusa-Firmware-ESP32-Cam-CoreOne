@@ -29,3 +29,14 @@ enum SendDataToBackendType {
   SendPhoto = 0,                  ///< send photo to backend
   SendInfo = 1,                   ///< send device information to backend
 };
+
+/**
+ * @brief BackendResultClass enum
+ * what to do after the backend response, according to the Camera Service documentation
+ */
+enum BackendResultClass {
+  BackendResultOk = 0,            ///< 2xx, data accepted
+  BackendResultTransient = 1,     ///< no connection, timeout, 429, 5xx. Retry later with backoff
+  BackendResultClientError = 2,   ///< 4xx, the request is wrong. Retrying the same request gives the same answer
+  BackendResultTooLarge = 3,      ///< 413, the snapshot is bigger than 1 MB
+};

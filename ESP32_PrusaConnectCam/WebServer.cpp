@@ -40,40 +40,18 @@ void Server_InitWebServer() {
     if (Server_CheckBasicAuth(request) == false)
       return;
 
-    if (SystemCamera.GetCameraCaptureSuccess() == false) {
+    /* the response sends its own copy of the photo, the camera can capture a new photo during the transfer */
+    uint8_t* photo = NULL;
+    size_t photo_len = 0;
+    if (false == SystemCamera.GetPhotoCopy(&photo, &photo_len)) {
       request->send(404, "text/plain", "Photo not found!");
       return;
     }
-    SystemCamera.SetPhotoSending(true);
 
-    SystemLog.AddEvent(LogLevel_Verbose, "Photo size: " + String(SystemCamera.GetPhotoFb()->len) + " bytes");
-
-    if (SystemCamera.GetPhotoExifData()->header != NULL) {
-      /* send photo with exif data */
-      SystemLog.AddEvent(LogLevel_Verbose, F("Send photo with EXIF data"));
-      size_t total_len = SystemCamera.GetPhotoExifData()->len + SystemCamera.GetPhotoFb()->len - SystemCamera.GetPhotoExifData()->offset;
-      auto response = request->beginChunkedResponse("image/jpg", [total_len](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-        size_t len = 0;
-        if (index < SystemCamera.GetPhotoExifData()->len) {
-          len = min(maxLen, SystemCamera.GetPhotoExifData()->len - index);
-          memcpy(buffer, SystemCamera.GetPhotoExifData()->header + index, len);
-        } else {
-          size_t offset = index - SystemCamera.GetPhotoExifData()->len + SystemCamera.GetPhotoExifData()->offset;
-          len = min(maxLen, SystemCamera.GetPhotoFb()->len - offset);
-          memcpy(buffer, SystemCamera.GetPhotoFb()->buf + offset, len);
-        }
-        return len;
-      });
-      response->addHeader("Content-Length", String(total_len));
-      request->send(response);
-
-    } else {
-      /* send photo without exif data */
-      SystemLog.AddEvent(LogLevel_Verbose, F("Send photo without EXIF data"));
-      request->send(200, "image/jpg", SystemCamera.GetPhotoFb()->buf, SystemCamera.GetPhotoFb()->len);
-    }
-
-    SystemCamera.SetPhotoSending(false);
+    SystemLog.AddEvent(LogLevel_Verbose, "Photo size: " + String(photo_len) + " bytes");
+    AsyncBufferResponse* response = new AsyncBufferResponse(photo, photo_len, "image/jpeg");
+    response->addHeader("Cache-Control", "no-store");
+    request->send(response);
   });
 
   /* route to jquery */
@@ -550,12 +528,12 @@ void Server_InitWebServer_Sets() {
     /* set refresh interval */
     if (request->hasParam("refresh")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set refresh interval"));
-      uint8_t value = request->getParam("refresh")->value().toInt();
-      if ((value >= REFRESH_INTERVAL_MIN) && (value <= REFRESH_INTERVAL_MAX)) {
-        Connect.SetRefreshInterval(value);
+      long value = request->getParam("refresh")->value().toInt();
+      if ((value > 0) && (value <= UINT16_MAX) && Connect.CheckRefreshInterval((uint16_t)value)) {
+        Connect.SetRefreshInterval((uint16_t)value);
         response_msg = MSG_SAVE_OK;
       } else {
-        response_msg = "ERROR! Bad value. Minimum is " + String(REFRESH_INTERVAL_MIN) + ", maximum " + String(REFRESH_INTERVAL_MAX) + " second";
+        response_msg = "ERROR! Bad value. Allowed values are " + String(REFRESH_INTERVAL_TEN_SEC) + ", " + String(REFRESH_INTERVAL_THIRTY_SEC) + ", " + String(REFRESH_INTERVAL_SIXTY_SEC) + " or " + String(REFRESH_INTERVAL_TEN_MIN) + " second";
       }
       response = true;
     }
@@ -588,6 +566,7 @@ void Server_InitWebServer_Sets() {
     if (request->hasParam("framesize")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set framesize"));
       SystemCamera.SetFrameSize(request->getParam("framesize")->value().toInt());
+      Connect.UpdateDeviceInformation();
       response_msg = MSG_SAVE_OK;
       response = true;
     }
@@ -644,6 +623,7 @@ void Server_InitWebServer_Sets() {
     if (request->hasParam("image_rotation")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set image EXIF rotation"));
       SystemCamera.SetCameraImageRotation(request->getParam("image_rotation")->value().toInt());
+      Connect.UpdateDeviceInformation();
       response_msg = MSG_SAVE_OK;
       response = true;
     }
@@ -818,11 +798,68 @@ void Server_InitWebServer_Sets() {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_token"));
     if (Server_CheckBasicAuth(request) == false)
       return;
-    request->send(200, F("text/html"), MSG_SAVE_OK);
 
     if (request->hasParam("token")) {
-      Connect.SetToken(request->getParam("token")->value());
+      String token = request->getParam("token")->value();
+      token.trim();
+
+      /* Camera Service token: exactly 20 characters A-Z, a-z, 0-9 */
+      bool valid = (token.length() == CAMERA_SERVICE_TOKEN_LEN);
+      for (size_t i = 0; (i < token.length()) && valid; i++) {
+        valid = isalnum(token.charAt(i));
+      }
+
+      if (valid) {
+        Connect.SetToken(token);
+        request->send(200, F("text/html"), F("Save OK. Camera registration starts now, it must be done within 15 minutes after adding the camera in Prusa Connect"));
+      } else {
+        request->send(200, F("text/html"), F("ERROR! Token must have exactly 20 characters A-Z, a-z, 0-9"));
+      }
+    } else {
+      request->send(200, F("text/html"), MSG_SAVE_NOTOK);
     }
+  });
+
+  /* route for PrusaLink cfg /set_prusalink?enable=true&host=192.168.1.10&user=maker&password=xxx */
+  server.on("/set_prusalink", HTTP_GET, [](AsyncWebServerRequest* request) {
+    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_prusalink"));
+    if (Server_CheckBasicAuth(request) == false)
+      return;
+
+    String msg = MSG_SAVE_OK;
+    if (request->hasParam("host")) {
+      String host = request->getParam("host")->value();
+      if (host.length() < EEPROM_ADDR_PRUSALINK_HOST_LENGTH) {
+        SystemPrusaLink.SetHost(host);
+      } else {
+        msg = "ERROR! Maximum host length is " + String(EEPROM_ADDR_PRUSALINK_HOST_LENGTH - 1);
+      }
+    }
+
+    if (request->hasParam("user")) {
+      String user = request->getParam("user")->value();
+      if (user.length() < EEPROM_ADDR_PRUSALINK_USER_LENGTH) {
+        SystemPrusaLink.SetUser(user);
+      } else {
+        msg = "ERROR! Maximum user name length is " + String(EEPROM_ADDR_PRUSALINK_USER_LENGTH - 1);
+      }
+    }
+
+    /* empty password parameter keeps the saved password, the WEB page never receives the password */
+    if (request->hasParam("password") && (request->getParam("password")->value().length() > 0)) {
+      String password = request->getParam("password")->value();
+      if (password.length() < EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH) {
+        SystemPrusaLink.SetPassword(password);
+      } else {
+        msg = "ERROR! Maximum password length is " + String(EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH - 1);
+      }
+    }
+
+    if (request->hasParam("enable")) {
+      SystemPrusaLink.SetEnable(Server_TransfeStringToBool(request->getParam("enable")->value()));
+    }
+
+    request->send(200, F("text/html"), msg.c_str());
   });
 
   /* route for set prusa connect hostname /set_hostname?hostname=*/
@@ -1001,6 +1038,7 @@ void Server_InitWebServer_Sets() {
       if (tmp.length() < EEPROM_ADDR_MDNS_RECORD_LENGTH) {
         request->send(200, F("text/html"), MSG_SAVE_OK_REBOOT);
         SystemWifiMngt.SetMdns(tmp);
+        Connect.UpdateDeviceInformation();
 
       } else {
         String msg = "Error save mDNS. Maximum length: " + String(EEPROM_ADDR_MDNS_RECORD_LENGTH);
@@ -1237,7 +1275,16 @@ String Server_GetJsonData() {
   doc_json["sd_total"] = SystemLog.GetCardSizeMB();
   doc_json["sd_free_p"] = SystemLog.GetFreeSpacePercent();
   doc_json["sd_used_p"] = SystemLog.GetUsedSpacePercent();
-  doc_json["mcu_temp"] = String(McuTemperature.TemperatureCelsius) + " *C";
+  doc_json["mcu_temp"] = String(McuTemperature.TemperatureCelsius) + " *C" + ((true == McuTemperature.ThermalThrottling) ? " - TOO HOT, stream disabled, uploads slowed down" : "");
+  doc_json["thermal_throttling"] = Server_TranslateBoolToString(McuTemperature.ThermalThrottling);
+  doc_json["upload_interval"] = String(System_GetUploadInterval());
+  doc_json["backoff_interval"] = String(Connect.GetBackoffInterval());
+  doc_json["prusalink_enable"] = Server_TranslateBoolToString(SystemPrusaLink.GetEnable());
+  doc_json["prusalink_host"] = SystemPrusaLink.GetHost();
+  doc_json["prusalink_user"] = SystemPrusaLink.GetUser();
+  doc_json["prusalink_status"] = SystemPrusaLink.GetStatus();
+  doc_json["printer_state"] = SystemPrusaLink.GetPrinterState();
+  doc_json["job_progress"] = String(SystemPrusaLink.GetJobProgress(), 0);
   doc_json["sw_build"] = SW_BUILD;
   doc_json["sw_ver"] = SW_VERSION;
   doc_json["sw_new_ver"] = FirmwareUpdate.NewVersionFw;
@@ -1273,6 +1320,21 @@ bool Server_CheckBasicAuth(AsyncWebServerRequest* request) {
    @return void
 */
 void Server_streamJpg(AsyncWebServerRequest* request) {
+  SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /stream.mjpg"));
+  if (Server_CheckBasicAuth(request) == false)
+    return;
+
+  if (true == McuTemperature.ThermalThrottling) {
+    request->send(503, "text/plain", "MCU temperature is too high, the stream is disabled until the camera cools down");
+    return;
+  }
+
+  /* the camera has one frame buffer, two stream clients would steal frames from each other */
+  if (true == SystemCamera.GetStreamStatus()) {
+    request->send(503, "text/plain", "The stream is already open in another window. Only one stream client is supported");
+    return;
+  }
+
   AsyncJpegStreamResponse* response = new AsyncJpegStreamResponse(&SystemCamera, &SystemLog);
   if (!response) {
     request->send(501);

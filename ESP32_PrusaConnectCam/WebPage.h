@@ -67,7 +67,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		</div>
 		<div class="container_right-half">
 			<article>
-				<p class="p1">Trigger interval: <b><span id="refreshInterval"></span><b>s</p><br><br>
+				<p class="p1">Upload interval: <b><span id="refreshInterval"></span></b> s</p><br><br>
 				<button class="btn" onclick="actionButton('/action_capture',true,'')">Refresh Snapshot</button> <br><br>
 				<button class="btn" onclick="actionButton('/action_send',false,'Sending snapshot...')">Send snapshot</button><br><br><br>
 				<button class="btn" onclick="window.open('saved-photo.jpg')">Download snapshot</button><br><br>
@@ -222,7 +222,16 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
         <tr><td class="pc1">Connect Token</td><td ><input type="text" name="token" id=tokenid >&nbsp;<button class="btn_save" onclick="changeValue(encodeURIComponent(document.getElementById('tokenid').value), 'set_token?token=', 'config')">Save</button></td></tr>
         <tr><td class="pc1">Fingerprint</td><td class=pc2 id="fingerprint"></td></tr>
-		<tr><td class="pc1">Trigger Interval [s]</td><td ><input type="text" name="refresh" id=refreshid >&nbsp;<button class="btn_save" onclick="changeValue(document.getElementById('refreshid').value, 'set_int?refresh=', 'config')">Save</button></td></tr>
+		<tr>
+			<td class="pc1">Trigger Interval</td><td><label for="refresh"></label>
+				<select class="select" id="refreshid" name="refresh" onchange="changeValue(this.value, 'set_int?refresh=', 'config')">
+					<option value="10">10 s</option>
+					<option value="30">30 s</option>
+					<option value="60">60 s</option>
+					<option value="600">10 min</option>
+				</select>
+			</td>
+		</tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
 		<tr>
@@ -260,6 +269,14 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		<tr><td class="pc1">LED flash</td><td class="pc2"><label class="switch"><input type="checkbox" name="flash" id=flashid onchange="changeValue(this.checked, 'set_bool?flash=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_flash"></span></td></tr>
 		<tr><td class="pc1">Flash duration</td><td class="pc2">Low <input type="range" class="slider" name="flash_time" id=flash_timeid min="50" max="1500" step="50" onchange="changeValue(this.value, 'set_int?flash_time=', 'config')">High</td></tr>
 		<tr><td class="pc1">Flash duration</td><td class="pc2"><span id="flash_time_value"></span> ms</td></tr>
+		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
+		<tr><td class="ps3">PrusaLink printer state</td><td></td></tr>
+		<tr><td class="pc1">Upload often only while printing</td><td class="pc2"><label class="switch"><input type="checkbox" name="prusalink" id=prusalinkid onchange="setPrusaLink()"><span class="checkbox_slider round"></span></label> <span id="status_prusalink"></span></td></tr>
+		<tr><td class="pc1">Printer IP address</td><td><input type="text" name="prusalink_host" id=prusalink_hostid placeholder="192.168.1.50"></td></tr>
+		<tr><td class="pc1">PrusaLink user</td><td><input type="text" name="prusalink_user" id=prusalink_userid placeholder="maker"></td></tr>
+		<tr><td class="pc1">PrusaLink password</td><td><input type="password" name="prusalink_password" id=prusalink_passwordid placeholder="unchanged">&nbsp;<button class="btn_save" onclick="setPrusaLink()">Save</button></td></tr>
+		<tr><td class="pc1">PrusaLink status</td><td class="pc2"><span id="prusalink_status"></span></td></tr>
+		<tr><td class="pc1">Printer state</td><td class="pc2"><span id="printer_state"></span> <span id="job_progress"></span></td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Save images to micro SD</td><td class="pc2"><label class="switch"><input type="checkbox" name="timelaps" id=timelapsid onchange="changeValue(this.checked, 'set_bool?timelaps_enable=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_timelaps"></span></td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
@@ -319,6 +336,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 			<tr><td class="ps1">Wi-Fi service AP SSID</td><td class="ps2" id="service_ap_ssid"></td></tr>
             <tr><td class="ps1">Uptime</td><td class="ps2" id="uptime"></td></tr>
 			<tr><td class="ps1">ESP32 Temperature</td><td class="ps2" id="mcu_temp"></td></tr>
+			<tr><td class="ps1">Current upload interval [s]</td><td class="ps2" id="upload_interval"></td></tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Firmware</td><td></td></tr>
             <tr><td class="ps1">Version</td><td class="ps2" id="sw_ver"></td></tr>
@@ -923,10 +941,10 @@ function get_data(val) {
 				document.getElementById('light-icon').appendChild(img);
 			}
 			document.title = obj.mdns;
+			$("#refreshInterval").text(obj.upload_interval);
 			
 			if (val == "config") {
 				$("#fingerprint").text(obj.fingerprint);
-				$("#refreshInterval").text(obj.refreshInterval);
 				document.getElementById('tokenid').value = obj.token;
 				document.getElementById('refreshid').value = obj.refreshInterval;
 				document.getElementById('photo_qualityid').value = obj.photoquality;
@@ -956,6 +974,13 @@ function get_data(val) {
 				document.getElementById("flash_time_value").innerText = obj.flash_time;
 				document.getElementById("aec_value_value").innerText = obj.aec_value;
 				document.getElementById('timelapsid').checked = obj.timelaps;
+				document.getElementById('prusalinkid').checked = (obj.prusalink_enable == "true");
+				document.getElementById('prusalink_hostid').value = obj.prusalink_host;
+				document.getElementById('prusalink_userid').value = obj.prusalink_user;
+				$("#status_prusalink").text((obj.prusalink_enable == "true") ? "On" : "Off");
+				$("#prusalink_status").text(obj.prusalink_status);
+				$("#printer_state").text(obj.printer_state);
+				$("#job_progress").text((obj.printer_state == "PRINTING") ? obj.job_progress + " %" : "");
 				$("#status_hmirror").text((obj.hmirror == "true") ? "On" : "Off");
 				$("#status_vflip").text((obj.vflip == "true") ? "On" : "Off");
 				$("#status_lensc").text((obj.lensc == "true") ? "On" : "Off");
@@ -1016,6 +1041,7 @@ function get_data(val) {
 				$("#sd_free_p").text(obj.sd_free_p);
 				$("#sd_used_p").text(obj.sd_used_p);
 				$("#mcu_temp").text(obj.mcu_temp);
+				$("#upload_interval").text(obj.upload_interval);
 
 				var sd_free_prog = document.getElementById("progress_bar_sd_free");
 				sd_free_prog.style.width = obj.sd_free_p + "%";
@@ -1203,6 +1229,20 @@ function GetDataAndPrintTableWiFi() {
 			console.log('Error:' + textStatus + '-' + errorThrown);
 		}
 	});
+}
+
+/* PrusaLink cfg, the password is sent only when the user typed a new one */
+function setPrusaLink() {
+	var url = "set_prusalink?enable=" + document.getElementById('prusalinkid').checked
+		+ "&host=" + encodeURIComponent(document.getElementById('prusalink_hostid').value)
+		+ "&user=" + encodeURIComponent(document.getElementById('prusalink_userid').value)
+		+ "&password=" + encodeURIComponent(document.getElementById('prusalink_passwordid').value);
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.open("GET", url, false);
+	xmlHttp.send(null);
+	alert(xmlHttp.responseText);
+	document.getElementById('prusalink_passwordid').value = "";
+	get_data("config");
 }
 
 /* auth page */

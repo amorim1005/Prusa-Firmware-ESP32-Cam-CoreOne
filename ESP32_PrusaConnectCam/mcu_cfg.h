@@ -13,26 +13,55 @@
 #define _MCU_CFG_H_
 
 /* ----------------- CAMERA TYPE  ---------------*/
-#define AI_THINKER_ESP32_CAM            true
+#define AI_THINKER_ESP32_CAM            false
 #define ESP32_WROVER_DEV                false
 #define CAMERA_MODEL_ESP32_S3_DEV_CAM   false
 #define CAMERA_MODEL_ESP32_S3_EYE_2_2   false
-#define CAMERA_MODEL_XIAO_ESP32_S3_CAM  false
+#define CAMERA_MODEL_XIAO_ESP32_S3_CAM  true
 #define CAMERA_MODEL_ESP32_S3_CAM       false
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2"                 ///< SW version
+#define SW_VERSION                  "1.1.2-c1"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
 #define CAMERA_MAX_FAIL_CAPTURE     10                      ///< maximum count for failed capture
+#define CAMERA_SEMAPHORE_TIMEOUT    5000                    ///< maximum waiting time for the camera frame buffer semaphore [ms]
 
 /* ------------ PRUSA BACKEND CFG  --------------*/
-#define HOST_URL_CAM_PATH           "/c/snapshot"           ///< path for sending photo to prusa connect
-#define HOST_URL_INFO_PATH          "/c/info"               ///< path for sending info to prusa connect
-#define REFRESH_INTERVAL_MIN        10                      ///< minimum refresh interval for sending photo to prusa connect [s]
-#define REFRESH_INTERVAL_MAX        240                     ///< maximum refresh interval for sending photo to prusa connect [s]
+/* Prusa Camera Service API: https://camera-service.prusa3d.com/docs/ */
+#define HOST_URL_CAM_PATH           "/v1/snapshot"          ///< path for sending photo to the Camera Service
+#define HOST_URL_INFO_PATH          "/v1/camera-info"       ///< path for sending camera info to the Camera Service
+#define LEGACY_PRUSA_CONNECT_HOSTNAME "connect.prusa3d.com" ///< old hostname of the camera API, migrated to FACTORY_CFG_HOSTNAME
+#define BACKEND_USER_AGENT          "PrusaESP32Cam/" SW_VERSION ///< User-Agent header, required by the Camera Service
+#define REFRESH_INTERVAL_TEN_SEC    10                      ///< trigger scheme TEN_SEC [s]
+#define REFRESH_INTERVAL_THIRTY_SEC 30                      ///< trigger scheme THIRTY_SEC [s]
+#define REFRESH_INTERVAL_SIXTY_SEC  60                      ///< trigger scheme SIXTY_SEC [s]
+#define REFRESH_INTERVAL_TEN_MIN    600                     ///< trigger scheme TEN_MIN [s]
+#define REFRESH_INTERVAL_TEN_MIN_EEPROM 0                   ///< value stored in the EEPROM for TEN_MIN, the EEPROM cell has 1 byte
+#define BACKEND_SOCKET_TIMEOUT      5000                    ///< socket read/write timeout [ms]
+#define BACKEND_RESPONSE_TIMEOUT    10000                   ///< maximum waiting time for the backend response [ms]
+#define BACKEND_BACKOFF_MAX         600                     ///< maximum waiting time after a failed upload [s]
+#define BACKEND_CONNECT_FAIL_WIFI_RECONNECT 10              ///< reconnect WiFi after this count of consecutive failed connections to the backend
+#define CAMERA_SERVICE_SNAPSHOT_MAX_SIZE 1000000            ///< maximum snapshot size [bytes]
+#define CAMERA_SERVICE_NAME_MAX_LEN 32                      ///< maximum length of the camera name
+#define CAMERA_SERVICE_FW_VERSION_MAX_LEN 16                ///< maximum length of the firmware version
+#define CAMERA_SERVICE_HW_VERSION_MAX_LEN 32                ///< maximum length of the hardware version
+#define CAMERA_SERVICE_TOKEN_LEN    20                      ///< token length
+#define CAMERA_SERVICE_FINGERPRINT_MIN_LEN 16               ///< minimum fingerprint length
+#define CAMERA_SERVICE_FINGERPRINT_MAX_LEN 64               ///< maximum fingerprint length
+
+/* ------------- THERMAL PROTECTION  ------------*/
+#define THERMAL_THROTTLE_TEMP       75.0                    ///< MCU temperature for throttling: stream is stopped, uploads are slowed down [°C]
+#define THERMAL_RESUME_TEMP         68.0                    ///< MCU temperature for normal operation after throttling [°C]
+#define THERMAL_THROTTLE_INTERVAL   REFRESH_INTERVAL_SIXTY_SEC ///< minimum upload interval during throttling [s]
+
+/* ------------------ PRUSALINK  ----------------*/
+#define PRUSALINK_POLL_INTERVAL     10                      ///< interval for reading printer state from PrusaLink [s]
+#define PRUSALINK_HTTP_TIMEOUT      3000                    ///< PrusaLink HTTP timeout [ms]
+#define PRUSALINK_IDLE_INTERVAL     REFRESH_INTERVAL_TEN_MIN ///< upload interval when the printer is not printing [s]
+#define PRUSALINK_DEFAULT_USER      "maker"                 ///< default PrusaLink user name on Prusa printers
 
 /* -------------- STATUS LED CFG ----------------*/
 #define STATUS_LED_ON_DURATION      100                     ///< time for blink status LED when is module in the ON state [ms]
@@ -111,8 +140,8 @@
 
 /* ---------------- FACTORY CFG  ----------------*/
 #define FACTORY_CFG_PHOTO_REFRESH_INTERVAL    30                ///< in the second
-#define FACTORY_CFG_PHOTO_QUALITY             10                ///< 10-63, lower is better
-#define FACTORY_CFG_FRAME_SIZE                0                 ///< 0 - FRAMESIZE_QVGA, ..., 6 - FRAMESIZE_UXGA. Look function Cfg_TransformFrameSizeDataType
+#define FACTORY_CFG_PHOTO_QUALITY             12                ///< 10-63, lower is better
+#define FACTORY_CFG_FRAME_SIZE                4                 ///< 0 - FRAMESIZE_QVGA, ..., 4 - FRAMESIZE_XGA, 6 - FRAMESIZE_UXGA. Look function Cfg_TransformFrameSizeDataType
 #define FACTORY_CFG_BRIGHTNESS                0                 ///< from -2 to 2
 #define FACTORY_CFG_CONTRAST                  0                 ///< from -2 to 2
 #define FACTORY_CFG_SATURATION                0                 ///< from -2 to 2
@@ -137,7 +166,7 @@
 #define FACTORY_CFG_AEC_VALUE                 300               ///< automatic exposition time
 #define FACTORY_CFG_GAIN_CTRL                 1                 ///< enable automatic gain
 #define FACTORY_CFG_AGC_GAIN                  0                 ///< automatic gain controll gain
-#define FACTORY_CFG_HOSTNAME                  F("connect.prusa3d.com")  ///< hostname for Prusa Connect
+#define FACTORY_CFG_HOSTNAME                  F("camera-service.prusa3d.com")  ///< hostname for Prusa Connect Camera Service
 #define FACTORY_CFG_ENABLE_SERVICE_AP         1                 ///< enable service AP mode
 #define FACTORY_CFG_NETWORK_IP_METHOD         0                 ///< 0 - DHCP, 1 - Static IP
 #define FACTORY_CFG_NETWORK_STATIC_IP         F("255.255.255.255") ///< Static IP address
@@ -148,6 +177,10 @@
 #define FACTORY_CFG_TIMELAPS_ENABLE           0                 ///< enable timelaps functionality
 #define FACTORY_CFG_ENABLE_EXT_SENSOR         0                 ///< enable DHT22 sensor
 #define FACTORY_CFG_EXT_SENSOR_UNIT           0                 ///< 0 = celsius, 1 = fahrenheit
+#define FACTORY_CFG_PRUSALINK_ENABLE          0                 ///< read printer state from PrusaLink and upload often only during printing
+#define FACTORY_CFG_PRUSALINK_HOST            F("")             ///< PrusaLink printer IP address or hostname
+#define FACTORY_CFG_PRUSALINK_USER            F(PRUSALINK_DEFAULT_USER) ///< PrusaLink user name
+#define FACTORY_CFG_PRUSALINK_PASSWORD        F("")             ///< PrusaLink password
 
 /* ---------------- CFG FLAGS  ------------------*/
 #define CFG_WIFI_SETTINGS_SAVED               0x0A              ///< flag saved config
@@ -292,6 +325,18 @@
 #define EEPROM_ADDR_EXT_SENS_UNIT_START           (EEPROM_ADDR_EXT_SENS_ENABLE_START + EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH)
 #define EEPROM_ADDR_EXT_SENS_UNIT_LENGTH          1
 
+#define EEPROM_ADDR_PRUSALINK_ENABLE_START        (EEPROM_ADDR_EXT_SENS_UNIT_START + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH)
+#define EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH       1
+
+#define EEPROM_ADDR_PRUSALINK_HOST_START          (EEPROM_ADDR_PRUSALINK_ENABLE_START + EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH)
+#define EEPROM_ADDR_PRUSALINK_HOST_LENGTH         41                                                                                      ///< maximum length 40 + 1 byte for save length
+
+#define EEPROM_ADDR_PRUSALINK_USER_START          (EEPROM_ADDR_PRUSALINK_HOST_START + EEPROM_ADDR_PRUSALINK_HOST_LENGTH)
+#define EEPROM_ADDR_PRUSALINK_USER_LENGTH         21                                                                                      ///< maximum length 20 + 1 byte for save length
+
+#define EEPROM_ADDR_PRUSALINK_PASSWORD_START      (EEPROM_ADDR_PRUSALINK_USER_START + EEPROM_ADDR_PRUSALINK_USER_LENGTH)
+#define EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH     33                                                                                      ///< maximum length 32 + 1 byte for save length
+
 #define EEPROM_SIZE (EEPROM_ADDR_REFRESH_INTERVAL_LENGTH + EEPROM_ADDR_FINGERPRINT_LENGTH + EEPROM_ADDR_TOKEN_LENGTH + \
                      EEPROM_ADDR_FRAMESIZE_LENGTH + EEPROM_ADDR_BRIGHTNESS_LENGTH + EEPROM_ADDR_CONTRAST_LENGTH + \
                      EEPROM_ADDR_SATURATION_LENGTH + EEPROM_ADDR_HMIRROR_LENGTH + EEPROM_ADDR_VFLIP_LENGTH + \
@@ -307,7 +352,9 @@
                      EEPROM_ADDR_HOSTNAME_LENGTH + EEPROM_ADDR_SERVICE_AP_ENABLE_LENGTH + EEPROM_ADDR_NETWORK_IP_METHOD_LENGTH +\
                      EEPROM_ADDR_NETWORK_STATIC_IP_LENGTH + EEPROM_ADDR_NETWORK_STATIC_MASK_LENGTH + EEPROM_ADDR_NETWORK_STATIC_GATEWAY_LENGTH + \
                      EEPROM_ADDR_NETWORK_STATIC_DNS_LENGTH + EEPROM_ADDR_IMAGE_ROTATION_LENGTH + EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH + \
-                     EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH)    ///< how many bits do we need for eeprom memory
+                     EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH + \
+                     EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH + EEPROM_ADDR_PRUSALINK_HOST_LENGTH + EEPROM_ADDR_PRUSALINK_USER_LENGTH + \
+                     EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH)    ///< how many bits do we need for eeprom memory
 
 #endif
 

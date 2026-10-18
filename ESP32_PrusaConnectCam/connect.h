@@ -32,11 +32,13 @@ class Camera;
 
 class PrusaConnect {
 private:
-  uint8_t RefreshInterval;                        ///< interval for sending photo to backend
+  uint16_t RefreshInterval;                       ///< interval for sending photo to backend [s]. One of the Camera Service trigger schemes
   String BackendReceivedStatus;                   ///< status of backend response
   BackendAvailabilitStatus BackendAvailability;   ///< status of backend availability
   bool SendDeviceInformationToBackend;            ///< flag for sending device information to backend
-  uint8_t SendingIntervalCounter;                 ///< counter for sending interval, represents seconds
+  uint16_t SendingIntervalCounter;                ///< counter for sending interval, represents seconds
+  uint16_t BackoffInterval;                       ///< interval after a failed upload [s]. 0 = no backoff
+  uint16_t ConnectFailCounter;                    ///< count of consecutive failed connections to the backend server
   bool EnableTimelapsPhotoSave;                   ///< flag for saving photo to SD card
 
   String Token;                                   ///< token for backend communication
@@ -48,7 +50,10 @@ private:
   Camera *camera;                                 ///< pointer to camera object
   WiFiMngt *wifi;                                 ///< pointer to wifi object
 
-  bool SendDataToBackend(String *, int, String, String, String, SendDataToBackendType);
+  int SendDataToBackend(const uint8_t *, size_t, String, String, String);
+  void ProcessBackendResult(int, SendDataToBackendType);
+  String TranslateRefreshIntervalToTriggerScheme(uint16_t);
+  int TranslateExifRotationToDegree(uint8_t);
 
 public:
   PrusaConnect(Configuration*, Logs*, Camera*, WiFiMngt*);
@@ -58,22 +63,27 @@ public:
   void LoadCfgFromEeprom();
 
   void TakePicture();
-  void SendPhotoToBackend();
-  void SendInfoToBackend();
+  bool SendPhotoToBackend(const uint8_t *, size_t);
+  bool SendInfoToBackend();
   void TakePictureAndSendToBackend();
   String ProcessHttpResponseCode(int);
-  bool ProcessHttpResponseCodeBool(int);
+  BackendResultClass ProcessHttpResponseCodeClass(int);
   void UpdateDeviceInformation();
 
-  void SetRefreshInterval(uint8_t);
+  void SetRefreshInterval(uint16_t);
+  bool CheckRefreshInterval(uint16_t);
   void SetToken(String);
   void SetBackendAvailabilitStatus(BackendAvailabilitStatus);
   void SetPrusaConnectHostname(String);
   void SetTimeLapsPhotoSaveStatus(bool);
 
-  void SavePhotoToSdCard();
+  void SavePhotoToSdCard(uint8_t *, size_t);
 
-  uint8_t GetRefreshInterval();
+  uint16_t GetRefreshInterval();
+  uint16_t GetEffectiveInterval();
+  uint16_t GetBackoffInterval();
+  uint16_t GetConnectFailCounter();
+  void ClearConnectFailCounter();
   String GetBackendReceivedStatus();
   String GetToken();
   String GetFingerprint();
@@ -83,10 +93,10 @@ public:
   bool GetTimeLapsPhotoSaveStatus();
 
   void IncreaseSendingIntervalCounter();
-  void SetSendingIntervalCounter(uint8_t);
+  void SetSendingIntervalCounter(uint16_t);
   void SetSendingIntervalExpired();
-  uint8_t GetSendingIntervalCounter();
-  bool CheckSendingIntervalExpired();
+  uint16_t GetSendingIntervalCounter();
+  bool CheckSendingIntervalExpired(uint16_t);
 };
 
 extern PrusaConnect Connect;  ///< PrusaConnect object

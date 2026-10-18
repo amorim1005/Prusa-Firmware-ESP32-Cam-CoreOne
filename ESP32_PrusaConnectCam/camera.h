@@ -62,7 +62,6 @@ private:
   uint8_t imageExifRotation; ///< image rotation. 0 degree: value 1, 90 degree: value 6, 180 degree: value 3, 270 degree: value 8
 
   bool CameraCaptureSuccess; ///< camera capture success
-  bool PhotoSending;         ///< photo sending
 
   /* OV2640 camera module pinout and cfg*/
   camera_config_t CameraConfig;             ///< camera configuration
@@ -72,7 +71,7 @@ private:
   sensor_t* sensor;                         ///< sensor
   String Photo;                             ///< photo in string format
   bool StreamOnOff;                         ///< stream on/off
-  bool StreamSendingPhoto;                  ///< sending photo to Prusa Connect during stream
+  size_t FrameBufferDuplicateCapacity;      ///< allocated size of the duplicate frame buffer data
   SemaphoreHandle_t frameBufferSemaphore;   ///< semaphore for frame buffer
   float StreamAverageFps;                   ///< stream average fps
   uint16_t StreamAverageSize;               ///< stream average size
@@ -95,7 +94,7 @@ public:
   void ReinitCameraModule();
   void GetCameraModel();
   void CapturePhoto();
-  void CaptureStream(camera_fb_t *);
+  bool CaptureStream(camera_fb_t *);
   void CaptureReturnFrameBuffer();
   void SetStreamStatus(bool);
   bool GetStreamStatus();
@@ -106,7 +105,6 @@ public:
   uint16_t StreamGetFrameAverageSize();
   float StreamGetFrameAverageFps();
   void StreamClearFrameData();
-  void StreamSetSendingPhoto(bool);
   
   void CopyPhoto(camera_fb_t *);
   void CopyPhoto(String*);
@@ -117,8 +115,8 @@ public:
   camera_fb_t *GetPhotoFb();
   camera_fb_t* GetPhotoFbDuplicate();
   PhotoExifData_t * GetPhotoExifData();
+  bool GetPhotoCopy(uint8_t **, size_t *);
   framesize_t TransformFrameSizeDataType(uint8_t);
-  void SetPhotoSending(bool);
   
   void SetFlashStatus(bool);
   bool GetFlashStatus();
@@ -176,4 +174,4 @@ public:
 
 extern Camera SystemCamera; ///< Camera object
 
-/* EOF */
+/* EOF */

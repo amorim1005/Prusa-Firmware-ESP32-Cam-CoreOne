@@ -15,10 +15,10 @@ function get_data(val) {
 				document.getElementById('light-icon').appendChild(img);
 			}
 			document.title = obj.mdns;
+			$("#refreshInterval").text(obj.upload_interval);
 			
 			if (val == "config") {
 				$("#fingerprint").text(obj.fingerprint);
-				$("#refreshInterval").text(obj.refreshInterval);
 				document.getElementById('tokenid').value = obj.token;
 				document.getElementById('refreshid').value = obj.refreshInterval;
 				document.getElementById('photo_qualityid').value = obj.photoquality;
@@ -48,6 +48,13 @@ function get_data(val) {
 				document.getElementById("flash_time_value").innerText = obj.flash_time;
 				document.getElementById("aec_value_value").innerText = obj.aec_value;
 				document.getElementById('timelapsid').checked = obj.timelaps;
+				document.getElementById('prusalinkid').checked = (obj.prusalink_enable == "true");
+				document.getElementById('prusalink_hostid').value = obj.prusalink_host;
+				document.getElementById('prusalink_userid').value = obj.prusalink_user;
+				$("#status_prusalink").text((obj.prusalink_enable == "true") ? "On" : "Off");
+				$("#prusalink_status").text(obj.prusalink_status);
+				$("#printer_state").text(obj.printer_state);
+				$("#job_progress").text((obj.printer_state == "PRINTING") ? obj.job_progress + " %" : "");
 				$("#status_hmirror").text((obj.hmirror == "true") ? "On" : "Off");
 				$("#status_vflip").text((obj.vflip == "true") ? "On" : "Off");
 				$("#status_lensc").text((obj.lensc == "true") ? "On" : "Off");
@@ -108,6 +115,7 @@ function get_data(val) {
 				$("#sd_free_p").text(obj.sd_free_p);
 				$("#sd_used_p").text(obj.sd_used_p);
 				$("#mcu_temp").text(obj.mcu_temp);
+				$("#upload_interval").text(obj.upload_interval);
 
 				var sd_free_prog = document.getElementById("progress_bar_sd_free");
 				sd_free_prog.style.width = obj.sd_free_p + "%";
@@ -295,6 +303,20 @@ function GetDataAndPrintTableWiFi() {
 			console.log('Error:' + textStatus + '-' + errorThrown);
 		}
 	});
+}
+
+/* PrusaLink cfg, the password is sent only when the user typed a new one */
+function setPrusaLink() {
+	var url = "set_prusalink?enable=" + document.getElementById('prusalinkid').checked
+		+ "&host=" + encodeURIComponent(document.getElementById('prusalink_hostid').value)
+		+ "&user=" + encodeURIComponent(document.getElementById('prusalink_userid').value)
+		+ "&password=" + encodeURIComponent(document.getElementById('prusalink_passwordid').value);
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.open("GET", url, false);
+	xmlHttp.send(null);
+	alert(xmlHttp.responseText);
+	document.getElementById('prusalink_passwordid').value = "";
+	get_data("config");
 }
 
 /* auth page */

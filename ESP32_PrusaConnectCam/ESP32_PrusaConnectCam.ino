@@ -80,6 +80,7 @@ void setup() {
   Server_LoadCfg();
   SystemCamera.LoadCameraCfgFromEeprom();
   Connect.LoadCfgFromEeprom();
+  SystemPrusaLink.LoadCfgFromEeprom();
   SystemWifiMngt.LoadCfgFromEeprom();
 
   /* init WiFi mngt */
@@ -115,7 +116,8 @@ void setup() {
   SystemLog.AddEvent(LogLevel_Info, F("Start tasks"));
   xTaskCreatePinnedToCore(System_TaskMain, "SystemNtpOtaUpdate", 5200, NULL, 1, &Task_SystemMain, 0);                           /*function, description, stack size, parameters, priority, task handle, core*/
   ESP_ERROR_CHECK(esp_task_wdt_add(Task_SystemMain));
-  xTaskCreatePinnedToCore(System_TaskCaptureAndSendPhoto, "CaptureAndSendPhoto", 4400, NULL, 2, &Task_CapturePhotoAndSend, 0);  /*function, description, stack size, parameters, priority, task handle, core*/
+  /* photo capture, TLS upload and PrusaLink polling run on core 1. Core 0 runs the WiFi stack and the other tasks */
+  xTaskCreatePinnedToCore(System_TaskCaptureAndSendPhoto, "CaptureAndSendPhoto", 7168, NULL, 2, &Task_CapturePhotoAndSend, 1);  /*function, description, stack size, parameters, priority, task handle, core*/
   ESP_ERROR_CHECK(esp_task_wdt_add(Task_CapturePhotoAndSend));
   xTaskCreatePinnedToCore(System_TaskWifiManagement, "WiFiManagement", 2700, NULL, 3, &Task_WiFiManagement, 0);                 /*function, description, stack size, parameters, priority, task handle, core*/
   ESP_ERROR_CHECK(esp_task_wdt_add(Task_WiFiManagement));

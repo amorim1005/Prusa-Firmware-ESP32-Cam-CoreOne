@@ -495,6 +495,49 @@ void System_TaskMain(void *pvParameters) {
 }
 
 /**
+ * @brief Read MCU temperature and update the thermal throttling state, with hysteresis.
+ *        The XIAO ESP32-S3 inside the heated chamber of a printer can overheat
+ * 
+ * @param none
+ * @return none
+ */
+void System_CheckThermalState() {
+  float temp = temperatureRead();
+  McuTemperature.TemperatureCelsius = temp;
+
+  if ((false == McuTemperature.ThermalThrottling) && (temp >= THERMAL_THROTTLE_TEMP)) {
+    McuTemperature.ThermalThrottling = true;
+    SystemLog.AddEvent(LogLevel_Warning, "MCU temperature is too high: " + String(temp) + " *C. Stream stopped, uploads slowed down");
+  } else if ((true == McuTemperature.ThermalThrottling) && (temp <= THERMAL_RESUME_TEMP)) {
+    McuTemperature.ThermalThrottling = false;
+    SystemLog.AddEvent(LogLevel_Info, "MCU temperature is OK: " + String(temp) + " *C. Normal operation");
+  }
+}
+
+/**
+ * @brief Get interval for the next photo upload. The longest interval wins:
+ *        - refresh interval, or backoff interval after a failed upload
+ *        - PrusaLink: PRUSALINK_IDLE_INTERVAL when the printer is reachable and is not printing
+ *        - thermal throttling: THERMAL_THROTTLE_INTERVAL
+ * 
+ * @param none
+ * @return uint16_t - interval [s]
+ */
+uint16_t System_GetUploadInterval() {
+  uint16_t interval = Connect.GetEffectiveInterval();
+
+  if ((true == SystemPrusaLink.GetEnable()) && (true == SystemPrusaLink.GetReachable()) && (false == SystemPrusaLink.GetPrinting())) {
+    interval = max(interval, (uint16_t)PRUSALINK_IDLE_INTERVAL);
+  }
+
+  if (true == McuTemperature.ThermalThrottling) {
+    interval = max(interval, (uint16_t)THERMAL_THROTTLE_INTERVAL);
+  }
+
+  return interval;
+}
+
+/**
  * @brief Function for capture and send photo task
  * 
  * @param void *pvParameters
@@ -505,17 +548,28 @@ void System_TaskCaptureAndSendPhoto(void *pvParameters) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
 
   while (1) {
-    if (Connect.CheckSendingIntervalExpired()) {
+    System_CheckThermalState();
+
+    /* read printer state from PrusaLink. Upload immediately when the printer starts or finishes printing */
+    SystemPrusaLink.Loop();
+    if ((true == SystemPrusaLink.ConsumeStateChange()) && (0 == Connect.GetBackoffInterval())) {
+      SystemLog.AddEvent(LogLevel_Info, F("Printer state changed, send photo now"));
+      Connect.SetSendingIntervalExpired();
+    }
+
+    if (Connect.CheckSendingIntervalExpired(System_GetUploadInterval())) {
       Connect.SetSendingIntervalCounter(0);
-      /* send network information to backend */
+      bool InfoOk = true;
+
+      /* send camera information to backend */
       if ((WL_CONNECTED == WiFi.status()) && (false == FirmwareUpdate.Processing)) {
         SystemLog.AddEvent(LogLevel_Verbose, F("Task photo processing. Start sending info"));
         esp_task_wdt_reset();
-        Connect.SendInfoToBackend();
+        InfoOk = Connect.SendInfoToBackend();
       }
 
-      /* send photo to backend*/
-      if ((WL_CONNECTED == WiFi.status()) && (false == FirmwareUpdate.Processing)) {
+      /* send photo to backend. Skip it when the backend is not reachable */
+      if ((WL_CONNECTED == WiFi.status()) && (false == FirmwareUpdate.Processing) && (true == InfoOk)) {
         SystemLog.AddEvent(LogLevel_Verbose, F("Task photo processing. Start sending photo"));
         esp_task_wdt_reset();
         Connect.TakePictureAndSendToBackend();

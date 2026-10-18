@@ -38,6 +38,7 @@ struct FirmwareUpdate_struct {
 
 struct McuTemperature_struct {
   float TemperatureCelsius;               ///< MCU temperature
+  volatile bool ThermalThrottling;        ///< MCU is too hot: stream is stopped and uploads are slowed down
 };
 
 extern struct WebBasicAuth_struct WebBasicAuth;      ///< structure with configuration for basic auth

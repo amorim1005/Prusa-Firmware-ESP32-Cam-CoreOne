@@ -36,6 +36,7 @@
 #include "Certificate_ota.h"
 #include "wifi_mngt.h"
 #include "connect.h"
+#include "prusalink.h"
 #include "serial_cfg.h"
 #include "sys_led.h"
 #include "ExternalTemperatureSensor.h"
@@ -65,6 +66,8 @@ String System_printMcuResetReasonSimple();
 void System_TaskWifiManagement(void *);
 void System_TaskMain(void *);
 void System_TaskCaptureAndSendPhoto(void *);
+void System_CheckThermalState();
+uint16_t System_GetUploadInterval();
 void System_TaskSdCardCheck(void *);
 void System_TaskSerialCfg(void *);
 void System_TaskSystemTelemetry(void *);
