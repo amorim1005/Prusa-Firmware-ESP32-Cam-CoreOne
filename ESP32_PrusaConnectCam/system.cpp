@@ -96,6 +96,17 @@ bool System_CheckIfPsramIsUsed() {
 void System_Main() {
   static uint16_t HealthCheckCounter = 0;
 
+  /* restart after a firmware upload from the WEB page. Wait one cycle, the WEB server sends the answer to the browser */
+  static bool RestartWait = false;
+  if (true == FirmwareUpload.RestartPending) {
+    if (true == RestartWait) {
+      SystemLog.AddEvent(LogLevel_Warning, F("Restart MCU with the new firmware"));
+      SystemLog.LogFlushFile();
+      ESP.restart();
+    }
+    RestartWait = true;
+  }
+
   HealthCheckCounter++;
   if (HealthCheckCounter >= HEALTH_CHECK_INTERVAL) {
     HealthCheckCounter = 0;
@@ -131,7 +142,7 @@ void System_CheckMemory() {
 
   /* restart when nobody watches the stream and the printer is not printing. While printing, restart only when the memory does not get better */
   bool printing = (true == SystemPrusaLink.GetEnable()) && (true == SystemPrusaLink.GetReachable()) && (true == SystemPrusaLink.GetPrinting());
-  bool idle = (0 == SystemCamera.GetStreamClients()) && (false == printing);
+  bool idle = (0 == SystemCamera.GetStreamClients()) && (false == printing) && (false == System_FirmwareUploadActive());
 
   if (((true == idle) && (SystemHealth.LowMemoryTime >= HEALTH_LOW_MEMORY_RESTART)) || (SystemHealth.LowMemoryTime >= HEALTH_LOW_MEMORY_FORCE)) {
     SystemLog.AddEvent(LogLevel_Error, F("Memory is low for a long time. Restart MCU!"));
@@ -454,14 +465,14 @@ void System_TaskCaptureAndSendPhoto(void *pvParameters) {
       bool InfoOk = true;
 
       /* send camera information to backend */
-      if (WL_CONNECTED == WiFi.status()) {
+      if ((WL_CONNECTED == WiFi.status()) && (false == System_FirmwareUploadActive())) {
         SystemLog.AddEvent(LogLevel_Verbose, F("Task photo processing. Start sending info"));
         esp_task_wdt_reset();
         InfoOk = Connect.SendInfoToBackend();
       }
 
       /* send photo to backend. Skip it when the backend is not reachable */
-      if ((WL_CONNECTED == WiFi.status()) && (true == InfoOk)) {
+      if ((WL_CONNECTED == WiFi.status()) && (false == System_FirmwareUploadActive()) && (true == InfoOk)) {
         SystemLog.AddEvent(LogLevel_Verbose, F("Task photo processing. Start sending photo"));
         esp_task_wdt_reset();
         Connect.TakePictureAndSendToBackend();

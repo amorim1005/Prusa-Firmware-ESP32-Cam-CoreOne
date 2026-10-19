@@ -13,6 +13,7 @@
 
 WebBasicAuth_struct WebBasicAuth = { false, "", "" };
 struct SystemHealth_struct SystemHealth = { false, 0, 0, "N/A" };
+struct FirmwareUpload_struct FirmwareUpload = { false, 0, false, "" };
 struct McuTemperature_struct McuTemperature = {0.0, false, 0.0};
 
 TaskHandle_t Task_CapturePhotoAndSend;
@@ -58,6 +59,15 @@ SystemRestartReason_enum System_ConsumeRestartReason() {
   }
   SystemRestartMagic = 0;
   return ret;
+}
+
+/**
+ * @brief Check if a firmware upload is in progress. An upload without new data for 30 s was interrupted by the browser
+ *
+ * @return bool - true when the upload is in progress
+ */
+bool System_FirmwareUploadActive() {
+  return (true == FirmwareUpload.Active) && ((millis() - FirmwareUpload.LastData) < 30000);
 }
 
 /* EOF */

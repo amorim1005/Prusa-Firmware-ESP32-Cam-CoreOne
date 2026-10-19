@@ -375,6 +375,45 @@ function togglePasswordVisibility() {
 	}
 }
 
+/* system page: firmware update from file */
+function uploadFirmware() {
+	var file = document.getElementById('firmwareInput').files[0];
+	var status = document.getElementById('firmwareStatus');
+	var bar = document.getElementById('firmwareProgress');
+
+	if (!file) {
+		status.innerText = 'No file selected';
+		return;
+	}
+	if (!confirm('Install ' + file.name + '? The camera restarts after the upload.')) {
+		return;
+	}
+
+	var formData = new FormData();
+	formData.append('firmware', file, file.name);
+
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', 'upload_firmware', true);
+	xhr.upload.onprogress = function(e) {
+		if (e.lengthComputable) {
+			var p = Math.round(e.loaded * 100 / e.total);
+			bar.style.width = p + '%';
+			bar.innerHTML = p + '%';
+		}
+	};
+	xhr.onload = function() {
+		status.innerText = xhr.responseText;
+		if (xhr.status == 200) {
+			setTimeout(function() { location.reload(); }, 20000);
+		}
+	};
+	xhr.onerror = function() {
+		status.innerText = 'Upload failed: connection error';
+	};
+	status.innerText = 'Uploading...';
+	xhr.send(formData);
+}
+
 function validatePasswords() {
     var password = document.getElementById("auth_password").value;
     var confirmPassword = document.getElementById("auth_password_confirm").value;

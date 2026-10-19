@@ -8,7 +8,7 @@ changes are in the commits on top of it.
 Goal: a camera you can rely on every day, on a **Prusa Core One**, with a
 **Seeed Studio XIAO ESP32-S3 Sense** (OV2640 camera).
 
-Firmware version: **1.1.2-c7** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c8** (see the [version history](#version-history)).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
 > The first tests on your printer are the final check. Read
@@ -29,7 +29,7 @@ Firmware version: **1.1.2-c7** (see the [version history](#version-history)).
 8b. [Camera sensors: OV2640, OV3660, OV5640](#8b-camera-sensors-ov2640-ov3660-ov5640)
 8c. [Speed and fluidity (version 1.1.2-c6)](#8c-speed-and-fluidity-version-112-c6)
 8d. [How the photo and stream paths work](#8d-how-the-photo-and-stream-paths-work)
-8e. [Health checks, no OTA (version 1.1.2-c7)](#8e-health-checks-no-ota-version-112-c7)
+8e. [Health checks and firmware update from file (versions 1.1.2-c7 and c8)](#8e-health-checks-and-firmware-update-from-file-versions-112-c7-and-c8)
 9. [How to compile (Arduino IDE or VS Code)](#9-how-to-compile)
 10. [How to flash the firmware](#10-how-to-flash-the-firmware)
 11. [Known limitations](#11-known-limitations)
@@ -98,7 +98,7 @@ documentation says new code should use the new ones. What changed:
 | The server certificate is issued by Google Trust Services | Trusted only ISRG Root X1 (Let's Encrypt), so **the connection would fail** | Added GTS Root R4 and GTS Root R1 (ISRG Root X1 kept). Verified against the real server |
 | Camera info with `device: {type: "ESP32", firmware_version, hardware_version}`. Unknown fields are **rejected** | Old format, which would be rejected (error 422) | New format, exactly as documented |
 | Camera name of at most 32 characters | Up to 40 | Cut to 32 |
-| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c7` |
+| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c8` |
 | Only 4 intervals: 10 s, 30 s, 60 s, 10 min. At most 6 uploads per minute | Any value from 10 to 240 s | A list with the 4 values. Old values are converted to the nearest one |
 | Photos of at most 1 MB | Not checked | Checked before uploading |
 | Each error code has its own action | All errors handled the same way | See below |
@@ -429,7 +429,7 @@ has no EXIF header and is not saved to the SD card.
 
 ---
 
-## 8e. Health checks, no OTA (version 1.1.2-c7)
+## 8e. Health checks and firmware update from file (versions 1.1.2-c7 and c8)
 
 The camera runs for weeks inside the printer without anybody looking at it. Version 1.1.2-c7
 helps it recover by itself and shows its problems where you already look: in Prusa Connect.
@@ -489,12 +489,45 @@ New **Health** section:
 
 The telemetry log line every 30 s also shows the largest free block of each memory.
 
-### No OTA update
+### Firmware update from file, no update from the internet
 
 The original firmware could update itself from the **official Prusa releases** ("Update from
-cloud"), which would replace this firmware with the original one, and from a `.bin` file uploaded
-on the System page. Both are **removed**: the routes, the GitHub certificates, the serial command
-`otaupdate` and the update section of the System page. **Flash new versions over USB** (section 10).
+cloud"), which would replace this firmware with the original one without asking. That is
+**removed** (version 1.1.2-c7): the cloud routes, the GitHub certificates and the serial command
+`otaupdate`.
+
+What remains (version 1.1.2-c8) is the **update from a file** on the System page: you choose a
+`.bin` on your computer and the camera installs it over Wi-Fi. Any firmware works, from this
+repository or the original one:
+
+| Firmware | File |
+|---|---|
+| This repository | `firmware/xiao-esp32-s3/ESP32_PrusaConnectCam.ino.bin` |
+| Original Prusa firmware | `XIAO_ESP32S3.bin` from the [Prusa releases](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam/releases) |
+
+How it works:
+
+1. System page → **Firmware update from file** → choose the file → **Upload and install**.
+2. Before anything is written, the camera checks the beginning of the file. It rejects:
+   - a file that is not a firmware;
+   - a firmware for another chip (for example the ESP32-CAM AI Thinker file);
+   - the `merged.bin`, `bootloader.bin` and `partitions.bin` files: they are for USB flashing at
+     address 0x0, and over Wi-Fi they would make the camera unbootable.
+3. The new firmware is written to the second firmware slot of the flash. The running firmware is
+   not touched, so a failed or interrupted upload changes nothing.
+4. At the end the image hash is checked, and only then the new firmware is set for the next start.
+   The camera restarts by itself and the page reloads after 20 s.
+
+During the upload, the camera does not send photos to Prusa Connect, and the low memory check
+does not restart it. The upload needs the web page login, when it is enabled.
+
+**From this firmware to the original one:** after the original firmware starts, do a **factory
+reset** (section 12). This firmware saves some settings in a different format (the Camera
+Service hostname and the 10 min interval), and the original firmware cannot read them.
+**From the original firmware to this one:** nothing to do, the settings are converted.
+
+> The check accepts any application for the ESP32-S3, also one built for another ESP32-S3 board
+> (for example ESP32-S3-EYE). Use the XIAO file only.
 
 ---
 
@@ -637,8 +670,8 @@ If the board is not detected: hold the **B** (boot) button, plug in the USB cabl
 - **Thermal limits (75 / 68 °C)** are an estimate for the chip's internal temperature.
   Adjust them after seeing real values on the System page.
 - **At most 2 stream clients** at a time (see section 8c).
-- **No firmware update over Wi-Fi** (removed in version 1.1.2-c7, see section 8e). Flash new
-  versions over USB (section 10).
+- **No firmware update from the internet** (removed in version 1.1.2-c7). Update from a `.bin`
+  file on the System page, or over USB (section 10). See section 8e.
 - The only possible intervals are 10 s, 30 s, 60 s and 10 min (a Prusa rule).
 
 ---
@@ -687,7 +720,8 @@ then disconnect GPIO2 from GND.
 | `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, current interval, versioned `styles.css` |
 | `ESP32_PrusaConnectCam/system.cpp`, `var.cpp`, `var.h` (c7) | Low memory check and automatic restart, restart reasons, camera health |
 | `ESP32_PrusaConnectCam/connect.cpp`, `connect.h` (c7) | Camera health in the name sent to Prusa Connect, upload counters |
-| `ESP32_PrusaConnectCam/Certificate_ota.h`, OTA routes and code (c7) | **Removed**: no OTA update |
+| `ESP32_PrusaConnectCam/Certificate_ota.h`, OTA routes and code (c7) | **Removed**: no update from the internet |
+| `ESP32_PrusaConnectCam/WebServer.cpp`, `WebServer.h` (c8) | Firmware update from file, with checks of the file before writing |
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
 | `firmware/xiao-esp32-s3/` | **New**: compiled firmware |
@@ -705,7 +739,8 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 |---|---|
 | 1.1.2-c1 | 11 bugs fixed, Prusa Camera Service, Core One defaults, thermal guard, PrusaLink |
 | 1.1.2-c2 | TLS timeout, browser cache, page sending, rejected camera info, PrusaLink with the printer switched off, 16 KB TLS chunks, batched SD log writes, debug messages (see [section 8](#8-optimizations-in-version-112-c2)) |
-| 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, OTA update removed (see [section 8e](#8e-health-checks-no-ota-version-112-c7)) |
+| 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed (see [section 8e](#8e-health-checks-and-firmware-update-from-file-versions-112-c7-and-c8)) |
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached (see [section 8c](#8c-speed-and-fluidity-version-112-c6)) |
 | 1.1.2-c5 | OV5640 continuous autofocus, autofocus state on the Camera page |
 | 1.1.2-c4 | Camera sensor detected once and saved: later starts initialize the camera only once |

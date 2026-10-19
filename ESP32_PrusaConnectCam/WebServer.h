@@ -17,6 +17,9 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include <Update.h>
+#include <esp_app_format.h>
+#include <esp_app_desc.h>
 
 #include "micro_sd.h"
 #include "log.h"
@@ -42,7 +45,9 @@ void Server_InitWebServer_WebPages();
 void Server_InitWebServer_Icons();
 void Server_InitWebServer_Actions();
 void Server_InitWebServer_Sets();
+void Server_InitWebServer_Update();
 void Server_InitWebServer_Stream();
+String Server_CheckFirmwareImage(const uint8_t *, size_t);
 
 void Server_pause();
 void Server_resume();

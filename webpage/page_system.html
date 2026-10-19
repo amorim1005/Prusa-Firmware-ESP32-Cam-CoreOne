@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c7");</style>
+<style>@import url("styles.css?v=1.1.2-c8");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -45,8 +45,19 @@
 		   <tr><td class="ps1">Used</td><td class="ps2"><div class="progress-container"><div class="progress-bar" id="progress_bar_sd_used">0%</div></div></td></tr>
         </table>
     </center>
+    <br>
+    <center>
+        <table id="update">
+            <tr><td class="ps3">Firmware update from file</td><td></td></tr>
+            <tr><td class="ps1">Firmware file (.bin)</td><td><input type="file" id="firmwareInput" accept=".bin"></td></tr>
+            <tr><td></td><td><button class="btn_update" onclick="uploadFirmware()">Upload and install</button></td></tr>
+            <tr><td class="ps1">Progress</td><td class="ps2"><div class="progress-container"><div class="progress-bar" id="firmwareProgress">0%</div></div></td></tr>
+            <tr><td class="ps1">Status</td><td class="ps2" id="firmwareStatus">Ready</td></tr>
+            <tr><td></td><td class="ps2">Use the application file: <b>ESP32_PrusaConnectCam.ino.bin</b> from this repository, or <b>XIAO_ESP32S3.bin</b> from the original Prusa releases. After installing the original firmware, do a factory reset.</td></tr>
+        </table>
+    </center>
 </body>
-<script src="scripts.js?v=1.1.2-c7"></script>
+<script src="scripts.js?v=1.1.2-c8"></script>
 <script>
 	get_data("system");
 </script>

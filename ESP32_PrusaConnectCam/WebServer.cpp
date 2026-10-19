@@ -68,6 +68,7 @@ void Server_InitWebServer() {
   Server_InitWebServer_Icons();
   Server_InitWebServer_Actions();
   Server_InitWebServer_Sets();
+  Server_InitWebServer_Update();
   Server_InitWebServer_Stream();
 
   /* route for not found page */
@@ -1018,6 +1019,121 @@ void Server_InitWebServer_Sets() {
       }
     }
   });
+}
+
+/**
+   @brief Init WEB firmware upload. The user uploads an application file (.bin) from the computer:
+          this firmware or the original Prusa firmware. There is no download from the internet
+   @param none
+   @return none
+*/
+void Server_InitWebServer_Update() {
+  server.on(
+    "/upload_firmware", HTTP_POST, [](AsyncWebServerRequest* request) {
+      if (Server_CheckBasicAuth(request) == false)
+        return;
+
+      if ((FirmwareUpload.Error.length() == 0) && (true == Update.isFinished())) {
+        request->send(200, F("text/plain"), F("Firmware installed. The camera restarts now, the page reloads in 20 s"));
+        FirmwareUpload.RestartPending = true;
+      } else {
+        String msg = (FirmwareUpload.Error.length() > 0) ? FirmwareUpload.Error : String(F("The upload is not complete"));
+        request->send(400, F("text/plain"), "Firmware NOT installed: " + msg);
+      }
+    },
+    [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+      if (0 == index) {
+        /* an earlier upload was interrupted by the browser */
+        if (true == Update.isRunning()) {
+          Update.abort();
+        }
+        FirmwareUpload.Error = "";
+
+        /* no answer from here, the request handler answers after the upload */
+        if ((true == WebBasicAuth.EnableAuth) && (!request->authenticate(WebBasicAuth.UserName.c_str(), WebBasicAuth.Password.c_str()))) {
+          FirmwareUpload.Error = F("Unauthorized");
+        } else {
+          FirmwareUpload.Error = Server_CheckFirmwareImage(data, len);
+        }
+
+        if (FirmwareUpload.Error.length() == 0) {
+          SystemLog.AddEvent(LogLevel_Warning, F("Firmware upload started: "), filename);
+          FirmwareUpload.Active = true;
+          FirmwareUpload.LastData = millis();
+          if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+            FirmwareUpload.Error = "Update start failed: " + String(Update.errorString());
+          }
+        }
+
+        if (FirmwareUpload.Error.length() > 0) {
+          SystemLog.AddEvent(LogLevel_Error, F("Firmware upload rejected: "), FirmwareUpload.Error);
+          FirmwareUpload.Active = false;
+        }
+      }
+
+      /* after an error, the rest of the file is ignored */
+      if (FirmwareUpload.Error.length() > 0) {
+        return;
+      }
+
+      FirmwareUpload.LastData = millis();
+      if (Update.write(data, len) != len) {
+        FirmwareUpload.Error = "Flash write failed: " + String(Update.errorString());
+        SystemLog.AddEvent(LogLevel_Error, FirmwareUpload.Error);
+        Update.abort();
+        FirmwareUpload.Active = false;
+        return;
+      }
+
+      if (final) {
+        /* checks the image hash and sets the new firmware for the next start */
+        if (true == Update.end(true)) {
+          SystemLog.AddEvent(LogLevel_Warning, "Firmware upload done: " + String(index + len) + " B");
+        } else {
+          FirmwareUpload.Error = "Firmware check failed: " + String(Update.errorString());
+          SystemLog.AddEvent(LogLevel_Error, FirmwareUpload.Error);
+        }
+        FirmwareUpload.Active = false;
+      }
+    });
+}
+
+/**
+   @brief Check the beginning of an uploaded firmware file, before anything is written to the flash.
+          Accepts only an application image for this chip. The bootloader, the partition table and the merged .bin
+          (bootloader + partitions + application) are rejected, they would make the MCU unbootable
+   @param const uint8_t* - first part of the file
+   @param size_t - length
+   @return String - error message. Empty = OK
+*/
+String Server_CheckFirmwareImage(const uint8_t* i_data, size_t i_len) {
+  const size_t desc_offset = sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t);
+  if (i_len < (desc_offset + offsetof(esp_app_desc_t, time))) {
+    return F("The first part of the upload is too small. Try again");
+  }
+
+  esp_image_header_t header;
+  esp_app_desc_t desc;
+  memcpy(&header, i_data, sizeof(header));
+  memcpy(&desc, i_data + desc_offset, offsetof(esp_app_desc_t, time));
+
+  if (ESP_IMAGE_HEADER_MAGIC != header.magic) {
+    return F("This is not a firmware file");
+  }
+  if (CONFIG_IDF_FIRMWARE_CHIP_ID != header.chip_id) {
+    return F("This firmware is for another chip, for example ESP32 instead of ESP32-S3");
+  }
+  if (ESP_APP_DESC_MAGIC_WORD != desc.magic_word) {
+    return F("This is not an application file. Use ESP32_PrusaConnectCam.ino.bin, not the merged.bin or the bootloader.bin");
+  }
+
+  char project[sizeof(desc.project_name) + 1] = { '\0' };
+  char version[sizeof(desc.version) + 1] = { '\0' };
+  memcpy(project, desc.project_name, sizeof(desc.project_name));
+  memcpy(version, desc.version, sizeof(desc.version));
+  SystemLog.AddEvent(LogLevel_Warning, "Firmware upload: project " + String(project) + ", version " + String(version));
+
+  return "";
 }
 
 /**

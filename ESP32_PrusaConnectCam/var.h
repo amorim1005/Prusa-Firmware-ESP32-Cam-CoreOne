@@ -35,6 +35,13 @@ struct SystemHealth_struct {
   String LastRestartReason;               ///< reason of the last restart
 };
 
+struct FirmwareUpload_struct {
+  volatile bool Active;                   ///< firmware upload from the WEB page in progress
+  volatile uint32_t LastData;             ///< time of the last received part of the firmware [ms]
+  volatile bool RestartPending;           ///< restart the MCU after a successful upload
+  String Error;                           ///< error of the last upload. Empty = OK
+};
+
 struct McuTemperature_struct {
   float TemperatureCelsius;               ///< MCU temperature
   volatile bool ThermalThrottling;        ///< MCU is too hot: stream is stopped and uploads are slowed down
@@ -43,6 +50,7 @@ struct McuTemperature_struct {
 
 extern struct WebBasicAuth_struct WebBasicAuth;      ///< structure with configuration for basic auth
 extern struct SystemHealth_struct SystemHealth;      ///< memory and restart statistics
+extern struct FirmwareUpload_struct FirmwareUpload;  ///< firmware upload from the WEB page
 extern struct McuTemperature_struct McuTemperature;  ///< MCU temperature
 
 extern TaskHandle_t Task_CapturePhotoAndSend;        ///< task handle for capture photo and send
@@ -60,5 +68,6 @@ extern uint32_t SdCardRemoveTime;
 
 void System_RestartMcu(SystemRestartReason_enum);
 SystemRestartReason_enum System_ConsumeRestartReason();
+bool System_FirmwareUploadActive();
 
 /* EOF */

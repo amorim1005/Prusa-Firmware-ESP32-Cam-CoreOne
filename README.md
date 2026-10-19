@@ -3,7 +3,7 @@
 > **Fork for the XIAO ESP32-S3 Sense on the Prusa Core One.** This repository is a fork of
 > [prusa3d/Prusa-Firmware-ESP32-Cam](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam) v1.1.2,
 > with 11 bugs fixed, migration to the Prusa Camera Service, a thermal guard and PrusaLink integration.
-> There is no OTA update in this fork: flash new versions over USB.
+> No update from the internet in this fork: update from a `.bin` file on the System page, or over USB.
 > **Read [README_CORE_ONE.md](README_CORE_ONE.md) first** (explanations, how to compile and flash).
 > The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/).
 
