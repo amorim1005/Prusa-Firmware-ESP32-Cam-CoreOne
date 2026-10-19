@@ -795,7 +795,7 @@ void Configuration::SavePrusaConnectHostname(String i_data) {
    @return none
 */
 void Configuration::SaveNetworkIpMethod(uint8_t i_data) {
-  Log->AddEvent(LogLevel_Verbose, "Save network ip method: " + (i_data == 0) ? "DHCP" : "Static");
+  Log->AddEvent(LogLevel_Verbose, F("Save network ip method: "), String((i_data == 0) ? "DHCP" : "Static"));
   SaveUint8(EEPROM_ADDR_NETWORK_IP_METHOD_START, i_data);
 }
 

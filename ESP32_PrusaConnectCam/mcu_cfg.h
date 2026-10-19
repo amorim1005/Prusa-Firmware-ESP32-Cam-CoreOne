@@ -22,7 +22,7 @@
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c1"               ///< SW version
+#define SW_VERSION                  "1.1.2-c2"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -41,6 +41,7 @@
 #define REFRESH_INTERVAL_TEN_MIN    600                     ///< trigger scheme TEN_MIN [s]
 #define REFRESH_INTERVAL_TEN_MIN_EEPROM 0                   ///< value stored in the EEPROM for TEN_MIN, the EEPROM cell has 1 byte
 #define BACKEND_SOCKET_TIMEOUT      5000                    ///< socket read/write timeout [ms]
+#define TLS_HANDSHAKE_TIMEOUT       15                      ///< TLS handshake timeout [s]. Must be shorter than WDG_TIMEOUT, the library default is 120 s
 #define BACKEND_RESPONSE_TIMEOUT    10000                   ///< maximum waiting time for the backend response [ms]
 #define BACKEND_BACKOFF_MAX         600                     ///< maximum waiting time after a failed upload [s]
 #define BACKEND_CONNECT_FAIL_WIFI_RECONNECT 10              ///< reconnect WiFi after this count of consecutive failed connections to the backend
@@ -59,6 +60,7 @@
 
 /* ------------------ PRUSALINK  ----------------*/
 #define PRUSALINK_POLL_INTERVAL     10                      ///< interval for reading printer state from PrusaLink [s]
+#define PRUSALINK_RETRY_INTERVAL    60                      ///< interval for reading printer state when the printer does not respond [s]
 #define PRUSALINK_HTTP_TIMEOUT      3000                    ///< PrusaLink HTTP timeout [ms]
 #define PRUSALINK_IDLE_INTERVAL     REFRESH_INTERVAL_TEN_MIN ///< upload interval when the printer is not printing [s]
 #define PRUSALINK_DEFAULT_USER      "maker"                 ///< default PrusaLink user name on Prusa printers
@@ -84,7 +86,7 @@
 #define WEB_SERVER_PORT             80                      ///< WEB server port 
 #define SERIAL_PORT_SPEED           115200                  ///< baud rate 
 #define WDG_TIMEOUT                 40000                   ///< wdg timeout [second]
-#define PHOTO_FRAGMENT_SIZE         2048                    ///< photo fragmentation size [bytes]
+#define PHOTO_FRAGMENT_SIZE         16384                   ///< photo fragmentation size [bytes]. One TLS record carries max. 16 KB (CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN)
 #define LOOP_DELAY                  100                     ///< loop delay [ms]
 #define WIFI_CLIENT_WAIT_CON        false                   ///< wait for connecting to WiFi network
 #define WEB_CACHE_INTERVAL          86400                   ///< cache interval for browser [s] 86400s = 24h
@@ -101,6 +103,7 @@
 #define LOGS_FILE_NAME              "SysLog.log"            ///< syslog file name
 #define LOGS_FILE_PATH              "/"                     ///< directory for log files
 #define LOGS_FILE_MAX_SIZE          1024                    ///< maximum file size in the [kb]
+#define LOGS_FLUSH_INTERVAL         5000                    ///< flush the log file to the SD card at most once per interval [ms]. Errors and warnings are flushed immediately
 #define FILE_REMOVE_MAX_COUNT       5                       ///< maximum count for remove files from sd card
 
 /* ---------------- AP MODE CFG  ----------------*/

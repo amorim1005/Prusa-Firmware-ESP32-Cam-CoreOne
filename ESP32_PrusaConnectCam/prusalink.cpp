@@ -24,6 +24,7 @@ PrusaLink::PrusaLink(Configuration *i_conf, Logs *i_log) {
   log = i_log;
   Enable = false;
   PollCounter = PRUSALINK_POLL_INTERVAL;
+  PollInterval = PRUSALINK_POLL_INTERVAL;
   DigestQop = false;
   DigestNonceCount = 0;
   ClearState();
@@ -70,7 +71,7 @@ void PrusaLink::Loop() {
   }
 
   PollCounter++;
-  if (PollCounter < PRUSALINK_POLL_INTERVAL) {
+  if (PollCounter < PollInterval) {
     return;
   }
   PollCounter = 0;
@@ -81,6 +82,9 @@ void PrusaLink::Loop() {
 
   String body = "";
   int code = RequestStatus(&body);
+
+  /* a printer that is switched off would block the photo task for the connect timeout on every request */
+  PollInterval = (200 == code) ? PRUSALINK_POLL_INTERVAL : PRUSALINK_RETRY_INTERVAL;
 
   if (200 == code) {
     ProcessStatus(body);
@@ -294,6 +298,7 @@ void PrusaLink::SetEnable(bool i_data) {
   config->SavePrusaLinkEnable(Enable);
   ClearState();
   PollCounter = PRUSALINK_POLL_INTERVAL;
+  PollInterval = PRUSALINK_POLL_INTERVAL;
 }
 
 /**
@@ -316,6 +321,7 @@ void PrusaLink::SetHost(String i_data) {
   DigestNonce = "";
   ClearState();
   PollCounter = PRUSALINK_POLL_INTERVAL;
+  PollInterval = PRUSALINK_POLL_INTERVAL;
 }
 
 /**
@@ -329,6 +335,7 @@ void PrusaLink::SetUser(String i_data) {
   config->SavePrusaLinkUser(User);
   DigestNonce = "";
   PollCounter = PRUSALINK_POLL_INTERVAL;
+  PollInterval = PRUSALINK_POLL_INTERVAL;
 }
 
 /**
@@ -342,6 +349,7 @@ void PrusaLink::SetPassword(String i_data) {
   config->SavePrusaLinkPassword(Password);
   DigestNonce = "";
   PollCounter = PRUSALINK_POLL_INTERVAL;
+  PollInterval = PRUSALINK_POLL_INTERVAL;
 }
 
 bool PrusaLink::GetEnable() {

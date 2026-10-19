@@ -409,7 +409,7 @@ void Camera::CapturePhoto() {
     const int maxAttempts = 5;
     PhotoExifData.header = NULL;
     for (int attempts = 0; attempts < maxAttempts; attempts++) {
-      log->AddEvent(LogLevel_Info, F("Taking photo..."));
+      log->AddEvent(LogLevel_Verbose, F("Taking photo..."));
 
       FrameBuffer = esp_camera_fb_get();
       if (!FrameBuffer) {
@@ -421,7 +421,7 @@ void Camera::CapturePhoto() {
       char buf[150] = { '\0' };
       uint8_t ControlFlag = (FrameBuffer->len > 15) ? (uint8_t)FrameBuffer->buf[15] : 0xFF;
       sprintf(buf, "The picture has been saved. Size: %d bytes, Photo resolution: %zu x %zu", FrameBuffer->len, FrameBuffer->width, FrameBuffer->height);
-      log->AddEvent(LogLevel_Info, buf);
+      log->AddEvent(LogLevel_Verbose, buf);
 
       if ((ControlFlag != 0x00) || (FrameBuffer->len <= 100)) {
         log->AddEvent(LogLevel_Error, "Camera capture failed! flag: " + String(ControlFlag, HEX));
@@ -431,7 +431,7 @@ void Camera::CapturePhoto() {
         continue;
       }
 
-      log->AddEvent(LogLevel_Info, F("Photo OK! "), String(ControlFlag, HEX));
+      log->AddEvent(LogLevel_Verbose, F("Photo OK! "), String(ControlFlag, HEX));
       CameraCaptureFailedCounter = 0;
 
       /* generate exif header */
@@ -441,7 +441,7 @@ void Camera::CapturePhoto() {
       CameraCaptureSuccess = true;
 
       if (PhotoExifData.header != NULL) {
-        log->AddEvent(LogLevel_Info, F("Exif header OK! Len: "), String(PhotoExifData.len));
+        log->AddEvent(LogLevel_Verbose, F("Exif header OK! Len: "), String(PhotoExifData.len));
       } else {
         log->AddEvent(LogLevel_Error, F("Exif header failed! "), String(PhotoExifData.len));
       }

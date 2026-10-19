@@ -61,7 +61,8 @@ public:
   void ReadFileConsole(fs::FS &, String);
   bool WriteFile(fs::FS &, String, String);
   bool AppendFile(fs::FS &, String, String);
-  bool AppendFile(File*, String*);
+  bool AppendFile(File*, String*, bool = true);
+  void FlushFile(File*);
   bool RenameFile(fs::FS &, String, String);
   bool DeleteFile(fs::FS &, String);
   uint32_t GetFileSize(fs::FS &, String);

@@ -126,6 +126,7 @@ void System_CheckNewVersion() {
     FirmwareUpdate.CheckNewVersionAfterBoot = true;
     WiFiClientSecure client;
     client.setCACert(root_CAs_ota);
+    client.setHandshakeTimeout(TLS_HANDSHAKE_TIMEOUT);
     //client.setInsecure();
     FirmwareUpdate.CheckNewVersionFwStatus = F("N/A");
     FirmwareUpdate.NewVersionFw = F("Unknown");
@@ -250,7 +251,8 @@ bool System_OtaUpdateStart() {
   /* set certificat for secure connection, set timeout and follow redirect */
   client.setCACert(root_CAs_ota);
   // client.setInsecure();
-  client.setTimeout(12000 / SECOND_TO_MILISECOND);  /* timeout argument is defined in seconds for setTimeout */
+  client.setTimeout(12000);  /* timeout argument is in milliseconds in the arduino-esp32 3.x core */
+  client.setHandshakeTimeout(TLS_HANDSHAKE_TIMEOUT);
   httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); /* HTTPC_FORCE_FOLLOW_REDIRECTS */
 
   /* set callback function */
@@ -459,8 +461,11 @@ void System_TaskWifiManagement(void *pvParameters) {
 
     /* wifi reconnect after signal lost */
     SystemWifiMngt.WiFiReconnect();
-    SystemLog.AddEvent(LogLevel_Verbose, F("WiFiManagement task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
-    SystemLog.AddEvent(LogLevel_Verbose, F("WiFi status: "), String(WiFi.status()));
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("WiFiManagement task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+      SystemLog.AddEvent(LogLevel_Verbose, F("WiFi status: "), String(WiFi.status()));
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();
@@ -484,7 +489,10 @@ void System_TaskMain(void *pvParameters) {
     /* for ota update */
     esp_task_wdt_reset();
     System_Main();
-    SystemLog.AddEvent(LogLevel_Verbose, F("System task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("System task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();
@@ -580,7 +588,10 @@ void System_TaskCaptureAndSendPhoto(void *pvParameters) {
       Connect.IncreaseSendingIntervalCounter();
     }
     
-    SystemLog.AddEvent(LogLevel_Verbose, F("Photo processing task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("Photo processing task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();
@@ -602,6 +613,9 @@ void System_TaskSdCardCheck(void *pvParameters) {
 
   while (1) {
     esp_task_wdt_reset();
+    /* write buffered log messages to the card */
+    SystemLog.LogFlushFile();
+
     /* check micro SD card */
     if ((true == SystemLog.GetCardDetectAfterBoot()) && (false == SystemLog.GetCardDetectedStatus())) {
       SystemLog.LogCloseFile();
@@ -632,7 +646,10 @@ void System_TaskSdCardCheck(void *pvParameters) {
     }
 
     SystemLog.AddEvent(LogLevel_Info, "CardStatus: " + String(SystemLog.GetCardDetectedStatus()) + " FileStatus: " + String(SystemLog.GetLogFileOpened()));
-    SystemLog.AddEvent(LogLevel_Verbose, F("MicroSdCard task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("MicroSdCard task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();
@@ -655,7 +672,10 @@ void System_TaskSerialCfg(void *pvParameters) {
   while (1) {
     esp_task_wdt_reset();
     SystemSerialCfg.ProcessIncommingData();
-    SystemLog.AddEvent(LogLevel_Verbose, F("SerialCfg task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("SerialCfg task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();
@@ -677,7 +697,10 @@ void System_TaskSystemTelemetry(void *pvParameters) {
 
   while (1) {
     esp_task_wdt_reset();
-    SystemLog.AddEvent(LogLevel_Verbose, F("SystemTelemetry task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("SystemTelemetry task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
     if (SystemCamera.GetStreamStatus()) {
       char buf[80] = { '\0' };
       sprintf(buf, "Stream, average data in %dsec. FPS: %.1f, Size: %uKB", (TASK_SYSTEM_TELEMETRY / SECOND_TO_MILISECOND), SystemCamera.StreamGetFrameAverageFps(), SystemCamera.StreamGetFrameAverageSize());
@@ -713,7 +736,10 @@ void System_TaskSysLed(void *pvParameters) {
     system_led.toggle();
     /* reset wdg */
     esp_task_wdt_reset();
-    SystemLog.AddEvent(LogLevel_Verbose, F("SystemLed task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B"); 
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("SystemLed task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* next start task */
     vTaskDelayUntil(&xLastWakeTime, system_led.getTimer() / portTICK_PERIOD_MS);
@@ -733,7 +759,10 @@ void System_TaskWiFiWatchdog(void *pvParameters) {
   while (1) {
     esp_task_wdt_reset();
     SystemWifiMngt.WiFiWatchdog();
-    SystemLog.AddEvent(LogLevel_Verbose, F("WiFiWatchdog task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("WiFiWatchdog task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();
@@ -773,7 +802,10 @@ void System_TaskSdCardRemove(void *pvParameters) {
         }
       }
     
-    SystemLog.AddEvent(LogLevel_Verbose, F("MicroSdCard task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    /* build the verbose message only when it is logged */
+    if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("MicroSdCard task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
+    }
 
     /* reset wdg */
     esp_task_wdt_reset();

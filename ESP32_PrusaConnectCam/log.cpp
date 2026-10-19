@@ -170,6 +170,38 @@ void Logs::LogCheckOpenedFile() {
 }
 
 /**
+ * @brief Check if the log file should be flushed to the SD card now.
+ *        Errors and warnings are flushed immediately, other messages at most once per LOGS_FLUSH_INTERVAL
+ *
+ * @param LogLevel_enum - level of the message
+ * @return bool - true = flush now
+ */
+bool Logs::CheckFlush(LogLevel_enum level) {
+  uint32_t now = millis();
+  if ((level <= LogLevel_Warning) || ((now - LastFlushTime) >= LOGS_FLUSH_INTERVAL)) {
+    LastFlushTime = now;
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * @brief Flush the buffered log messages to the SD card. Called periodically by the SD card task
+ * 
+ */
+void Logs::LogFlushFile() {
+#if (true == ENABLE_SD_CARD)
+  xSemaphoreTake(LogMutex, portMAX_DELAY);
+  if (true == LogFileOpened) {
+    FlushFile(&LogFile);
+    LastFlushTime = millis();
+  }
+  xSemaphoreGive(LogMutex);
+#endif
+}
+
+/**
    @info set log level
    @param LogLevel_enum - log level
    @return none
@@ -208,12 +240,12 @@ void Logs::AddEvent(LogLevel_enum level, String msg, bool newLine, bool date) {
 #if (true == ENABLE_SD_CARD)
     /* append log message to log file */
     if (true == LogFileOpened) {
-      LogFileOpened = AppendFile(&LogFile, &LogMsg);
+      LogFileOpened = AppendFile(&LogFile, &LogMsg, CheckFlush(level));
       if ((false == LogFileOpened) && (true == GetCardDetectedStatus())){
         LogCloseFile();
         LogOpenFile();
         if (true == LogFileOpened) {
-          LogFileOpened = AppendFile(&LogFile, &LogMsg);
+          LogFileOpened = AppendFile(&LogFile, &LogMsg, CheckFlush(level));
         } 
       }
     }
@@ -261,12 +293,12 @@ void Logs::AddEvent(LogLevel_enum level, const __FlashStringHelper *msg, String 
 #if (true == ENABLE_SD_CARD)
     /* append log message to log file */
     if (true == LogFileOpened) {
-      LogFileOpened = AppendFile(&LogFile, &LogMsg);
+      LogFileOpened = AppendFile(&LogFile, &LogMsg, CheckFlush(level));
       if ((false == LogFileOpened) && (true == GetCardDetectedStatus())){
         LogCloseFile();
         LogOpenFile();
         if (true == LogFileOpened) {
-          AppendFile(&LogFile, &LogMsg);
+          AppendFile(&LogFile, &LogMsg, CheckFlush(level));
         } 
       }
     }

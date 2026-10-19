@@ -37,6 +37,7 @@ private:
   bool StateChanged;              ///< printing state changed since the last call of ConsumeStateChange
   String Status;                  ///< status message for WEB page
   uint16_t PollCounter;           ///< seconds since the last request
+  uint16_t PollInterval;          ///< interval for the next request [s]. Longer when the printer does not respond
 
   String DigestRealm;             ///< digest auth realm
   String DigestNonce;             ///< digest auth nonce

@@ -8,7 +8,7 @@ alterações estão nos commits por cima dele.
 Objetivo: uma câmara fiável para o dia a dia, numa **Prusa Core One**, com uma
 **Seeed Studio XIAO ESP32-S3 Sense** (câmara OV2640).
 
-Versão deste firmware: **1.1.2-c1**.
+Versão deste firmware: **1.1.2-c2** (ver o [histórico de versões](#histórico-de-versões)).
 
 > **Importante:** este firmware **compila**, mas **ainda não foi testado numa placa real**.
 > Os primeiros testes na tua impressora são a verificação final. Lê a secção
@@ -25,6 +25,7 @@ Versão deste firmware: **1.1.2-c1**.
 5. [O que é o "thermal guard"](#5-o-que-é-o-thermal-guard-proteção-térmica)
 6. [PrusaLink: fotos frequentes só durante a impressão](#6-prusalink-fotos-frequentes-só-durante-a-impressão)
 7. [Outras melhorias](#7-outras-melhorias)
+7b. [Otimizações da versão 1.1.2-c2](#7b-otimizações-da-versão-112-c2)
 8. [Como compilar (Arduino IDE ou VS Code)](#8-como-compilar)
 9. [Como gravar o firmware na placa](#9-como-gravar-o-firmware-na-placa)
 10. [Primeira configuração](#10-primeira-configuração)
@@ -90,7 +91,7 @@ documentação diz que código novo deve usar os novos. O que mudou:
 | O certificado do servidor é da Google Trust Services | Só confiava no certificado ISRG Root X1 (Let's Encrypt), ou seja, **a ligação falharia** | Adicionados GTS Root R4 e GTS Root R1 (e mantido o ISRG Root X1). Verificado contra o servidor real |
 | Dados da câmara com `device: {type: "ESP32", firmware_version, hardware_version}`. Campos desconhecidos são **recusados** | Formato antigo, que seria recusado (erro 422) | Formato novo, exatamente como na documentação |
 | Nome da câmara com no máximo 32 caracteres | Até 40 | Cortado a 32 |
-| `User-Agent` com nome e versão | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c1` |
+| `User-Agent` com nome e versão | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c2` |
 | Só 4 intervalos: 10 s, 30 s, 60 s, 10 min. Máximo 6 envios por minuto | Qualquer valor de 10 a 240 s | Lista com os 4 valores. Valores antigos são convertidos para o mais próximo |
 | Fotos com no máximo 1 MB | Sem verificação | Verificado antes de enviar |
 | Cada código de erro tem a sua ação | Todos os erros tratados da mesma forma | Ver abaixo |
@@ -202,6 +203,38 @@ PrusaLink usa). A password nunca é enviada para a página web.
 - **Página principal:** mostra o **intervalo de envio atual** (que já inclui o backoff, o PrusaLink e a proteção térmica).
 - **Página System:** mostra o intervalo de envio atual.
 - **Mensagens de erro claras** na página (por exemplo, para o 403 explica a janela de 15 minutos).
+
+---
+
+## 7b. Otimizações da versão 1.1.2-c2
+
+Segunda revisão do código, à procura de problemas e de trabalho desnecessário.
+
+**Problemas corrigidos**
+
+| # | Problema | O que acontecia | Correção |
+|---|---|---|---|
+| 1 | A fase inicial da ligação HTTPS (*handshake* TLS) podia esperar até **120 s**, mas o watchdog reinicia a placa aos **40 s** | Com Wi-Fi fraco (a estrutura de aço da Core One), uma ligação lenta reiniciava a câmara a meio de um envio | Limite de 15 s (`TLS_HANDSHAKE_TIMEOUT`), também nas atualizações por cloud |
+| 1b | O timeout da atualização por cloud estava em **12 ms** em vez de 12 s: no core ESP32 3.x o valor é em milissegundos | A atualização por cloud podia falhar | 12 000 ms |
+| 2 | As páginas web ficavam **24 h em cache** no browser | Depois de atualizar o firmware, o browser mostrava as páginas antigas (sem a secção PrusaLink, por exemplo) | As páginas HTML deixam de ficar em cache. O `styles.css` usa a versão do firmware no endereço |
+| 3 | O envio das páginas media o ficheiro inteiro a cada bocado enviado | O jQuery (87 KB) obrigava a ler cerca de 5 MB por carregamento, e a página abria devagar | Tamanho medido uma só vez, e a resposta passa a levar `Content-Length` |
+| 4 | Se a Prusa recusasse os dados da câmara (erro 4xx), a câmara repetia-os a cada ciclo | Pedidos inúteis ao servidor, e a espera entre envios de fotos ficava baralhada | Só volta a enviar depois de mudares a configuração. As fotos seguem a sua própria lógica |
+| 5 | Com a impressora desligada, o PrusaLink bloqueava a tarefa das fotos cerca de 3 s a cada 10 s | Atrasos nos envios | Enquanto a impressora não responde, pergunta só a cada 60 s (`PRUSALINK_RETRY_INTERVAL`). Ao mudar a configuração, pergunta logo |
+
+**Otimizações**
+
+| # | Antes | Agora | Ganho |
+|---|---|---|---|
+| 6 | Foto enviada em bocados de 2 KB (cerca de 60 registos TLS) | Bocados de 16 KB, o máximo de um registo TLS (cerca de 8 registos) | Envio mais rápido, menos processador e menos bytes enviados |
+| 7 | Cada linha de log forçava uma escrita no cartão SD: cerca de **86 000 por dia** com fotos a cada 10 s. As outras tarefas esperavam por cada escrita | Avisos e erros são gravados logo. O resto é gravado no máximo a cada 5 s (`LOGS_FLUSH_INTERVAL`) e pela tarefa do cartão SD. As mensagens de rotina de cada foto passaram para o nível Verbose (fica uma linha Info por envio, com o resultado) | Menos desgaste do cartão, menos esperas entre tarefas |
+| 8 | As mensagens de debug dos ciclos das tarefas eram montadas mesmo quando não eram registadas (o LED até 10 vezes por segundo) | Só são montadas com o nível Verbose ativo | Menos fragmentação da memória interna ao fim de semanas ligada |
+
+Também corrigido: o log "Save network ip method" mostrava sempre "DHCP", por causa de um erro de precedência de operadores.
+
+**Ficam para depois do primeiro teste na placa** (precisam de medições reais):
+- reutilizar a ligação HTTPS entre envios (*keep-alive*), em vez de abrir uma nova a cada foto;
+- mais imagens por segundo (FPS) no stream: tirar a pausa de 1 ms por bocado enviado e copiar a imagem para o Prusa Connect só quando é precisa;
+- dois buffers de imagem na câmara em vez de um.
 
 ---
 
@@ -385,7 +418,8 @@ piscar e desliga o GPIO2 do GND.
 | `ESP32_PrusaConnectCam/system.cpp`, `system.h` | Proteção térmica, cálculo do intervalo, PrusaLink |
 | `ESP32_PrusaConnectCam/prusalink.cpp`, `prusalink.h` | **Novo**: cliente PrusaLink |
 | `ESP32_PrusaConnectCam/cfg.cpp`, `cfg.h` | Gravação do intervalo e das definições PrusaLink, token mascarado no log |
-| `ESP32_PrusaConnectCam/mcu_cfg.h` | Placa XIAO selecionada, versão 1.1.2-c1, constantes novas, Core One defaults |
+| `ESP32_PrusaConnectCam/mcu_cfg.h` | Placa XIAO selecionada, versão 1.1.2-c2, constantes novas, Core One defaults |
+| `ESP32_PrusaConnectCam/log.cpp`, `log.h`, `micro_sd.cpp`, `micro_sd.h` | (c2) Gravação do log no SD agrupada |
 | `ESP32_PrusaConnectCam/var.cpp`, `var.h` | Estado da proteção térmica |
 | `ESP32_PrusaConnectCam/ESP32_PrusaConnectCam.ino` | Tarefa das fotos no núcleo 1, carregar a configuração PrusaLink |
 | `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Lista de intervalos, secção PrusaLink, intervalo atual |
@@ -397,6 +431,15 @@ Para ver todas as alterações linha a linha em relação ao original:
 ```bash
 git diff 136c91c -- ESP32_PrusaConnectCam webpage
 ```
+
+---
+
+## Histórico de versões
+
+| Versão | Alterações |
+|---|---|
+| 1.1.2-c1 | 11 bugs corrigidos, Prusa Camera Service, Core One defaults, proteção térmica, PrusaLink |
+| 1.1.2-c2 | Timeout TLS, cache do browser, envio das páginas, dados da câmara recusados, PrusaLink com a impressora desligada, bocados TLS de 16 KB, log no SD agrupado, mensagens de debug (secção [7b](#7b-otimizações-da-versão-112-c2)) |
 
 ---
 

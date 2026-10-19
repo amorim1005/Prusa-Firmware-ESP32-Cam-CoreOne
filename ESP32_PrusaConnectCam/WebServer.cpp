@@ -1173,20 +1173,16 @@ void Server_resume() {
  * @param const char* - data
  */
 void Server_handleCacheRequest(AsyncWebServerRequest* request, const char* contentType, const char* data) {
-  /*
-  AsyncWebServerResponse* response = request->beginResponse(200, contentType, data);
-  response->addHeader("Cache-Control", "public, max-age=" + String(WEB_CACHE_INTERVAL));
-  request->send(response); 
-  */
+  /* the data is in the flash memory, the response reads it directly. The length is computed once, not for every chunk */
+  AsyncWebServerResponse* response = request->beginResponse(200, contentType, (const uint8_t*)data, strlen(data));
 
-  AsyncWebServerResponse* response = request->beginChunkedResponse(contentType, [data](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-    const char* dataStart = data + index; // current position in data
-    size_t dataLeft = strlen(data) - index; // how many bytes are left to send
-    size_t chunkSize = dataLeft < maxLen ? dataLeft : maxLen; // how many bytes we can send now
-    memcpy(buffer, dataStart, chunkSize); // copy chunk of data to buffer
-    return chunkSize; // return chunk size
-  });
-  response->addHeader("Cache-Control", "public, max-age=" + String(WEB_CACHE_INTERVAL));
+  /* HTML pages must not be cached, otherwise the browser shows the old pages after a firmware update.
+     Other files are cached, styles.css is loaded with the firmware version in the URL */
+  if (strcmp(contentType, "text/html") == 0) {
+    response->addHeader("Cache-Control", "no-cache");
+  } else {
+    response->addHeader("Cache-Control", "public, max-age=" + String(WEB_CACHE_INTERVAL));
+  }
   request->send(response);
 }
 

@@ -89,7 +89,7 @@ void PrusaConnect::TakePicture() {
  * @return int - HTTP response code. 0 = no response (connection failed, timeout, incomplete upload)
  */
 int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length, String i_content_type, String i_type, String i_url_path) {
-  log->AddEvent(LogLevel_Info, "Sending " + i_type + " to PrusaConnect, " + String(i_data_length) + " bytes");
+  log->AddEvent(LogLevel_Verbose, "Sending " + i_type + " to PrusaConnect, " + String(i_data_length) + " bytes");
 
   /* check fingerprint and token length */
   if ((Fingerprint.length() == 0) || (Token.length() == 0)) {
@@ -101,6 +101,7 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
   WiFiClientSecure client;
   client.setCACert(root_CAs);
   client.setTimeout(BACKEND_SOCKET_TIMEOUT);
+  client.setHandshakeTimeout(TLS_HANDSHAKE_TIMEOUT);
   client.setNoDelay(true);
 
   log->AddEvent(LogLevel_Verbose, F("Connecting to server..."));
@@ -146,7 +147,7 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
     esp_task_wdt_reset();
   }
   client.flush();
-  log->AddEvent(LogLevel_Info, "Send done: " + String(i_data_length) + "/" + String(sent_data) + " bytes");
+  log->AddEvent(LogLevel_Verbose, "Send done: " + String(i_data_length) + "/" + String(sent_data) + " bytes");
 
   /* check if all data was sent */
   if (i_data_length != sent_data) {
@@ -197,7 +198,7 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
   }
   BackendAvailability = BackendAvailable;
 
-  log->AddEvent(LogLevel_Info, "Upload done. Response code: " + BackendReceivedStatus + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
+  log->AddEvent(LogLevel_Info, "Upload done: " + String(i_data_length) + " bytes. Response code: " + BackendReceivedStatus + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
   return httpCode;
 }
 
@@ -214,7 +215,19 @@ void PrusaConnect::ProcessBackendResult(int i_code, SendDataToBackendType i_type
     return;
   }
 
-  switch (ProcessHttpResponseCodeClass(i_code)) {
+  BackendResultClass result = ProcessHttpResponseCodeClass(i_code);
+
+  /* camera info rejected (4xx): the same data gives the same answer. Send it again only after a configuration change.
+     The photo upload has its own result, a wrong token is detected there and slows down the uploads */
+  if ((SendInfo == i_type) && (BackendResultTransient != result)) {
+    SendDeviceInformationToBackend = false;
+    if (BackendResultOk != result) {
+      log->AddEvent(LogLevel_Error, F("Camera info rejected by the backend, code: "), String(i_code));
+    }
+    return;
+  }
+
+  switch (result) {
     case BackendResultOk:
       if (BackoffInterval != 0) {
         log->AddEvent(LogLevel_Info, F("Backend OK, backoff cleared"));
@@ -238,10 +251,6 @@ void PrusaConnect::ProcessBackendResult(int i_code, SendDataToBackendType i_type
       log->AddEvent(LogLevel_Error, F("Photo is larger than 1 MB. Lower the resolution or the image quality!"));
       break;
   }
-
-  if ((SendInfo == i_type) && (BackendResultOk == ProcessHttpResponseCodeClass(i_code))) {
-    SendDeviceInformationToBackend = false;
-  }
 }
 
 /**
@@ -252,7 +261,7 @@ void PrusaConnect::ProcessBackendResult(int i_code, SendDataToBackendType i_type
  * @return bool - true if the photo was accepted
  */
 bool PrusaConnect::SendPhotoToBackend(const uint8_t *i_data, size_t i_len) {
-  log->AddEvent(LogLevel_Info, F("Start sending photo to prusaconnect"));
+  log->AddEvent(LogLevel_Verbose, F("Start sending photo to prusaconnect"));
 
   if (i_len > CAMERA_SERVICE_SNAPSHOT_MAX_SIZE) {
     BackendReceivedStatus = "Photo: too large " + String(i_len) + " B, maximum is 1 MB. Lower the resolution or quality";

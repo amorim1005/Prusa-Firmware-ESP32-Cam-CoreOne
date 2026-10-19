@@ -354,9 +354,10 @@ bool MicroSd::AppendFile(fs::FS &fs, String path, String message) {
    @brief Added text to end of file
    @param File - file
    @param String - message
+   @param bool - flush the file to the card. Every flush rewrites the FAT and the directory entry
    @return bool - status
 */
-bool MicroSd::AppendFile(File *i_file, String *i_msg) {
+bool MicroSd::AppendFile(File *i_file, String *i_msg, bool i_flush) {
   /* take mutex */
   xSemaphoreTake(sdCardMutex, portMAX_DELAY);
   bool status = false;
@@ -382,7 +383,9 @@ bool MicroSd::AppendFile(File *i_file, String *i_msg) {
       /* write to file */
       if (i_file->print(i_msg->c_str())) {
         if (*i_file) {
-          i_file->flush();
+          if (true == i_flush) {
+            i_file->flush();
+          }
 
           /* check if write was OK */
           if (!i_file->getWriteError()) {
@@ -412,6 +415,19 @@ bool MicroSd::AppendFile(File *i_file, String *i_msg) {
   /* give mutex */
   xSemaphoreGive(sdCardMutex);
   return status;
+}
+
+/**
+   @brief Flush file to the SD card
+   @param File - file
+   @return none
+*/
+void MicroSd::FlushFile(File *i_file) {
+  xSemaphoreTake(sdCardMutex, portMAX_DELAY);
+  if ((true == CardDetected) && (*i_file)) {
+    i_file->flush();
+  }
+  xSemaphoreGive(sdCardMutex);
 }
 
 /**
