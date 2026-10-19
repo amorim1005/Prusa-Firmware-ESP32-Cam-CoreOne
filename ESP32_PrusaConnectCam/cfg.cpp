@@ -181,6 +181,7 @@ void Configuration::DefaultCfg() {
   SavePrusaLinkHost(FACTORY_CFG_PRUSALINK_HOST);
   SavePrusaLinkUser(FACTORY_CFG_PRUSALINK_USER);
   SavePrusaLinkPassword(FACTORY_CFG_PRUSALINK_PASSWORD);
+  SaveUnplannedRestarts(0);
   Log->AddEvent(LogLevel_Warning, F("+++++++++++++++++++++++++++"));
 }
 
@@ -931,6 +932,16 @@ void Configuration::SaveCameraSensor(uint8_t i_data) {
 }
 
 /**
+   @info save the count of unplanned restarts
+   @param uint16_t - count
+   @return none
+*/
+void Configuration::SaveUnplannedRestarts(uint16_t i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save unplanned restarts: "), String(i_data));
+  SaveUint16(EEPROM_ADDR_UNPLANNED_RESTARTS_START, i_data);
+}
+
+/**
    @info load refresh interval from eeprom 
    @param none
    @return uint16_t - refresh interval [s]. Always one of the Camera Service trigger schemes 10 s, 30 s, 60 s, 10 min
@@ -1549,6 +1560,20 @@ uint8_t Configuration::LoadCameraSensor() {
     ret = CAMERA_SENSOR_UNKNOWN;
   }
   Log->AddEvent(LogLevel_Info, F("Saved camera sensor: "), String(ret));
+
+  return ret;
+}
+
+/**
+ * @brief Load the count of unplanned restarts. After a firmware upgrade the EEPROM cells are 0xFF, it means 0
+ *
+ * @return uint16_t - count
+ */
+uint16_t Configuration::LoadUnplannedRestarts() {
+  uint16_t ret = LoadUint16(EEPROM_ADDR_UNPLANNED_RESTARTS_START);
+  if (0xFFFF == ret) {
+    ret = 0;
+  }
 
   return ret;
 }

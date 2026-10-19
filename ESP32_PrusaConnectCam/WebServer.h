@@ -42,7 +42,6 @@ void Server_InitWebServer_WebPages();
 void Server_InitWebServer_Icons();
 void Server_InitWebServer_Actions();
 void Server_InitWebServer_Sets();
-void Server_InitWebServer_Update();
 void Server_InitWebServer_Stream();
 
 void Server_pause();

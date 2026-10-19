@@ -118,7 +118,6 @@ function get_data(val) {
 				$("#sw_build").text(obj.sw_build);
 				$("#last_upload_status").text(obj.last_upload_status);
 				$("#wifi_mode").text(obj.wifi_mode);
-				$("#sw_new_ver").text(obj.sw_new_ver);
 				$("#service_ap_ssid").text(obj.service_ap_ssid);
 				$("#sd_status").text(obj.sd_status);
 				$("#sd_total").text(obj.sd_total);
@@ -126,6 +125,14 @@ function get_data(val) {
 				$("#sd_used_p").text(obj.sd_used_p);
 				$("#mcu_temp").text(obj.mcu_temp);
 				$("#upload_interval").text(obj.upload_interval);
+				$("#health_status").text(obj.health_status);
+				$("#upload_ok").text(obj.upload_ok);
+				$("#upload_failed").text(obj.upload_failed);
+				$("#unplanned_restarts").text(obj.unplanned_restarts);
+				$("#last_restart").text(obj.last_restart);
+				$("#mcu_temp_max").text(obj.mcu_temp_max);
+				$("#mem_internal").text(obj.mem_internal);
+				$("#mem_psram").text(obj.mem_psram);
 
 				var sd_free_prog = document.getElementById("progress_bar_sd_free");
 				sd_free_prog.style.width = obj.sd_free_p + "%";
@@ -366,120 +373,6 @@ function togglePasswordVisibility() {
 		eyeIcon.src = "eye.svg";
 		eyeIcon.alt = "Show Password";
 	}
-}
-
-/* system page */
-if (typeof uploadingFirmware === 'undefined') {
-	var uploadingFirmware = false;
-}
-
-if (typeof FileSize === 'undefined') {
-	var FileSize = 0;
-}
-
-function uploadFile() {
-	alert("Started updating...");
-	const firmwareInput = document.getElementById('firmwareInput');
-	const statusDiv = document.getElementById('status');
-	const file = firmwareInput.files[0];
-	FileSize = file.size;
-	SetFirmwareSize(file.size);
-
-	if (file) {
-		statusDiv.innerText = 'Updating...';
-		const formData = new FormData();
-		formData.append('firmware', file);
-		uploadingFirmware = true;
-
-		fetch('/upload', {
-				method: 'POST',
-				body: formData,
-			})
-			.then((response) => {
-				if (response.ok) {
-					response.text().then((data) => {
-						const jsonData = JSON.parse(data);
-						updateProgress();
-						uploadingFirmware = false;
-						if (jsonData.errorMessage) {
-							alert(`Error message: ${jsonData.errorMessage}`);
-						}
-					});
-				} else {
-					uploadingFirmware = false;
-					response.text().then((errorMessage) => {
-						alert(`Error message: ${errorMessage}`);
-					});
-				}
-			})
-			.catch((error) => {
-				console.error('Error:', error);
-				uploadingFirmware = false;
-			});
-	} else {
-		statusDiv.innerText = 'No file selected';
-	}
-}
-
-function SetFirmwareSize(val) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "set_firmware_size?size=" + val, false);
-	xmlHttp.send(null);
-}
-
-function updateProgress() {
-	if (!uploadingFirmware) {
-		return;
-	}
-
-	fetch('/UpdateProcessing', {
-			method: 'GET',
-		})
-		.then((response) => {
-			if (response.ok) {
-				return response.json();
-			} else {
-				throw new Error('Failed to fetch progress');
-			}
-		})
-		.then((data) => {
-			const statusDiv = document.getElementById('status');
-			var progressBar = document.getElementById("myProgressBar");
-			progressBar.style.width = data.processed_percent + "%";
-			progressBar.innerHTML = data.processed_percent + "%";
-
-			statusDiv.innerText = data.message;
-			uploadingFirmware = data.updating;
-			if (data.updating == false  && !updateCompleted) {
-				alert('Operation done. Please reboot MCU.');
-				uploadingFirmware = false;
-				updateCompleted = true;
-				clearInterval(updateInterval);
-			}
-		})
-		.catch((error) => {
-			console.error('Error:', error);
-			var progressBar = document.getElementById("myProgressBar");
-			progressBar.innerHTML = "Error";
-			clearInterval(updateInterval);
-		});
-}
-
-function checkUpdate() {
-	var xmlHttp = new XMLHttpRequest();
-	alert("Connecting to server... Please wait several seconds");
-	xmlHttp.open("GET", "/check_web_ota_update", false);
-	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
-	get_data("system");
-}
-
-function updateWeb() {
-	alert("Started updating from cloud.");
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "web_ota_update?update=true", false);
-	xmlHttp.send(null);
-	uploadingFirmware = true;
 }
 
 function validatePasswords() {

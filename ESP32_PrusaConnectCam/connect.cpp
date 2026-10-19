@@ -30,6 +30,10 @@ PrusaConnect::PrusaConnect(Configuration *i_conf, Logs *i_log, Camera *i_camera,
   SendingIntervalCounter = 0;
   BackoffInterval = 0;
   ConnectFailCounter = 0;
+  UploadOkCount = 0;
+  UploadFailedCount = 0;
+  CaptureFailed = false;
+  HealthStatus = "";
 }
 
 /**
@@ -403,8 +407,11 @@ bool PrusaConnect::SendInfoToBackend() {
     name = F("ESP32 camera");
   }
 
+  /* the Camera Service has no status field: a camera problem is shown as a part of the name, for example "camera [HOT]" */
+  String suffix = (HealthStatus.length() > 0) ? (" [" + HealthStatus + "]") : "";
+
   JsonObject config = json_data["config"].to<JsonObject>();
-  config["name"] = name.substring(0, CAMERA_SERVICE_NAME_MAX_LEN);
+  config["name"] = name.substring(0, CAMERA_SERVICE_NAME_MAX_LEN - suffix.length()) + suffix;
   config["trigger_scheme"] = TranslateRefreshIntervalToTriggerScheme(RefreshInterval);
   config["rotation"] = TranslateExifRotationToDegree(camera->GetCameraImageRotation());
 
@@ -444,9 +451,11 @@ void PrusaConnect::TakePictureAndSendToBackend() {
   camera->CapturePhoto();
 
   /* check if photo was captured */
-  if (camera->GetCameraCaptureSuccess() == false) {
+  CaptureFailed = (camera->GetCameraCaptureSuccess() == false);
+  if (true == CaptureFailed) {
     log->AddEvent(LogLevel_Error, F("Error capturing photo. Stop sending to backend!"));
     BackendReceivedStatus = F("Photo: camera capture failed");
+    UploadFailedCount++;
     return;
   }
 
@@ -455,10 +464,15 @@ void PrusaConnect::TakePictureAndSendToBackend() {
   size_t photo_len = 0;
   if (false == camera->GetPhotoCopy(&photo, &photo_len)) {
     log->AddEvent(LogLevel_Error, F("Error copying photo. Stop sending to backend!"));
+    UploadFailedCount++;
     return;
   }
 
-  SendPhotoToBackend(photo, photo_len);
+  if (true == SendPhotoToBackend(photo, photo_len)) {
+    UploadOkCount++;
+  } else {
+    UploadFailedCount++;
+  }
 
   /* save photo to SD card */
   if (false == camera->GetStreamStatus()) {
@@ -830,6 +844,36 @@ String PrusaConnect::CovertBackendAvailabilitStatusToString(BackendAvailabilitSt
 
 bool PrusaConnect::GetTimeLapsPhotoSaveStatus() {
   return EnableTimelapsPhotoSave;
+}
+
+/**
+ * @brief Set the camera problem shown in Prusa Connect. The camera information is sent again with the next photo
+ *
+ * @param String - short problem description, empty when everything is OK
+ * @return none
+ */
+void PrusaConnect::SetHealthStatus(String i_data) {
+  if (i_data != HealthStatus) {
+    log->AddEvent(LogLevel_Warning, F("Camera health for Prusa Connect: "), (i_data.length() > 0) ? i_data : String(F("OK")));
+    HealthStatus = i_data;
+    SendDeviceInformationToBackend = true;
+  }
+}
+
+uint32_t PrusaConnect::GetUploadOkCount() {
+  return UploadOkCount;
+}
+
+uint32_t PrusaConnect::GetUploadFailedCount() {
+  return UploadFailedCount;
+}
+
+bool PrusaConnect::GetCaptureFailed() {
+  return CaptureFailed;
+}
+
+String PrusaConnect::GetHealthStatus() {
+  return HealthStatus;
 }
 
 /**

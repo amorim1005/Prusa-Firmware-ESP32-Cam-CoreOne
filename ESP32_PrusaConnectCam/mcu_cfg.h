@@ -22,7 +22,7 @@
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c6"               ///< SW version
+#define SW_VERSION                  "1.1.2-c7"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -79,6 +79,13 @@
 #define THERMAL_RESUME_TEMP         68.0                    ///< MCU temperature for normal operation after throttling [°C]
 #define THERMAL_THROTTLE_INTERVAL   REFRESH_INTERVAL_SIXTY_SEC ///< minimum upload interval during throttling [s]
 
+/* ----------------- HEALTH CHECK  --------------*/
+#define HEALTH_CHECK_INTERVAL       10                      ///< interval for checking the free memory [s]
+#define HEALTH_LOW_MEMORY_INTERNAL  (16 * 1024)             ///< minimum largest free block in the internal RAM, for WiFi and TLS [B]
+#define HEALTH_LOW_MEMORY_PSRAM     (512 * 1024)            ///< minimum largest free block in the PSRAM, for photos and stream frames [B]
+#define HEALTH_LOW_MEMORY_RESTART   300                     ///< restart after the memory is low this long, when the printer is not printing [s]
+#define HEALTH_LOW_MEMORY_FORCE     3600                    ///< restart after the memory is low this long, also while printing [s]
+
 /* ------------------ PRUSALINK  ----------------*/
 #define PRUSALINK_POLL_INTERVAL     10                      ///< interval for reading printer state from PrusaLink [s]
 #define PRUSALINK_RETRY_INTERVAL    60                      ///< interval for reading printer state when the printer does not respond [s]
@@ -111,10 +118,6 @@
 #define LOOP_DELAY                  100                     ///< loop delay [ms]
 #define WIFI_CLIENT_WAIT_CON        false                   ///< wait for connecting to WiFi network
 #define WEB_CACHE_INTERVAL          86400                   ///< cache interval for browser [s] 86400s = 24h
-
-/* --------------- OTA UPDATE CFG  --------------*/
-#define OTA_UPDATE_API_SERVER       "api.github.com"        ///< OTA update server URL
-#define OTA_UPDATE_API_URL          F("/repos/prusa3d/Prusa-Firmware-ESP32-Cam/releases/latest")  ///< path to file with OTA update
 
 /* ---------- RESET CFG CONFIGURATION  ----------*/
 #define CFG_RESET_TIME_WAIT         10000                   ///< wait to 10 000 ms = 10s for reset cfg during grounded CFG_RESET_PIN 
@@ -364,6 +367,9 @@
 #define EEPROM_ADDR_CAMERA_SENSOR_START           (EEPROM_ADDR_PRUSALINK_PASSWORD_START + EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH)
 #define EEPROM_ADDR_CAMERA_SENSOR_LENGTH          1                                                                                       ///< detected camera sensor, CAMERA_SENSOR_xxx
 
+#define EEPROM_ADDR_UNPLANNED_RESTARTS_START      (EEPROM_ADDR_CAMERA_SENSOR_START + EEPROM_ADDR_CAMERA_SENSOR_LENGTH)
+#define EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH     2                                                                                       ///< count of unplanned restarts
+
 #define EEPROM_SIZE (EEPROM_ADDR_REFRESH_INTERVAL_LENGTH + EEPROM_ADDR_FINGERPRINT_LENGTH + EEPROM_ADDR_TOKEN_LENGTH + \
                      EEPROM_ADDR_FRAMESIZE_LENGTH + EEPROM_ADDR_BRIGHTNESS_LENGTH + EEPROM_ADDR_CONTRAST_LENGTH + \
                      EEPROM_ADDR_SATURATION_LENGTH + EEPROM_ADDR_HMIRROR_LENGTH + EEPROM_ADDR_VFLIP_LENGTH + \
@@ -381,7 +387,8 @@
                      EEPROM_ADDR_NETWORK_STATIC_DNS_LENGTH + EEPROM_ADDR_IMAGE_ROTATION_LENGTH + EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH + \
                      EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH + EEPROM_ADDR_PRUSALINK_HOST_LENGTH + EEPROM_ADDR_PRUSALINK_USER_LENGTH + \
-                     EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH + EEPROM_ADDR_CAMERA_SENSOR_LENGTH)    ///< how many bits do we need for eeprom memory
+                     EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH + EEPROM_ADDR_CAMERA_SENSOR_LENGTH + \
+                     EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH)    ///< how many bits do we need for eeprom memory
 
 #endif
 

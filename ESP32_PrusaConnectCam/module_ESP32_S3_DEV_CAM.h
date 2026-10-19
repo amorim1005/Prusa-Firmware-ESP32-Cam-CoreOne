@@ -60,11 +60,6 @@
 #define ENABLE_BROWN_OUT_DETECTION  false   ///< Enable brown out detection
 #define ENABLE_PSRAM                true    ///< Enable PSRAM   
 
-/* --------------- OTA UPDATE CFG  --------------*/
-#define OTA_UPDATE_FW_FILE          PSTR("ESP32S3_DEV_CAM.bin") ///< OTA update firmware file name
-#define FW_STATUS_LED_PIN           34      ///< GPIO pin for status FW update LED
-#define FW_STATUS_LED_LEVEL_ON      LOW     ///< GPIO pin level for status LED ON
-
 /* --------------- FLASH LED CFG  ---------------*/
 #define ENABLE_CAMERA_FLASH         false   ///< Enable camera flash function
 #define CAMERA_FLASH_DIGITAL_CTRL   false   ///< Enable camera flash digital control

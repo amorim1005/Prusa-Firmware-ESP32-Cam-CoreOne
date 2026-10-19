@@ -110,10 +110,6 @@ String lastTwoChars = command.substring(command.length() - 2);
     log->AddEvent(LogLevel_Info, F("--> Console print service WiFi AP SSID..."));
     Serial.print("getserviceapssid:" + wifim->GetServiceApSsid() + ";");
   
-  } else if (command.startsWith("otaupdate") && command.endsWith(";")) {
-    log->AddEvent(LogLevel_Warning, F("--> Start OTA update process!"));
-    FirmwareUpdate.StartOtaUpdate = true;
-
   } else if (command.startsWith("resolution:") && command.endsWith(";")) {
     uint8_t resolution = command.substring(11, command.length() -1).toInt();
     log->AddEvent(LogLevel_Info, F("--> Console set photo resolution: "), String(resolution));
@@ -181,7 +177,6 @@ void SerialCfg::PrintAvailableCommands() {
   Serial.println(F("getwifistastatus;       - get STA status (connected/disconnected)"));
   Serial.println(F("getwifistaip;           - get STA IP address"));
   Serial.println(F("getserviceapssid;       - get service WiFi AP SSID"));
-  Serial.println(F("otaupdate;              - start OTA update process"));
   Serial.println(F("resolution:INDEX;       - set photo resolution"));
   Serial.println(F(" |   Index - Resolution"));
   Serial.println(F(" |->   0   - 320x240"));

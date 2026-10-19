@@ -40,6 +40,10 @@ private:
   uint16_t BackoffInterval;                       ///< interval after a failed upload [s]. 0 = no backoff
   uint16_t ConnectFailCounter;                    ///< count of consecutive failed connections to the backend server
   bool EnableTimelapsPhotoSave;                   ///< flag for saving photo to SD card
+  uint32_t UploadOkCount;                         ///< photos accepted by the backend since the start
+  uint32_t UploadFailedCount;                     ///< photos not uploaded since the start: capture or upload failed
+  bool CaptureFailed;                             ///< the last photo capture failed
+  String HealthStatus;                            ///< camera problem shown in Prusa Connect as a part of the camera name. Empty = OK
 
   String Token;                                   ///< token for backend communication
   String Fingerprint;                             ///< fingerprint for backend communication 
@@ -82,6 +86,7 @@ public:
   void SetBackendAvailabilitStatus(BackendAvailabilitStatus);
   void SetPrusaConnectHostname(String);
   void SetTimeLapsPhotoSaveStatus(bool);
+  void SetHealthStatus(String);
 
   void SavePhotoToSdCard(uint8_t *, size_t);
 
@@ -97,6 +102,10 @@ public:
   BackendAvailabilitStatus GetBackendAvailabilitStatus();
   String CovertBackendAvailabilitStatusToString(BackendAvailabilitStatus);
   bool GetTimeLapsPhotoSaveStatus();
+  uint32_t GetUploadOkCount();
+  uint32_t GetUploadFailedCount();
+  bool GetCaptureFailed();
+  String GetHealthStatus();
 
   void IncreaseSendingIntervalCounter();
   void SetSendingIntervalCounter(uint16_t);

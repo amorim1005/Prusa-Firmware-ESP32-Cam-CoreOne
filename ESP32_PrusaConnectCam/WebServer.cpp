@@ -68,7 +68,6 @@ void Server_InitWebServer() {
   Server_InitWebServer_Icons();
   Server_InitWebServer_Actions();
   Server_InitWebServer_Sets();
-  Server_InitWebServer_Update();
   Server_InitWebServer_Stream();
 
   /* route for not found page */
@@ -107,22 +106,6 @@ void Server_InitWebServer_JsonData() {
       return;
     request->send(200, F("text/html"), MSG_SCANNING);
     SystemWifiMngt.ScanWiFiNetwork();
-  });
-
-  /* route for firmware update processing status */
-  server.on("/UpdateProcessing", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    JsonDocument doc_json;
-    doc_json["processed_bytes"] = String(FirmwareUpdate.TransferedBytes);
-    doc_json["processed_percent"] = String(FirmwareUpdate.PercentProcess);
-    doc_json["updating"] = FirmwareUpdate.Processing;
-    doc_json["message"] = FirmwareUpdate.UpdatingStatus;
-    String string_json = "";
-    serializeJson(doc_json, string_json);
-
-    request->send(200, "application/json", string_json);
   });
 }
 
@@ -1015,21 +998,7 @@ void Server_InitWebServer_Sets() {
     }
   });
 
-  /* route for set firmware size */
-  server.on("/set_firmware_size", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Info, F("WEB server: /set_firmware_size"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-    request->send(200, F("text/html"), MSG_SAVE_OK);
-
-    /* check cfg for flash */
-    if (request->hasParam("size")) {
-      SystemLog.AddEvent(LogLevel_Info, String(request->getParam("size")->value().toInt()));
-      FirmwareUpdate.FirmwareSize = request->getParam("size")->value().toInt();
-    }
-  });
-
-  /* route for set firmware size */
+  /* route for set mDNS record */
   server.on("/set_mdns", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_mdns"));
     if (Server_CheckBasicAuth(request) == false)
@@ -1048,94 +1017,6 @@ void Server_InitWebServer_Sets() {
         request->send(200, F("text/html"), msg.c_str());
       }
     }
-  });
-}
-
-/**
-   @brief Init WEB FW update
-   @param none
-   @return none
-*/
-void Server_InitWebServer_Update() {
-  System_UpdateInit();
-
-  /* route for firmware update with file */
-  server.on(
-    "/upload", HTTP_POST, [](AsyncWebServerRequest* request) {
-      String string_json = "";
-      JsonDocument doc_json;
-
-      String responseMessage = (Update.hasError()) ? SYSTEM_MSG_UPDATE_FAIL : SYSTEM_MSG_UPDATE_DONE;
-      doc_json["message"] = responseMessage;
-      FirmwareUpdate.UpdatingStatus = responseMessage;
-
-      /* get error string */
-      if (Update.hasError()) {
-        String errorMessage = Update.errorString();
-        doc_json["errorMessage"] = errorMessage;
-        FirmwareUpdate.UpdatingStatus += errorMessage;
-        FirmwareUpdate.Processing = false;
-      }
-
-      /* make and send json msg */
-      serializeJson(doc_json, string_json);
-      AsyncWebServerResponse* response = request->beginResponse(200, "application/json", string_json);
-      response->addHeader("Connection", "close");
-      request->send(response);
-    },
-    [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
-      if (!index) {
-        FirmwareUpdate.Processing = true;
-        SystemLog.AddEvent(LogLevel_Info, F("Start FW update from file: "), filename);
-        FirmwareUpdate.UpdatingStatus = String(SYSTEM_MSG_UPDATE_PROCESS);
-        if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
-          Update.printError(Serial);
-        }
-      }
-
-      if (Update.write(data, len) != len) {
-        Update.printError(Serial);
-      }
-
-      if (final) {
-        FirmwareUpdate.Processing = false;
-        if (Update.end(true)) {
-          FirmwareUpdate.UpdatingStatus = String(SYSTEM_MSG_UPDATE_DONE);
-          SystemLog.AddEvent(LogLevel_Info, F("Update FW from file done. Reboot MCU"));
-        } else {
-          Update.printError(Serial);
-          SystemLog.AddEvent(LogLevel_Error, String(SYSTEM_MSG_UPDATE_FAIL));
-        }
-      }
-    });
-
-  /* route for start web OTA update from server */
-  server.on("/web_ota_update", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Info, F("WEB server: /web_ota_update"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-    request->send(200, F("text/html"), MSG_UPDATE_START);
-    FirmwareUpdate.Processing = true;
-
-    /* check flag */
-    if (request->hasParam("update")) {
-      bool ret = Server_TransfeStringToBool(request->getParam("update")->value());
-      if (ret == true) {
-        FirmwareUpdate.StartOtaUpdate = true;
-      } else {
-        FirmwareUpdate.StartOtaUpdate = false;
-      }
-    }
-  });
-
-  /* get OTA FW version on the server */
-  server.on("/check_web_ota_update", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /check_web_ota_update"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    System_CheckNewVersion();
-    request->send(200, F("text/html"), FirmwareUpdate.CheckNewVersionFwStatus.c_str());
   });
 }
 
@@ -1280,6 +1161,14 @@ String Server_GetJsonData() {
   doc_json["mcu_temp"] = String(McuTemperature.TemperatureCelsius) + " *C" + ((true == McuTemperature.ThermalThrottling) ? " - TOO HOT, stream disabled, uploads slowed down" : "");
   doc_json["thermal_throttling"] = Server_TranslateBoolToString(McuTemperature.ThermalThrottling);
   doc_json["upload_interval"] = String(System_GetUploadInterval());
+  doc_json["health_status"] = (Connect.GetHealthStatus().length() > 0) ? Connect.GetHealthStatus() : String(F("OK"));
+  doc_json["upload_ok"] = Connect.GetUploadOkCount();
+  doc_json["upload_failed"] = Connect.GetUploadFailedCount();
+  doc_json["unplanned_restarts"] = SystemHealth.UnplannedRestarts;
+  doc_json["last_restart"] = SystemHealth.LastRestartReason;
+  doc_json["mcu_temp_max"] = String(McuTemperature.TemperatureMax) + " *C";
+  doc_json["mem_internal"] = String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024) + " KB free, largest block " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) / 1024) + " KB";
+  doc_json["mem_psram"] = String(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024) + " KB free, largest block " + String(heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024) + " KB";
   doc_json["backoff_interval"] = String(Connect.GetBackoffInterval());
   doc_json["prusalink_enable"] = Server_TranslateBoolToString(SystemPrusaLink.GetEnable());
   doc_json["prusalink_host"] = SystemPrusaLink.GetHost();
@@ -1289,7 +1178,6 @@ String Server_GetJsonData() {
   doc_json["job_progress"] = String(SystemPrusaLink.GetJobProgress(), 0);
   doc_json["sw_build"] = SW_BUILD;
   doc_json["sw_ver"] = SW_VERSION;
-  doc_json["sw_new_ver"] = FirmwareUpdate.NewVersionFw;
   doc_json["extsens_stat"] = ExternalTemperatureSensor.GetSensorStatus();
   doc_json["extsen_en"] = ExternalTemperatureSensor.GetUserEnableSensor();
   doc_json["ext_temp"] = ExternalTemperatureSensor.GetTemperatureString();

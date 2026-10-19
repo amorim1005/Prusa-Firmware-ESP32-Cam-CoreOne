@@ -19,7 +19,6 @@
 #define MSG_SAVE_OK           "Save cfg OK"                           ///< WEB app msg save OK
 #define MSG_SAVE_NOTOK        "Save cfg NOT OK!"                      ///< WEB app msg save NOT OK
 #define MSG_SCANNING          "Scanning Wi-Fi networks. Wait 8s..."   ///< WEB app msg Scanning wifi
-#define MSG_UPDATE_START      "Start updating"
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char index_html[] PROGMEM = R"rawliteral(
@@ -28,7 +27,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c6">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c7">
 	<script src="/jquery-3.7.0.min.js"></script>
 	<script>
 		$(document).ready(function () {
@@ -98,7 +97,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/Prusa-Development/Prusa-Firmware-ESP32-Cam/" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c6"></script>
+	<script src="scripts.js?v=1.1.2-c7"></script>
 	<script>
 		sliderCheck();
 		get_data();
@@ -110,7 +109,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -124,7 +123,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -135,7 +134,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<table id="center_tb">
@@ -205,7 +204,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -215,7 +214,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center><table id="data">
@@ -322,7 +321,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -331,7 +330,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -343,6 +342,15 @@ const char page_system_html[] PROGMEM = R"rawliteral(
             <tr><td class="ps1">Uptime</td><td class="ps2" id="uptime"></td></tr>
 			<tr><td class="ps1">ESP32 Temperature</td><td class="ps2" id="mcu_temp"></td></tr>
 			<tr><td class="ps1">Current upload interval [s]</td><td class="ps2" id="upload_interval"></td></tr>
+			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
+			<tr><td class="ps3">Health</td><td></td></tr>
+			<tr><td class="ps1">Camera health (shown in Prusa Connect)</td><td class="ps2" id="health_status"></td></tr>
+			<tr><td class="ps1">Photos uploaded since start</td><td class="ps2"><span id="upload_ok"></span> OK, <span id="upload_failed"></span> failed</td></tr>
+			<tr><td class="ps1">Unplanned restarts</td><td class="ps2" id="unplanned_restarts"></td></tr>
+			<tr><td class="ps1">Last restart</td><td class="ps2" id="last_restart"></td></tr>
+			<tr><td class="ps1">Highest ESP32 temperature since start</td><td class="ps2" id="mcu_temp_max"></td></tr>
+			<tr><td class="ps1">Internal RAM</td><td class="ps2" id="mem_internal"></td></tr>
+			<tr><td class="ps1">PSRAM</td><td class="ps2" id="mem_psram"></td></tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Firmware</td><td></td></tr>
             <tr><td class="ps1">Version</td><td class="ps2" id="sw_ver"></td></tr>
@@ -369,30 +377,16 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 		   <tr><td class="ps1">Used</td><td class="ps2"><div class="progress-container"><div class="progress-bar" id="progress_bar_sd_used">0%</div></div></td></tr>
         </table>
     </center>
-    <br>
-    <center>
-        <table id="update">
-            <tr><td class="ps3">Firmware update</td><td></td></tr>
-			<tr><td class="ps1">Available from cloud</td><td class="ps2"><span id="sw_new_ver"></span> &nbsp;<button class="btn_update" onclick="checkUpdate()">Check for Updates</button></td></tr>
-            <tr><td class="ps1">Status</td><td><span class="ps2" id="status">Ready</span></td></tr>
-			<tr><td class="ps1">Progress</td><td class="ps2"><div class="progress-container"><div class="progress-bar" id="myProgressBar">0%</div></div></td></tr>
-            <tr><td></td><td><input type="file" id="firmwareInput" accept=".bin"></td></tr>
-            <tr><td></td><td><input type="submit" class="btn_update" value="Update from File" onclick="uploadFile()"></td></tr>
-			<tr><td></td><td><input type="submit" class="btn_update" value="Update from Cloud" onclick="updateWeb()"></td></tr>
-        </table>
-    </center>
 </body>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
-    var updateCompleted = false;
-	var updateInterval = setInterval(updateProgress, 800);
 	get_data("system");
 </script>
 )rawliteral";
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_temperature_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -415,7 +409,7 @@ const char page_temperature_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
 	get_data("temp");
 </script>
@@ -1050,7 +1044,6 @@ function get_data(val) {
 				$("#sw_build").text(obj.sw_build);
 				$("#last_upload_status").text(obj.last_upload_status);
 				$("#wifi_mode").text(obj.wifi_mode);
-				$("#sw_new_ver").text(obj.sw_new_ver);
 				$("#service_ap_ssid").text(obj.service_ap_ssid);
 				$("#sd_status").text(obj.sd_status);
 				$("#sd_total").text(obj.sd_total);
@@ -1058,6 +1051,14 @@ function get_data(val) {
 				$("#sd_used_p").text(obj.sd_used_p);
 				$("#mcu_temp").text(obj.mcu_temp);
 				$("#upload_interval").text(obj.upload_interval);
+				$("#health_status").text(obj.health_status);
+				$("#upload_ok").text(obj.upload_ok);
+				$("#upload_failed").text(obj.upload_failed);
+				$("#unplanned_restarts").text(obj.unplanned_restarts);
+				$("#last_restart").text(obj.last_restart);
+				$("#mcu_temp_max").text(obj.mcu_temp_max);
+				$("#mem_internal").text(obj.mem_internal);
+				$("#mem_psram").text(obj.mem_psram);
 
 				var sd_free_prog = document.getElementById("progress_bar_sd_free");
 				sd_free_prog.style.width = obj.sd_free_p + "%";
@@ -1300,120 +1301,6 @@ function togglePasswordVisibility() {
 	}
 }
 
-/* system page */
-if (typeof uploadingFirmware === 'undefined') {
-	var uploadingFirmware = false;
-}
-
-if (typeof FileSize === 'undefined') {
-	var FileSize = 0;
-}
-
-function uploadFile() {
-	alert("Started updating...");
-	const firmwareInput = document.getElementById('firmwareInput');
-	const statusDiv = document.getElementById('status');
-	const file = firmwareInput.files[0];
-	FileSize = file.size;
-	SetFirmwareSize(file.size);
-
-	if (file) {
-		statusDiv.innerText = 'Updating...';
-		const formData = new FormData();
-		formData.append('firmware', file);
-		uploadingFirmware = true;
-
-		fetch('/upload', {
-				method: 'POST',
-				body: formData,
-			})
-			.then((response) => {
-				if (response.ok) {
-					response.text().then((data) => {
-						const jsonData = JSON.parse(data);
-						updateProgress();
-						uploadingFirmware = false;
-						if (jsonData.errorMessage) {
-							alert(`Error message: ${jsonData.errorMessage}`);
-						}
-					});
-				} else {
-					uploadingFirmware = false;
-					response.text().then((errorMessage) => {
-						alert(`Error message: ${errorMessage}`);
-					});
-				}
-			})
-			.catch((error) => {
-				console.error('Error:', error);
-				uploadingFirmware = false;
-			});
-	} else {
-		statusDiv.innerText = 'No file selected';
-	}
-}
-
-function SetFirmwareSize(val) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "set_firmware_size?size=" + val, false);
-	xmlHttp.send(null);
-}
-
-function updateProgress() {
-	if (!uploadingFirmware) {
-		return;
-	}
-
-	fetch('/UpdateProcessing', {
-			method: 'GET',
-		})
-		.then((response) => {
-			if (response.ok) {
-				return response.json();
-			} else {
-				throw new Error('Failed to fetch progress');
-			}
-		})
-		.then((data) => {
-			const statusDiv = document.getElementById('status');
-			var progressBar = document.getElementById("myProgressBar");
-			progressBar.style.width = data.processed_percent + "%";
-			progressBar.innerHTML = data.processed_percent + "%";
-
-			statusDiv.innerText = data.message;
-			uploadingFirmware = data.updating;
-			if (data.updating == false  && !updateCompleted) {
-				alert('Operation done. Please reboot MCU.');
-				uploadingFirmware = false;
-				updateCompleted = true;
-				clearInterval(updateInterval);
-			}
-		})
-		.catch((error) => {
-			console.error('Error:', error);
-			var progressBar = document.getElementById("myProgressBar");
-			progressBar.innerHTML = "Error";
-			clearInterval(updateInterval);
-		});
-}
-
-function checkUpdate() {
-	var xmlHttp = new XMLHttpRequest();
-	alert("Connecting to server... Please wait several seconds");
-	xmlHttp.open("GET", "/check_web_ota_update", false);
-	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
-	get_data("system");
-}
-
-function updateWeb() {
-	alert("Started updating from cloud.");
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "web_ota_update?update=true", false);
-	xmlHttp.send(null);
-	uploadingFirmware = true;
-}
-
 function validatePasswords() {
     var password = document.getElementById("auth_password").value;
     var confirmPassword = document.getElementById("auth_password_confirm").value;
@@ -1468,10 +1355,10 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');
@@ -1480,10 +1367,10 @@ const char license_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char gtac_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the General Terms and Conditions, please visit <a href="https://www.prusa3d.com/page/general-terms-and-conditions_231236/" id="gtac-link">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
     addClickListener('gtac-link');
 </script>
@@ -1491,10 +1378,10 @@ const char gtac_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char privacypolicy_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Privacy Policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="privacy-link">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
     addClickListener('privacy-link');
 </script>
@@ -1502,10 +1389,10 @@ const char privacypolicy_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char cookies_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Cookie policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="cookies-link">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
     addClickListener('cookies-link');
 </script>

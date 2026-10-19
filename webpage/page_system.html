@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c6");</style>
+<style>@import url("styles.css?v=1.1.2-c7");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -10,6 +10,15 @@
             <tr><td class="ps1">Uptime</td><td class="ps2" id="uptime"></td></tr>
 			<tr><td class="ps1">ESP32 Temperature</td><td class="ps2" id="mcu_temp"></td></tr>
 			<tr><td class="ps1">Current upload interval [s]</td><td class="ps2" id="upload_interval"></td></tr>
+			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
+			<tr><td class="ps3">Health</td><td></td></tr>
+			<tr><td class="ps1">Camera health (shown in Prusa Connect)</td><td class="ps2" id="health_status"></td></tr>
+			<tr><td class="ps1">Photos uploaded since start</td><td class="ps2"><span id="upload_ok"></span> OK, <span id="upload_failed"></span> failed</td></tr>
+			<tr><td class="ps1">Unplanned restarts</td><td class="ps2" id="unplanned_restarts"></td></tr>
+			<tr><td class="ps1">Last restart</td><td class="ps2" id="last_restart"></td></tr>
+			<tr><td class="ps1">Highest ESP32 temperature since start</td><td class="ps2" id="mcu_temp_max"></td></tr>
+			<tr><td class="ps1">Internal RAM</td><td class="ps2" id="mem_internal"></td></tr>
+			<tr><td class="ps1">PSRAM</td><td class="ps2" id="mem_psram"></td></tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Firmware</td><td></td></tr>
             <tr><td class="ps1">Version</td><td class="ps2" id="sw_ver"></td></tr>
@@ -36,22 +45,8 @@
 		   <tr><td class="ps1">Used</td><td class="ps2"><div class="progress-container"><div class="progress-bar" id="progress_bar_sd_used">0%</div></div></td></tr>
         </table>
     </center>
-    <br>
-    <center>
-        <table id="update">
-            <tr><td class="ps3">Firmware update</td><td></td></tr>
-			<tr><td class="ps1">Available from cloud</td><td class="ps2"><span id="sw_new_ver"></span> &nbsp;<button class="btn_update" onclick="checkUpdate()">Check for Updates</button></td></tr>
-            <tr><td class="ps1">Status</td><td><span class="ps2" id="status">Ready</span></td></tr>
-			<tr><td class="ps1">Progress</td><td class="ps2"><div class="progress-container"><div class="progress-bar" id="myProgressBar">0%</div></div></td></tr>
-            <tr><td></td><td><input type="file" id="firmwareInput" accept=".bin"></td></tr>
-            <tr><td></td><td><input type="submit" class="btn_update" value="Update from File" onclick="uploadFile()"></td></tr>
-			<tr><td></td><td><input type="submit" class="btn_update" value="Update from Cloud" onclick="updateWeb()"></td></tr>
-        </table>
-    </center>
 </body>
-<script src="scripts.js?v=1.1.2-c6"></script>
+<script src="scripts.js?v=1.1.2-c7"></script>
 <script>
-    var updateCompleted = false;
-	var updateInterval = setInterval(updateProgress, 800);
 	get_data("system");
 </script>

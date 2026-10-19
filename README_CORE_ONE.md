@@ -8,7 +8,7 @@ changes are in the commits on top of it.
 Goal: a camera you can rely on every day, on a **Prusa Core One**, with a
 **Seeed Studio XIAO ESP32-S3 Sense** (OV2640 camera).
 
-Firmware version: **1.1.2-c6** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c7** (see the [version history](#version-history)).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
 > The first tests on your printer are the final check. Read
@@ -29,6 +29,7 @@ Firmware version: **1.1.2-c6** (see the [version history](#version-history)).
 8b. [Camera sensors: OV2640, OV3660, OV5640](#8b-camera-sensors-ov2640-ov3660-ov5640)
 8c. [Speed and fluidity (version 1.1.2-c6)](#8c-speed-and-fluidity-version-112-c6)
 8d. [How the photo and stream paths work](#8d-how-the-photo-and-stream-paths-work)
+8e. [Health checks, no OTA (version 1.1.2-c7)](#8e-health-checks-no-ota-version-112-c7)
 9. [How to compile (Arduino IDE or VS Code)](#9-how-to-compile)
 10. [How to flash the firmware](#10-how-to-flash-the-firmware)
 11. [Known limitations](#11-known-limitations)
@@ -97,7 +98,7 @@ documentation says new code should use the new ones. What changed:
 | The server certificate is issued by Google Trust Services | Trusted only ISRG Root X1 (Let's Encrypt), so **the connection would fail** | Added GTS Root R4 and GTS Root R1 (ISRG Root X1 kept). Verified against the real server |
 | Camera info with `device: {type: "ESP32", firmware_version, hardware_version}`. Unknown fields are **rejected** | Old format, which would be rejected (error 422) | New format, exactly as documented |
 | Camera name of at most 32 characters | Up to 40 | Cut to 32 |
-| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c6` |
+| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c7` |
 | Only 4 intervals: 10 s, 30 s, 60 s, 10 min. At most 6 uploads per minute | Any value from 10 to 240 s | A list with the 4 values. Old values are converted to the nearest one |
 | Photos of at most 1 MB | Not checked | Checked before uploading |
 | Each error code has its own action | All errors handled the same way | See below |
@@ -428,6 +429,75 @@ has no EXIF header and is not saved to the SD card.
 
 ---
 
+## 8e. Health checks, no OTA (version 1.1.2-c7)
+
+The camera runs for weeks inside the printer without anybody looking at it. Version 1.1.2-c7
+helps it recover by itself and shows its problems where you already look: in Prusa Connect.
+
+### Low memory: automatic restart
+
+After a long uptime the memory can get fragmented: there is still free memory, but no block is
+big enough for a photo or a TLS connection, and the uploads start to fail. Every 10 s the camera
+checks the largest free block:
+
+| Memory | Minimum largest free block | Used for |
+|---|---|---|
+| Internal RAM | 16 KB (`HEALTH_LOW_MEMORY_INTERNAL`) | Wi-Fi, TLS |
+| PSRAM | 512 KB (`HEALTH_LOW_MEMORY_PSRAM`) | Photos, stream frames |
+
+When the memory stays low:
+
+- for **5 minutes**, the camera restarts, but only when **nobody watches the stream** and the
+  printer is **not printing** (PrusaLink state; without PrusaLink the printer counts as not printing);
+- for **1 hour**, it restarts anyway, also during a print.
+
+A restart takes about 10 s. The reason is saved in the RTC memory (it survives a software restart)
+and shown on the System page after the start.
+
+The other automatic restarts that already existed (Wi-Fi lost for a long time, camera init failed)
+now save their reason too.
+
+### Camera health in Prusa Connect
+
+The Camera Service API has no status field. The only text that the camera can show in Prusa
+Connect is its **name**, so a problem is added to the name, for example `prusa-esp32cam [HOT]`.
+When the problem is gone, the normal name comes back. The name is sent with the next photo.
+
+| Name suffix | Meaning |
+|---|---|
+| `[HOT]` | The thermal guard is active: MCU above 75 °C, stream stopped, uploads slowed down |
+| `[LOW MEMORY]` | The memory is low, an automatic restart can follow |
+| `[CAMERA ERROR]` | The last photo capture failed |
+| `[PRUSALINK LOGIN]` | Wrong PrusaLink user name or password |
+
+When more than one problem is active, the first one in this table is shown.
+If the camera cannot upload at all (Wi-Fi down, camera off), it cannot show anything: in that case
+Prusa Connect shows that the last photo is old.
+
+### Health on the System page
+
+New **Health** section:
+
+| Line | What it shows |
+|---|---|
+| Camera health | The same text as in Prusa Connect, or `OK` |
+| Photos uploaded since start | Accepted photos and failed photos (capture or upload failed) |
+| Unplanned restarts | Crashes, watchdog, power drops and automatic restarts. Saved in the EEPROM, cleared by a factory reset |
+| Last restart | Power on, restart from the web page, crash, watchdog, power drop, automatic restart and its reason |
+| Highest ESP32 temperature since start | Use it to tune the thermal limits (section 5) |
+| Internal RAM, PSRAM | Free memory and largest free block |
+
+The telemetry log line every 30 s also shows the largest free block of each memory.
+
+### No OTA update
+
+The original firmware could update itself from the **official Prusa releases** ("Update from
+cloud"), which would replace this firmware with the original one, and from a `.bin` file uploaded
+on the System page. Both are **removed**: the routes, the GitHub certificates, the serial command
+`otaupdate` and the update section of the System page. **Flash new versions over USB** (section 10).
+
+---
+
 ## 9. How to compile
 
 The firmware compiles with the **ESP32 core 3.1.0** and the exact libraries in this
@@ -567,9 +637,8 @@ If the board is not detected: hold the **B** (boot) button, plug in the USB cabl
 - **Thermal limits (75 / 68 °C)** are an estimate for the chip's internal temperature.
   Adjust them after seeing real values on the System page.
 - **At most 2 stream clients** at a time (see section 8c).
-- **"Update from cloud"** (on the System page) downloads the **official** Prusa firmware,
-  which **replaces** this version. To update this version, flash over USB or use the file
-  update with the `.bin` from this repository.
+- **No firmware update over Wi-Fi** (removed in version 1.1.2-c7, see section 8e). Flash new
+  versions over USB (section 10).
 - The only possible intervals are 10 s, 30 s, 60 s and 10 min (a Prusa rule).
 
 ---
@@ -611,11 +680,14 @@ then disconnect GPIO2 from GND.
 | `ESP32_PrusaConnectCam/prusalink.cpp`, `prusalink.h` | **New**: PrusaLink client |
 | `ESP32_PrusaConnectCam/cfg.cpp`, `cfg.h` | Saving the interval and the PrusaLink settings, token masked in the log |
 | `ESP32_PrusaConnectCam/log.cpp`, `log.h`, `micro_sd.cpp`, `micro_sd.h` | (c2) Batched SD card log writes |
-| `ESP32_PrusaConnectCam/mcu_cfg.h` | XIAO board selected, version 1.1.2-c4, new constants, Core One defaults |
+| `ESP32_PrusaConnectCam/mcu_cfg.h` | XIAO board selected, version 1.1.2-c7, new constants, Core One defaults |
 | `ESP32_PrusaConnectCam/cfg.cpp`, `cfg.h` (c4) | Detected camera sensor saved in the EEPROM |
 | `ESP32_PrusaConnectCam/var.cpp`, `var.h` | Thermal guard state |
 | `ESP32_PrusaConnectCam/ESP32_PrusaConnectCam.ino` | Photo task on core 1, load the PrusaLink configuration |
 | `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, current interval, versioned `styles.css` |
+| `ESP32_PrusaConnectCam/system.cpp`, `var.cpp`, `var.h` (c7) | Low memory check and automatic restart, restart reasons, camera health |
+| `ESP32_PrusaConnectCam/connect.cpp`, `connect.h` (c7) | Camera health in the name sent to Prusa Connect, upload counters |
+| `ESP32_PrusaConnectCam/Certificate_ota.h`, OTA routes and code (c7) | **Removed**: no OTA update |
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
 | `firmware/xiao-esp32-s3/` | **New**: compiled firmware |
@@ -633,6 +705,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 |---|---|
 | 1.1.2-c1 | 11 bugs fixed, Prusa Camera Service, Core One defaults, thermal guard, PrusaLink |
 | 1.1.2-c2 | TLS timeout, browser cache, page sending, rejected camera info, PrusaLink with the printer switched off, 16 KB TLS chunks, batched SD log writes, debug messages (see [section 8](#8-optimizations-in-version-112-c2)) |
+| 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, OTA update removed (see [section 8e](#8e-health-checks-no-ota-version-112-c7)) |
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached (see [section 8c](#8c-speed-and-fluidity-version-112-c6)) |
 | 1.1.2-c5 | OV5640 continuous autofocus, autofocus state on the Camera page |
 | 1.1.2-c4 | Camera sensor detected once and saved: later starts initialize the camera only once |

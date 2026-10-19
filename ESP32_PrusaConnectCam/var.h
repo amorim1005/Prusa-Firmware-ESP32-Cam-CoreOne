@@ -20,29 +20,29 @@ struct WebBasicAuth_struct {
   String Password;                        ///< password for basic auth
 };
 
-struct FirmwareUpdate_struct {
-  String UpdatingStatus;                  ///< Updateing status
-  bool Processing;                        ///< status abour processing firmware update
-  uint8_t PercentProcess;                 ///< processed firmware update
-  int TransferedBytes;                    ///< transfered bytes
+/* automatic restart reasons, saved in the RTC memory before the restart */
+enum SystemRestartReason_enum {
+  SystemRestart_None = 0,                 ///< no automatic restart
+  SystemRestart_LowMemory = 1,            ///< free memory was too low
+  SystemRestart_WiFiLost = 2,             ///< WiFi connection was lost for a long time
+  SystemRestart_CameraInit = 3,           ///< camera init failed
+};
 
-  int FirmwareSize;                       ///< uploaded firmware size
-
-  bool StartOtaUpdate;                    ///< Start OTA update process
-  bool CheckNewVersionAfterBoot;          ///< Check new version OTA update after MCU boot
-  String NewVersionFw;                    ///< New FW version
-  String CheckNewVersionFwStatus;         ///< connection status from checking new OTA update version
-  String OtaUpdateFwUrl;                  ///< URL for OTA update
-  bool OtaUpdateFwAvailable;              ///< flag for available new FW version
+struct SystemHealth_struct {
+  volatile bool LowMemory;                ///< free memory is below the limit
+  uint16_t LowMemoryTime;                 ///< how long the free memory is below the limit [s]
+  uint16_t UnplannedRestarts;             ///< restarts after a crash, watchdog, power drop or automatic restart. Saved in EEPROM
+  String LastRestartReason;               ///< reason of the last restart
 };
 
 struct McuTemperature_struct {
   float TemperatureCelsius;               ///< MCU temperature
   volatile bool ThermalThrottling;        ///< MCU is too hot: stream is stopped and uploads are slowed down
+  float TemperatureMax;                   ///< highest MCU temperature since the start
 };
 
 extern struct WebBasicAuth_struct WebBasicAuth;      ///< structure with configuration for basic auth
-extern struct FirmwareUpdate_struct FirmwareUpdate;  ///< firmware update status and process
+extern struct SystemHealth_struct SystemHealth;      ///< memory and restart statistics
 extern struct McuTemperature_struct McuTemperature;  ///< MCU temperature
 
 extern TaskHandle_t Task_CapturePhotoAndSend;        ///< task handle for capture photo and send
@@ -57,5 +57,8 @@ extern TaskHandle_t Task_WiFiWatchdog;               ///< task handle for wifi w
 
 extern uint8_t StartRemoveSdCard;
 extern uint32_t SdCardRemoveTime;
+
+void System_RestartMcu(SystemRestartReason_enum);
+SystemRestartReason_enum System_ConsumeRestartReason();
 
 /* EOF */

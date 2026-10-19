@@ -254,7 +254,7 @@ void Camera::InitCameraModule(framesize_t i_frameSize) {
   if (err != ESP_OK) {
     log->AddEvent(LogLevel_Warning, F("Camera init failed. Error: "), String(err, HEX));
     log->AddEvent(LogLevel_Warning, F("Reset ESP32-cam!"));
-    ESP.restart();
+    System_RestartMcu(SystemRestart_CameraInit);
   }
   sensor = esp_camera_sensor_get();
 }

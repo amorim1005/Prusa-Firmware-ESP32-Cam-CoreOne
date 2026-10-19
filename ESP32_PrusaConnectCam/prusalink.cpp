@@ -54,6 +54,7 @@ void PrusaLink::ClearState() {
   PrinterState = F("N/A");
   JobProgress = 0.0;
   Reachable = false;
+  LoginError = false;
   Printing = false;
   StateChanged = false;
   Status = Enable ? F("Waiting for the first request") : F("Disabled");
@@ -85,6 +86,7 @@ void PrusaLink::Loop() {
 
   /* a printer that is switched off would block the photo task for the connect timeout on every request */
   PollInterval = (200 == code) ? PRUSALINK_POLL_INTERVAL : PRUSALINK_RETRY_INTERVAL;
+  LoginError = (401 == code);
 
   if (200 == code) {
     ProcessStatus(body);
@@ -393,6 +395,10 @@ float PrusaLink::GetJobProgress() {
 
 String PrusaLink::GetStatus() {
   return Status;
+}
+
+bool PrusaLink::GetLoginError() {
+  return LoginError;
 }
 
 /* EOF */

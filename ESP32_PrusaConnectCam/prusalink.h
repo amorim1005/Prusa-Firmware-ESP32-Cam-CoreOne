@@ -33,6 +33,7 @@ private:
   String PrinterState;            ///< last printer state from PrusaLink, for example IDLE, PRINTING
   float JobProgress;              ///< job progress [%]
   bool Reachable;                 ///< last request was successful
+  bool LoginError;                ///< wrong PrusaLink user name or password
   bool Printing;                  ///< printer is printing, paused or needs attention
   bool StateChanged;              ///< printing state changed since the last call of ConsumeStateChange
   String Status;                  ///< status message for WEB page
@@ -77,6 +78,7 @@ public:
   String GetPrinterState();
   float GetJobProgress();
   String GetStatus();
+  bool GetLoginError();
 };
 
 extern PrusaLink SystemPrusaLink; ///< PrusaLink object

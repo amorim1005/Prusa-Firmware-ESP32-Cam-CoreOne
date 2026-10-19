@@ -12,11 +12,9 @@
 #pragma once
 
 #include <WiFi.h>
-#include <Update.h>
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <HTTPUpdate.h>
 #include <ArduinoJson.h>
 #include <esp_wifi.h>
 #include <esp_task_wdt.h>
@@ -33,7 +31,6 @@
 #include "var.h"
 #include "cfg.h"
 #include "log.h"
-#include "Certificate_ota.h"
 #include "wifi_mngt.h"
 #include "connect.h"
 #include "prusalink.h"
@@ -41,24 +38,14 @@
 #include "sys_led.h"
 #include "ExternalTemperatureSensor.h"
 
-#define SYSTEM_MSG_UPDATE_DONE    F("FW update successfully done! Please reboot the MCU.")
-#define SYSTEM_MSG_UPDATE_FAIL    F("FW update failed! Please reboot MCU, and try again.")
-#define SYSTEM_MSG_UPDATE_PROCESS F("FW update in progress")
-#define SYSTEM_MSG_UPDATE_NO_FW   F("No new FW version available!")
-
 void System_Init();
 void System_LoadCfg();
 bool System_CheckIfPsramIsUsed();
 void System_Main();
-void System_UpdateInit();
-
-void System_CheckNewVersion();
-void System_OtaCloudUpdate();
-bool System_OtaUpdateStart();
-void System_OtaUpdateProgressCB(int, int);
-void System_OtaUpdateErrorCB(int);
-void System_OtaUpdateEndCB();
-void System_OtaUpdateStartCB();
+void System_CheckMemory();
+String System_GetHealthStatus();
+String System_GetRestartReasonText(esp_reset_reason_t, SystemRestartReason_enum);
+bool System_IsUnplannedRestart(esp_reset_reason_t, SystemRestartReason_enum);
 
 String System_PrintMcuResetReason(int);
 String System_printMcuResetReasonSimple();

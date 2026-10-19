@@ -143,7 +143,7 @@ void WiFiMngt::WifiManagement() {
   if (currentMillis - TaskAp_previousMillis >= STA_AP_MODE_TIMEOUT) {
     TaskAp_previousMillis = currentMillis;
     if ((true == config->CheckActifeWifiCfgFlag()) && (true == ServiceMode) && (WL_CONNECTED == WiFi.status())
-        && (false == FirmwareUpdate.Processing) && (false == cam->GetStreamStatus())) {
+        && (false == cam->GetStreamStatus())) {
       if (WiFi.softAPgetStationNum() == 0) {
         log->AddEvent(LogLevel_Info, F("Disable service AP mode"));
         WiFi.mode(WIFI_STA);
@@ -441,7 +441,7 @@ void WiFiMngt::WiFiWatchdog() {
     if ((true == StartStaWdg) && (currentMillis - TaskWdg_previousMillis >= WIFI_STA_WDG_TIMEOUT)) {
       log->AddEvent(LogLevel_Warning, F("WiFi STA connection lost. WDG timer expired. Restart MCU!"));
       /* restart MCU, or disconnect and connect to WiFi again ? From my point of view, and testing, restart MCU is better */
-      ESP.restart();
+      System_RestartMcu(SystemRestart_WiFiLost);
     }
 
   } else if (true == StartStaWdg) {
