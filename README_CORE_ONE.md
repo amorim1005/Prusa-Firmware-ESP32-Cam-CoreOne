@@ -28,6 +28,7 @@ Firmware version: **1.1.2-c6** (see the [version history](#version-history)).
 8. [Optimizations in version 1.1.2-c2](#8-optimizations-in-version-112-c2)
 8b. [Camera sensors: OV2640, OV3660, OV5640](#8b-camera-sensors-ov2640-ov3660-ov5640)
 8c. [Speed and fluidity (version 1.1.2-c6)](#8c-speed-and-fluidity-version-112-c6)
+8d. [How the photo and stream paths work](#8d-how-the-photo-and-stream-paths-work)
 9. [How to compile (Arduino IDE or VS Code)](#9-how-to-compile)
 10. [How to flash the firmware](#10-how-to-flash-the-firmware)
 11. [Known limitations](#11-known-limitations)
@@ -347,6 +348,83 @@ after each upload, which frees about 40 KB of internal RAM.
 **How to check it on the board:** the System telemetry log line "Stream, average data in 30sec.
 FPS: ..., Size: ...KB" shows the stream frame rate. Open the stream and click through the web page
 tabs: the page should answer without waiting for the stream.
+
+---
+
+## 8d. How the photo and stream paths work
+
+The board has one camera and two users of it: the **photo task** (uploads to Prusa Connect) and the
+**live stream** (web page). Who owns the camera depends on whether the stream is on.
+
+### Photo path (Prusa Connect)
+
+The photo task runs on core 1 and wakes up once per second:
+
+```
+every 1 s
+ ├─ read the MCU temperature (thermal guard)
+ ├─ PrusaLink: read the printer state (every 10 s; 60 s when the printer does not answer)
+ │     └─ printing started or finished -> upload a photo now
+ └─ upload interval expired?
+       ├─ send the camera information   (/v1/camera-info)
+       ├─ capture the photo
+       ├─ make a private copy of the photo (PSRAM)
+       ├─ upload the copy over HTTPS     (/v1/snapshot, 16 KB chunks, keep-alive)
+       ├─ save it to the SD card (when enabled and the stream is off)
+       └─ free the copy
+```
+
+The upload interval is the **longest** of:
+
+- the configured interval (10 s, 30 s, 60 s or 10 min);
+- the backoff after a failed upload (doubles up to 10 min);
+- 10 min when PrusaLink says the printer is idle;
+- 60 s while the thermal guard is active (above 75 °C, until 68 °C).
+
+Capturing a photo with the stream off:
+
+1. Turn on the flash, if enabled.
+2. Capture and discard a "training" frame: the first frame from the sensor is old.
+3. Capture the real photo and check that it is a valid JPEG. A bad frame goes back to the driver
+   and the capture is retried, up to 5 times.
+4. Add the EXIF header (rotation, sensor model).
+5. Always turn off the flash.
+
+The upload works on its own copy, so the camera is free again at once and the photo cannot change
+in the middle of an upload.
+
+### Stream path
+
+```
+ [Sensor] --> stream capture task --> 3 PSRAM buffers --> web server --> browser 1
+               (core 1)                A   B   C                    \-> browser 2
+```
+
+- **Stream capture task:** sleeps and frees the buffers while nobody watches. With a client it
+  picks a free buffer (not the latest frame, not one being sent), takes a frame from the sensor,
+  copies it, gives the frame back to the driver at once and publishes the buffer as the latest
+  frame with a sequence number. It waits up to 300 ms when nobody has taken the latest frame yet,
+  so it does not capture frames that nobody sees.
+- **Web server, per client:** takes the latest frame (if it is newer than the last one sent),
+  marks the buffer as in use, sends it at the network speed, then releases it.
+- **3 buffers:** one holds the latest frame, one is being sent, one is being filled. Capture and
+  sending run at the same time, and the web server never waits for the camera.
+- **At most 2 clients.** Each client runs at its own speed: a slow phone gets fewer frames but
+  does not slow down the PC.
+
+### When both paths meet (stream on)
+
+While the stream is on, the camera belongs to the stream capture task. The photo task does not
+capture: it copies the latest stream frame and uploads it. "Get photo" and "saved-photo" on the
+web page do the same. The stream is not interrupted and no extra CPU is used. The cost: that photo
+has no EXIF header and is not saved to the SD card.
+
+### Safety nets
+
+- Nobody waits for the camera forever: 5 s for the camera, 3 s for a stream frame.
+- Above 75 °C the stream stops and uploads slow down until the MCU is back at 68 °C.
+- A failed upload waits longer before the next try, without dropping Wi-Fi.
+- The task watchdog restarts the board if a task is stuck for more than 40 s.
 
 ---
 
