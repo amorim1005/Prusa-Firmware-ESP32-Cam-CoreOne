@@ -50,6 +50,12 @@
  */
 bool update_exif_from_cfg(const uint8_t);
 
+/**
+ * Set the camera model in the EXIF header, for example "OV5640".
+ * The field has a fixed size (CAMERA_MODEL), longer names are cut.
+ */
+void update_exif_camera_model(const char *);
+
 #ifdef WITH_GNSS
 /**
  * Update GPS data in EXIF header

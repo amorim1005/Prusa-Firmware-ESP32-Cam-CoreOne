@@ -22,12 +22,19 @@
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c2"               ///< SW version
+#define SW_VERSION                  "1.1.2-c3"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
 #define CAMERA_MAX_FAIL_CAPTURE     10                      ///< maximum count for failed capture
 #define CAMERA_SEMAPHORE_TIMEOUT    5000                    ///< maximum waiting time for the camera frame buffer semaphore [ms]
+
+/* --------------- CAMERA SENSORS  --------------*/
+/* The camera driver detects the sensor automatically: OV2640 (max. 1600x1200), OV3660 (max. 2048x1536), OV5640 (max. 2592x1944) */
+#define CAMERA_XCLK_OV2640          15000000                ///< XCLK for the OV2640 [Hz]
+#define CAMERA_XCLK_OV3660          20000000                ///< XCLK for the OV3660 [Hz], Espressif reference value
+#define CAMERA_XCLK_OV5640          20000000                ///< XCLK for the OV5640 [Hz], Espressif reference value
+#define CAMERA_SAFE_INIT_FRAMESIZE  FRAMESIZE_UXGA          ///< frame size for the first init, every supported sensor accepts it
 
 /* ------------ PRUSA BACKEND CFG  --------------*/
 /* Prusa Camera Service API: https://camera-service.prusa3d.com/docs/ */
@@ -144,7 +151,7 @@
 /* ---------------- FACTORY CFG  ----------------*/
 #define FACTORY_CFG_PHOTO_REFRESH_INTERVAL    30                ///< in the second
 #define FACTORY_CFG_PHOTO_QUALITY             12                ///< 10-63, lower is better
-#define FACTORY_CFG_FRAME_SIZE                4                 ///< 0 - FRAMESIZE_QVGA, ..., 4 - FRAMESIZE_XGA, 6 - FRAMESIZE_UXGA. Look function Cfg_TransformFrameSizeDataType
+#define FACTORY_CFG_FRAME_SIZE                4                 ///< 0 - FRAMESIZE_QVGA, ..., 4 - FRAMESIZE_XGA, 6 - FRAMESIZE_UXGA, 10 - FRAMESIZE_5MP. Look at Camera::TransformFrameSizeDataType
 #define FACTORY_CFG_BRIGHTNESS                0                 ///< from -2 to 2
 #define FACTORY_CFG_CONTRAST                  0                 ///< from -2 to 2
 #define FACTORY_CFG_SATURATION                0                 ///< from -2 to 2

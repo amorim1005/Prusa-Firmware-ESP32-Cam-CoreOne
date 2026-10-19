@@ -22,7 +22,16 @@ function get_data(val) {
 				document.getElementById('tokenid').value = obj.token;
 				document.getElementById('refreshid').value = obj.refreshInterval;
 				document.getElementById('photo_qualityid').value = obj.photoquality;
+				/* show only the resolutions supported by the detected camera sensor */
+				var supported = obj.framesize_supported.split(",");
+				var framesizeOptions = document.getElementById('framesizeid').options;
+				for (var i = 0; i < framesizeOptions.length; i++) {
+					var available = supported.includes(framesizeOptions[i].value);
+					framesizeOptions[i].hidden = !available;
+					framesizeOptions[i].disabled = !available;
+				}
 				document.getElementById('framesizeid').value = obj.framesize;
+				$("#camera_detected").text(obj.camera_detected);
 				document.getElementById('brightnessid').value = obj.brightness;
 				document.getElementById('contrastid').value = obj.contrast;
 				document.getElementById('saturationid').value = obj.saturation;
@@ -332,7 +341,8 @@ function changeValue(val, url, reload, msg) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", url + val, false);
 	xmlHttp.send(null);
-	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=")) {
+	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
+		xmlHttp.responseText.startsWith("ERROR")) {
 		alert(xmlHttp.responseText);
 	}
 	if (url == "set_flash_time?flash_time=") {

@@ -315,7 +315,7 @@ bool PrusaConnect::SendInfoToBackend() {
 
   JsonObject device = json_data["device"].to<JsonObject>();
   device["type"] = F("ESP32");
-  device["model"] = BOARD_NAME;
+  device["model"] = String(BOARD_NAME) + " " + camera->GetDetectedSensorName();
   device["firmware_version"] = String(SW_VERSION).substring(0, CAMERA_SERVICE_FW_VERSION_MAX_LEN);
   device["hardware_version"] = String(BOARD_NAME).substring(0, CAMERA_SERVICE_HW_VERSION_MAX_LEN);
 

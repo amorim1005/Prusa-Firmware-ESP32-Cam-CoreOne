@@ -45,6 +45,10 @@ Camera::Camera(Configuration* i_conf, Logs* i_log, int8_t i_FlashPin) {
   FrameBufferDuplicateCapacity = 0;
   FrameBuffer = NULL;
   CameraCaptureSuccess = false;
+  sensor = NULL;
+  CameraType = (camera_pid_t)0;
+  CameraName = F("Unknown");
+  SensorMaxFrameSize = CAMERA_SAFE_INIT_FRAMESIZE;
 
   PhotoExifData.header = NULL;
   PhotoExifData.len = 0;
@@ -72,9 +76,22 @@ void Camera::Init() {
   SetFlashStatus(false);
 #endif
 
-  InitCameraModule();
-  ApplyCameraCfg();
+  /* The sensor is known only after the first init. Start with a frame size and XCLK every supported sensor accepts,
+     a saved 5 MP frame size on a 2 MP sensor must not end in a reboot loop */
+  framesize_t InitFrameSize = (TFrameSize > CAMERA_SAFE_INIT_FRAMESIZE) ? CAMERA_SAFE_INIT_FRAMESIZE : TFrameSize;
+  InitCameraModule(InitFrameSize);
   GetCameraModel();
+  CheckFrameSizeLimit();
+
+  /* init again with the final frame size and the XCLK of the detected sensor */
+  if ((InitFrameSize != TFrameSize) || (GetSensorXclk() != (uint32_t)CameraConfig.xclk_freq_hz)) {
+    log->AddEvent(LogLevel_Info, F("Init camera module again for the detected sensor"));
+    esp_camera_deinit();
+    delay(100);
+    InitCameraModule(TFrameSize);
+  }
+
+  ApplyCameraCfg();
 }
 
 /**
@@ -83,6 +100,15 @@ void Camera::Init() {
    @return none
 */
 void Camera::InitCameraModule() {
+  InitCameraModule(TFrameSize);
+}
+
+/**
+   @brief Init the camera module with a frame size
+   @param framesize_t - frame size
+   @return none
+*/
+void Camera::InitCameraModule(framesize_t i_frameSize) {
   log->AddEvent(LogLevel_Info, F("Init camera module"));
   /* Turn-off the 'brownout detector' */
 #if (true == ENABLE_BROWN_OUT_DETECTION)
@@ -108,7 +134,7 @@ void Camera::InitCameraModule() {
   CameraConfig.pin_sccb_scl = SIOC_GPIO_NUM;
   CameraConfig.pin_pwdn = PWDN_GPIO_NUM;
   CameraConfig.pin_reset = RESET_GPIO_NUM;
-  CameraConfig.xclk_freq_hz = 15000000;       // or 3000000; 16500000; 20000000
+  CameraConfig.xclk_freq_hz = GetSensorXclk();
   CameraConfig.pixel_format = PIXFORMAT_JPEG; /* YUV422,GRAYSCALE,RGB565,JPEG */
 
   /* OV2640
@@ -124,7 +150,7 @@ void Camera::InitCameraModule() {
     CAMERA_GRAB_LATEST     - Except when 1 frame buffer is used, queue will always contain the last 'fb_count' frames
   */
 
-  CameraConfig.frame_size = TFrameSize;             /* FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA */
+  CameraConfig.frame_size = i_frameSize;            /* FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA|HD|FHD|QXGA|5MP */
   CameraConfig.jpeg_quality = PhotoQuality;         /* 10-63 lower number means higher quality */
   CameraConfig.fb_count = 1;                        /* picture frame buffer alocation */
   CameraConfig.grab_mode = CAMERA_GRAB_LATEST;      /* CAMERA_GRAB_WHEN_EMPTY or CAMERA_GRAB_LATEST */
@@ -148,7 +174,8 @@ void Camera::InitCameraModule() {
     log->AddEvent(LogLevel_Warning, F("Camera init failed. Error: "), String(err, HEX));
     log->AddEvent(LogLevel_Warning, F("Reset ESP32-cam!"));
     ESP.restart();
-  } 
+  }
+  sensor = esp_camera_sensor_get();
 }
 
 /**
@@ -185,41 +212,114 @@ void Camera::LoadCameraCfgFromEeprom() {
 }
 
 /**
+   @brief Frame sizes selectable on the WEB page. The index is saved in the EEPROM, never change the order, only append.
+          The sensor decides which frame sizes are available: OV2640 up to UXGA, OV3660 up to QXGA, OV5640 up to 5MP
+*/
+static const framesize_t FrameSizeTable[] = {
+  FRAMESIZE_QVGA,   /* 0 - 320x240 */
+  FRAMESIZE_CIF,    /* 1 - 400x296 */
+  FRAMESIZE_VGA,    /* 2 - 640x480 */
+  FRAMESIZE_SVGA,   /* 3 - 800x600 */
+  FRAMESIZE_XGA,    /* 4 - 1024x768 */
+  FRAMESIZE_SXGA,   /* 5 - 1280x1024 */
+  FRAMESIZE_UXGA,   /* 6 - 1600x1200 */
+  FRAMESIZE_HD,     /* 7 - 1280x720 */
+  FRAMESIZE_FHD,    /* 8 - 1920x1080 */
+  FRAMESIZE_QXGA,   /* 9 - 2048x1536 */
+  FRAMESIZE_5MP,    /* 10 - 2592x1944 */
+};
+static const uint8_t FrameSizeTableCount = sizeof(FrameSizeTable) / sizeof(FrameSizeTable[0]);
+
+/**
    @brief transform uint8_t from web interface to framesize_t
    @param uint8_t - int value from web
    @return framesize_t
 */
 framesize_t Camera::TransformFrameSizeDataType(uint8_t i_data) {
-  framesize_t ret = FRAMESIZE_QVGA;
-  switch (i_data) {
-    case 0:
-      ret = FRAMESIZE_QVGA;
-      break;
-    case 1:
-      ret = FRAMESIZE_CIF;
-      break;
-    case 2:
-      ret = FRAMESIZE_VGA;
-      break;
-    case 3:
-      ret = FRAMESIZE_SVGA;
-      break;
-    case 4:
-      ret = FRAMESIZE_XGA;
-      break;
-    case 5:
-      ret = FRAMESIZE_SXGA;
-      break;
-    case 6:
-      ret = FRAMESIZE_UXGA;
-      break;
-    default:
-      ret = FRAMESIZE_QVGA;
-      log->AddEvent(LogLevel_Warning, F("Bad frame size. Set default value. "), String(i_data));
-      break;
+  if (i_data < FrameSizeTableCount) {
+    return FrameSizeTable[i_data];
+  }
+
+  log->AddEvent(LogLevel_Warning, F("Bad frame size. Set default value. "), String(i_data));
+  return FRAMESIZE_QVGA;
+}
+
+/**
+   @brief Check if the detected sensor supports the frame size
+   @param uint8_t - frame size index from web
+   @return bool - true if supported
+*/
+bool Camera::CheckFrameSizeSupported(uint8_t i_data) {
+  return ((i_data < FrameSizeTableCount) && (FrameSizeTable[i_data] <= SensorMaxFrameSize));
+}
+
+/**
+   @brief List of frame size indexes supported by the detected sensor, for the WEB page
+   @param none
+   @return String - comma separated indexes, for example "0,1,2,3,4,5,6,7"
+*/
+String Camera::GetSupportedFrameSizes() {
+  String ret = "";
+  for (uint8_t i = 0; i < FrameSizeTableCount; i++) {
+    if (CheckFrameSizeSupported(i)) {
+      if (ret.length() > 0) {
+        ret += ",";
+      }
+      ret += String(i);
+    }
   }
 
   return ret;
+}
+
+/**
+   @brief Limit the saved frame size to the maximum of the detected sensor, for example after a camera module change
+   @param none
+   @return none
+*/
+void Camera::CheckFrameSizeLimit() {
+  if (CheckFrameSizeSupported(FrameSize)) {
+    return;
+  }
+
+  /* use the largest supported frame size */
+  uint8_t best = 0;
+  for (uint8_t i = 0; i < FrameSizeTableCount; i++) {
+    if (CheckFrameSizeSupported(i) && (FrameSizeTable[i] > FrameSizeTable[best])) {
+      best = i;
+    }
+  }
+
+  log->AddEvent(LogLevel_Warning, "Frame size " + String(FrameSize) + " is not supported by " + CameraName + ". New frame size: " + String(best));
+  FrameSize = best;
+  TFrameSize = FrameSizeTable[best];
+  config->SaveFrameSize(best);
+}
+
+/**
+   @brief Get XCLK for the detected camera sensor. Before the detection the OV2640 value is used
+   @param none
+   @return uint32_t - XCLK [Hz]
+*/
+uint32_t Camera::GetSensorXclk() {
+  switch (CameraType) {
+    case OV3660_PID:
+      return CAMERA_XCLK_OV3660;
+    case OV5640_PID:
+      return CAMERA_XCLK_OV5640;
+    case OV2640_PID:
+    default:
+      return CAMERA_XCLK_OV2640;
+  }
+}
+
+/**
+   @brief Get the name of the detected camera sensor
+   @param none
+   @return String - name, for example OV5640
+*/
+String Camera::GetDetectedSensorName() {
+  return CameraName;
 }
 
 /**
@@ -292,28 +392,41 @@ void Camera::ApplyCameraCfg() {
 
   /* sensor configuration */
   sensor = esp_camera_sensor_get();
-  sensor->set_brightness(sensor, brightness);         // -2 to 2
-  sensor->set_contrast(sensor, contrast);             // -2 to 2
-  sensor->set_saturation(sensor, saturation);         // -2 to 2
-  sensor->set_special_effect(sensor, 0);              // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
-  sensor->set_whitebal(sensor, awb);                  // automatic white balancing 0 = disable , 1 = enable
-  sensor->set_awb_gain(sensor, awb_gain);             // automatic white balancing gain 0 = disable , 1 = enable
-  sensor->set_wb_mode(sensor, wb_mode);               // white balancing mode 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
-  sensor->set_exposure_ctrl(sensor, exposure_ctrl);   // exposition controll 0 = disable , 1 = enable
-  sensor->set_aec2(sensor, aec2);                     // enable exposition controll 0 = disable , 1 = enable
-  sensor->set_ae_level(sensor, ae_level);             // automatic exposition level -2 to 2
-  sensor->set_aec_value(sensor, aec_value);           // expozition time - 0 to 1200
-  sensor->set_gain_ctrl(sensor, gain_ctrl);           // automatic gain controll 0 = disable , 1 = enable
-  sensor->set_agc_gain(sensor, agc_gain);             // automatic gain controll level 0 to 30
-  sensor->set_gainceiling(sensor, (gainceiling_t)0);  // maximum gain 0 to 6
-  sensor->set_bpc(sensor, bpc);                       // bad pixel correction 0 = disable , 1 = enable
-  sensor->set_wpc(sensor, wpc);                       // white pixel correction 0 = disable , 1 = enable
-  sensor->set_raw_gma(sensor, raw_gama);              // raw gama correction 0 = disable , 1 = enable
-  sensor->set_lenc(sensor, lensc);                    // lens correction 0 = disable , 1 = enable
-  sensor->set_hmirror(sensor, hmirror);               // horizontal mirror 0 = disable , 1 = enable
-  sensor->set_vflip(sensor, vflip);                   // vertical flip 0 = disable , 1 = enable
-  sensor->set_dcw(sensor, 1);                         // 0 = disable , 1 = enable
-  sensor->set_colorbar(sensor, 0);                    // external collor lines, 0 = disable , 1 = enable
+  if (sensor == NULL) {
+    log->AddEvent(LogLevel_Error, F("Camera sensor is NULL"));
+    return;
+  }
+
+/* not every sensor driver implements every setting, skip the missing ones */
+#define CAMERA_SENSOR_SET(function, value) \
+  if (sensor->function != NULL) { \
+    sensor->function(sensor, value); \
+  }
+
+  CAMERA_SENSOR_SET(set_brightness, brightness);         // -2 to 2
+  CAMERA_SENSOR_SET(set_contrast, contrast);             // -2 to 2
+  CAMERA_SENSOR_SET(set_saturation, saturation);         // -2 to 2
+  CAMERA_SENSOR_SET(set_special_effect, 0);              // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
+  CAMERA_SENSOR_SET(set_whitebal, awb);                  // automatic white balancing 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_awb_gain, awb_gain);             // automatic white balancing gain 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_wb_mode, wb_mode);               // white balancing mode 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+  CAMERA_SENSOR_SET(set_exposure_ctrl, exposure_ctrl);   // exposition controll 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_aec2, aec2);                     // enable exposition controll 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_ae_level, ae_level);             // automatic exposition level -2 to 2
+  CAMERA_SENSOR_SET(set_aec_value, aec_value);           // expozition time - 0 to 1200
+  CAMERA_SENSOR_SET(set_gain_ctrl, gain_ctrl);           // automatic gain controll 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_agc_gain, agc_gain);             // automatic gain controll level 0 to 30
+  CAMERA_SENSOR_SET(set_gainceiling, (gainceiling_t)0);  // maximum gain 0 to 6
+  CAMERA_SENSOR_SET(set_bpc, bpc);                       // bad pixel correction 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_wpc, wpc);                       // white pixel correction 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_raw_gma, raw_gama);              // raw gama correction 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_lenc, lensc);                    // lens correction 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_hmirror, hmirror);               // horizontal mirror 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_vflip, vflip);                   // vertical flip 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_dcw, 1);                         // 0 = disable , 1 = enable
+  CAMERA_SENSOR_SET(set_colorbar, 0);                    // external collor lines, 0 = disable , 1 = enable
+
+#undef CAMERA_SENSOR_SET
 }
 
 /**
@@ -364,6 +477,8 @@ void Camera::GetCameraModel() {
 
   CameraType = (camera_pid_t) sensor->id.PID;
   CameraName = info->name;
+  SensorMaxFrameSize = info->max_size;
+  update_exif_camera_model(info->name);
   log->AddEvent(LogLevel_Info, F("Camera type: "), String(CameraType));
   log->AddEvent(LogLevel_Info, F("Camera name: "), String(CameraName));
   log->AddEvent(LogLevel_Info, F("Camera model: "), String(info->model));
@@ -865,11 +980,17 @@ void Camera::SetPhotoQuality(uint8_t i_data) {
    @param uint8_t - frame size
    @return none
 */
-void Camera::SetFrameSize(uint8_t i_data) {
+bool Camera::SetFrameSize(uint8_t i_data) {
+  if (false == CheckFrameSizeSupported(i_data)) {
+    log->AddEvent(LogLevel_Warning, F("Frame size is not supported by the camera sensor: "), String(i_data));
+    return false;
+  }
+
   config->SaveFrameSize(i_data);
   FrameSize = i_data;
   TFrameSize = TransformFrameSizeDataType(i_data);
   ReinitCameraModule();
+  return true;
 }
 
 /**
@@ -1114,94 +1235,21 @@ uint8_t Camera::GetFrameSize() {
 }
 
 /**
- * @brief transform framesize_t to uint16_t width
+ * @brief Width of the selected frame size, from the camera driver resolution table
  * 
-    FRAMESIZE_QVGA (320 x 240)
-    FRAMESIZE_CIF (352 x 288)
-    FRAMESIZE_VGA (640 x 480)
-    FRAMESIZE_SVGA (800 x 600)
-    FRAMESIZE_XGA (1024 x 768)
-    FRAMESIZE_SXGA (1280 x 1024)
-    FRAMESIZE_UXGA (1600 x 1200)
- * 
- * @return uint16_t 
+ * @return uint16_t - width [px]
  */
 uint16_t Camera::GetFrameSizeWidth() {
-  uint16_t ret = 0;
-
-  switch (FrameSize) {
-    case 0:
-      ret = 320;
-      break;
-    case 1:
-      ret = 352;
-      break;
-    case 2:
-      ret = 640;
-      break;
-    case 3:
-      ret = 800;
-      break;
-    case 4:
-      ret = 1024;
-      break;
-    case 5:
-      ret = 1280;
-      break;
-    case 6:
-      ret = 1600;
-      break;
-    default:
-      ret = 320;
-      break;
-  }
-
-  return ret;
+  return resolution[TFrameSize].width;
 }
 
 /**
- * @brief transform framesize_t to uint16_t height
+ * @brief Height of the selected frame size, from the camera driver resolution table
  * 
-    FRAMESIZE_QVGA (320 x 240)
-    FRAMESIZE_CIF (352 x 288)
-    FRAMESIZE_VGA (640 x 480)
-    FRAMESIZE_SVGA (800 x 600)
-    FRAMESIZE_XGA (1024 x 768)
-    FRAMESIZE_SXGA (1280 x 1024)
-    FRAMESIZE_UXGA (1600 x 1200)
- * 
- * @return uint16_t 
+ * @return uint16_t - height [px]
  */
 uint16_t Camera::GetFrameSizeHeight() {
-  uint16_t ret = 0;
-  switch (FrameSize) {
-    case 0:
-      ret = 240;
-      break;
-    case 1:
-      ret = 288;
-      break;
-    case 2:
-      ret = 480;
-      break;
-    case 3:
-      ret = 600;
-      break;
-    case 4:
-      ret = 768;
-      break;
-    case 5:
-      ret = 1024;
-      break;
-    case 6:
-      ret = 1200;
-      break;
-    default:
-      ret = 240;
-      break;
-  }
-
-  return ret;
+  return resolution[TFrameSize].height;
 }
 
 /**

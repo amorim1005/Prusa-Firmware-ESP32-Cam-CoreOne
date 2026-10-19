@@ -565,9 +565,12 @@ void Server_InitWebServer_Sets() {
     /* set frame size */
     if (request->hasParam("framesize")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set framesize"));
-      SystemCamera.SetFrameSize(request->getParam("framesize")->value().toInt());
-      Connect.UpdateDeviceInformation();
-      response_msg = MSG_SAVE_OK;
+      if (SystemCamera.SetFrameSize(request->getParam("framesize")->value().toInt())) {
+        Connect.UpdateDeviceInformation();
+        response_msg = MSG_SAVE_OK;
+      } else {
+        response_msg = "ERROR! This resolution is not supported by the camera sensor " + SystemCamera.GetDetectedSensorName();
+      }
       response = true;
     }
 
@@ -1221,6 +1224,8 @@ String Server_GetJsonData() {
   doc_json["refreshInterval"] = String(Connect.GetRefreshInterval());
   doc_json["photoquality"] = String(73 - SystemCamera.GetPhotoQuality());
   doc_json["framesize"] = String(SystemCamera.GetFrameSize());
+  doc_json["framesize_supported"] = SystemCamera.GetSupportedFrameSizes();
+  doc_json["camera_detected"] = SystemCamera.GetDetectedSensorName();
   doc_json["brightness"] = String(SystemCamera.GetBrightness());
   doc_json["contrast"] = String(SystemCamera.GetContrast());
   doc_json["saturation"] = String(SystemCamera.GetSaturation());

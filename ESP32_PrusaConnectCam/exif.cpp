@@ -26,6 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -328,6 +329,13 @@ bool update_exif_from_cfg(const uint8_t c)
   exif_hdr.tiff_data.ifd0.entries[TAG_IFD0_ORIENTATION_IDX].value = IFD_SET_SHORT(c);
 
   return true;
+}
+
+void update_exif_camera_model(const char *model)
+{
+  char *dst = exif_hdr.tiff_data.ifd0_data.model;
+  memset(dst, 0, sizeof(exif_hdr.tiff_data.ifd0_data.model));
+  strncpy(dst, model, sizeof(exif_hdr.tiff_data.ifd0_data.model) - 1);
 }
 
 #ifdef WITH_GNSS

@@ -77,13 +77,17 @@ private:
   uint16_t StreamAverageSize;               ///< stream average size
   PhotoExifData_t PhotoExifData;            ///< photo exif data
   uint8_t CameraCaptureFailedCounter;       ///< camera capture failed counter
-  camera_pid_t CameraType;                  ///< camera type
-  String CameraName;                        ///< camera name
+  camera_pid_t CameraType;                  ///< detected camera sensor PID. 0 = not detected
+  String CameraName;                        ///< detected camera sensor name
+  framesize_t SensorMaxFrameSize;           ///< maximum frame size of the detected sensor
 
   Configuration *config;                    ///< pointer to Configuration object
   Logs *log;                                ///< pointer to Logs object
 
   void InitCameraModule();
+  void InitCameraModule(framesize_t);
+  uint32_t GetSensorXclk();
+  void CheckFrameSizeLimit();
 
 public:
   Camera(Configuration*, Logs*, int8_t);
@@ -122,7 +126,10 @@ public:
   bool GetFlashStatus();
 
   void SetPhotoQuality(uint8_t);
-  void SetFrameSize(uint8_t);
+  bool SetFrameSize(uint8_t);
+  bool CheckFrameSizeSupported(uint8_t);
+  String GetSupportedFrameSizes();
+  String GetDetectedSensorName();
   void SetBrightness(int8_t);
   void SetContrast(int8_t);
   void SetSaturation(int8_t);

@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center><table id="data">
@@ -17,16 +17,21 @@
 		</tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
+		<tr><td class="pc1">Camera sensor</td><td class="pc2"><span id="camera_detected"></span> (detected automatically)</td></tr>
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
 					<option value="0">320x240</option>
-					<option value="1">352x288</option>
+					<option value="1">400x296</option>
 					<option value="2">640x480</option>
 					<option value="3">800x600</option>
 					<option value="4">1024x768</option>
+					<option value="7">1280x720 (16:9)</option>
 					<option value="5">1280x1024</option>
 					<option value="6">1600x1200</option>
+					<option value="8">1920x1080 (16:9)</option>
+					<option value="9">2048x1536</option>
+					<option value="10">2592x1944</option>
 				</select> <span class="pc1">pixels</span>
 			</td>
 		</tr>

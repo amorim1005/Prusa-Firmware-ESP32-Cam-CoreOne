@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c2">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c3">
 	<script src="/jquery-3.7.0.min.js"></script>
 	<script>
 		$(document).ready(function () {
@@ -110,7 +110,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -135,7 +135,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<table id="center_tb">
@@ -215,7 +215,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center><table id="data">
@@ -234,16 +234,21 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
+		<tr><td class="pc1">Camera sensor</td><td class="pc2"><span id="camera_detected"></span> (detected automatically)</td></tr>
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
 					<option value="0">320x240</option>
-					<option value="1">352x288</option>
+					<option value="1">400x296</option>
 					<option value="2">640x480</option>
 					<option value="3">800x600</option>
 					<option value="4">1024x768</option>
+					<option value="7">1280x720 (16:9)</option>
 					<option value="5">1280x1024</option>
 					<option value="6">1600x1200</option>
+					<option value="8">1920x1080 (16:9)</option>
+					<option value="9">2048x1536</option>
+					<option value="10">2592x1944</option>
 				</select> <span class="pc1">pixels</span>
 			</td>
 		</tr>
@@ -325,7 +330,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -386,7 +391,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_temperature_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -948,7 +953,16 @@ function get_data(val) {
 				document.getElementById('tokenid').value = obj.token;
 				document.getElementById('refreshid').value = obj.refreshInterval;
 				document.getElementById('photo_qualityid').value = obj.photoquality;
+				/* show only the resolutions supported by the detected camera sensor */
+				var supported = obj.framesize_supported.split(",");
+				var framesizeOptions = document.getElementById('framesizeid').options;
+				for (var i = 0; i < framesizeOptions.length; i++) {
+					var available = supported.includes(framesizeOptions[i].value);
+					framesizeOptions[i].hidden = !available;
+					framesizeOptions[i].disabled = !available;
+				}
 				document.getElementById('framesizeid').value = obj.framesize;
+				$("#camera_detected").text(obj.camera_detected);
 				document.getElementById('brightnessid').value = obj.brightness;
 				document.getElementById('contrastid').value = obj.contrast;
 				document.getElementById('saturationid').value = obj.saturation;
@@ -1258,7 +1272,8 @@ function changeValue(val, url, reload, msg) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", url + val, false);
 	xmlHttp.send(null);
-	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=")) {
+	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
+		xmlHttp.responseText.startsWith("ERROR")) {
 		alert(xmlHttp.responseText);
 	}
 	if (url == "set_flash_time?flash_time=") {
@@ -1451,7 +1466,7 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
 <script src="scripts.js"></script>
@@ -1463,7 +1478,7 @@ const char license_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char gtac_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the General Terms and Conditions, please visit <a href="https://www.prusa3d.com/page/general-terms-and-conditions_231236/" id="gtac-link">this page</a>.</p></center>
 <script src="scripts.js"></script>
@@ -1474,7 +1489,7 @@ const char gtac_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char privacypolicy_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Privacy Policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="privacy-link">this page</a>.</p></center>
 <script src="scripts.js"></script>
@@ -1485,7 +1500,7 @@ const char privacypolicy_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char cookies_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c2");</style>
+<style>@import url("styles.css?v=1.1.2-c3");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Cookie policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="cookies-link">this page</a>.</p></center>
 <script src="scripts.js"></script>

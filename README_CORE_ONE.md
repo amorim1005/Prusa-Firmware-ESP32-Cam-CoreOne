@@ -8,7 +8,7 @@ changes are in the commits on top of it.
 Goal: a camera you can rely on every day, on a **Prusa Core One**, with a
 **Seeed Studio XIAO ESP32-S3 Sense** (OV2640 camera).
 
-Firmware version: **1.1.2-c2** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c3** (see the [version history](#version-history)).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
 > The first tests on your printer are the final check. Read
@@ -26,6 +26,7 @@ Firmware version: **1.1.2-c2** (see the [version history](#version-history)).
 6. [PrusaLink: frequent photos only while printing](#6-prusalink-frequent-photos-only-while-printing)
 7. [Other improvements](#7-other-improvements)
 8. [Optimizations in version 1.1.2-c2](#8-optimizations-in-version-112-c2)
+8b. [Camera sensors: OV2640, OV3660, OV5640](#8b-camera-sensors-ov2640-ov3660-ov5640)
 9. [How to compile (Arduino IDE or VS Code)](#9-how-to-compile)
 10. [How to flash the firmware](#10-how-to-flash-the-firmware)
 11. [Known limitations](#11-known-limitations)
@@ -52,6 +53,7 @@ Firmware version: **1.1.2-c2** (see the [version history](#version-history)).
 6. **Reproducible build**: the exact libraries are in the `libraries/` folder, the
    `build_xiao.sh` script builds the firmware, and the compiled files are in `firmware/xiao-esp32-s3/`.
 7. **A second review (version 1.1.2-c2)**: more fixes and optimizations, see [section 8](#8-optimizations-in-version-112-c2).
+8. **OV2640, OV3660 and OV5640 camera sensors (version 1.1.2-c3)**: detected automatically, see [section 8b](#8b-camera-sensors-ov2640-ov3660-ov5640).
 
 ---
 
@@ -93,7 +95,7 @@ documentation says new code should use the new ones. What changed:
 | The server certificate is issued by Google Trust Services | Trusted only ISRG Root X1 (Let's Encrypt), so **the connection would fail** | Added GTS Root R4 and GTS Root R1 (ISRG Root X1 kept). Verified against the real server |
 | Camera info with `device: {type: "ESP32", firmware_version, hardware_version}`. Unknown fields are **rejected** | Old format, which would be rejected (error 422) | New format, exactly as documented |
 | Camera name of at most 32 characters | Up to 40 | Cut to 32 |
-| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c2` |
+| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c3` |
 | Only 4 intervals: 10 s, 30 s, 60 s, 10 min. At most 6 uploads per minute | Any value from 10 to 240 s | A list with the 4 values. Old values are converted to the nearest one |
 | Photos of at most 1 MB | Not checked | Checked before uploading |
 | Each error code has its own action | All errors handled the same way | See below |
@@ -239,6 +241,52 @@ precedence error.
 - reuse the HTTPS connection between uploads (*keep-alive*), instead of opening a new one for every photo;
 - more frames per second (FPS) in the stream: remove the 1 ms pause per chunk sent, and copy the image for Prusa Connect only when it is needed;
 - two image buffers in the camera instead of one.
+
+---
+
+## 8b. Camera sensors: OV2640, OV3660, OV5640
+
+Seeed has shipped the XIAO ESP32-S3 Sense with three different camera sensors: first the
+OV2640 (now discontinued), then the OV3660, and now the OV5640 with autofocus. During the
+transition, boards can come with either the OV3660 or the OV5640
+([Seeed wiki](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/)). All three use the
+same connector and the same pins.
+
+**The sensor is detected automatically.** The camera driver reads the sensor ID at start-up,
+so there is nothing to select. The **Camera** page shows the detected sensor ("Camera sensor").
+
+| Sensor | Max. resolution | XCLK | Notes |
+|---|---|---|---|
+| OV2640 | 1600×1200 | 15 MHz (unchanged) | |
+| OV3660 | 2048×1536 | 20 MHz (Espressif reference value) | |
+| OV5640 | 2592×1944 | 20 MHz (Espressif reference value) | Autofocus is not used, see below |
+
+**What the firmware does for each sensor:**
+- **Resolutions:** the resolution list on the Camera page shows only the resolutions the
+  detected sensor supports. New resolutions: 1280×720, 1920×1080, 2048×1536 and 2592×1944.
+  The saved resolution index stays compatible with older versions.
+- **Safe start:** the camera always starts first at 1600×1200, which every sensor accepts,
+  detects the sensor, and only then switches to the saved resolution and XCLK. If you saved
+  2592×1944 with an OV5640 and later fit an OV2640, the resolution is lowered to the OV2640
+  maximum instead of failing (a failed camera start reboots the board, which would loop forever).
+- **Settings:** every sensor setting is applied only if the sensor driver implements it.
+- **Photo metadata:** the EXIF "Model" field and the camera info sent to Prusa Connect contain
+  the detected sensor name (before, the EXIF always said OV2640).
+- **Resolution sent to Prusa Connect:** taken from the camera driver. Before, 400×296 was
+  reported as 352×288.
+
+**Practical advice:**
+- The Prusa Camera Service accepts photos up to **1 MB**. At 2048×1536 and above, keep the
+  image quality moderate (the default 12 or higher). Photos over 1 MB are not uploaded and the
+  status shows a clear message.
+- Very high JPEG quality at high resolutions can make a photo larger than the camera's frame
+  buffer (the driver logs `FB-OVF`). The quality slider stops at 10, which avoids the worst cases.
+- **OV5640 autofocus is not used.** The camera driver in the ESP32 core 3.1.0 has no autofocus
+  support. Newer versions of the esp32-camera driver have an optional autofocus API
+  (`CONFIG_CAMERA_AF_SUPPORT`, off by default), which needs a newer core. Without autofocus the
+  lens stays at its rest position, so check the sharpness at your mounting distance.
+- If the image is upside down or mirrored, use **Vertical flip** / **Horizontal mirror** on the
+  Camera page. The firmware does not flip any sensor by itself.
 
 ---
 
@@ -412,7 +460,8 @@ then disconnect GPIO2 from GND.
 
 | File | Change |
 |---|---|
-| `ESP32_PrusaConnectCam/camera.cpp`, `camera.h` | Bugs 1, 3, 7. Safe copy of the photo (`GetPhotoCopy`), semaphore in every operation on the buffers |
+| `ESP32_PrusaConnectCam/camera.cpp`, `camera.h` | Bugs 1, 3, 7. Safe copy of the photo (`GetPhotoCopy`), semaphore in every operation on the buffers. (c3) Sensor detection, resolution table, safe start |
+| `ESP32_PrusaConnectCam/exif.cpp`, `exif.h` | (c3) EXIF model from the detected sensor |
 | `ESP32_PrusaConnectCam/connect.cpp`, `connect.h`, `connect_types.h` | Bugs 2, 4, 5, 6, 10. New Camera Service API, backoff, error codes |
 | `ESP32_PrusaConnectCam/Certificate.h` | GTS Root R4 and R1 certificates |
 | `ESP32_PrusaConnectCam/WebServer.cpp` | Bugs 8, 9. Token and interval validation, `/set_prusalink` route, new status fields. (c2) Page caching and sending |
@@ -422,7 +471,7 @@ then disconnect GPIO2 from GND.
 | `ESP32_PrusaConnectCam/prusalink.cpp`, `prusalink.h` | **New**: PrusaLink client |
 | `ESP32_PrusaConnectCam/cfg.cpp`, `cfg.h` | Saving the interval and the PrusaLink settings, token masked in the log |
 | `ESP32_PrusaConnectCam/log.cpp`, `log.h`, `micro_sd.cpp`, `micro_sd.h` | (c2) Batched SD card log writes |
-| `ESP32_PrusaConnectCam/mcu_cfg.h` | XIAO board selected, version 1.1.2-c2, new constants, Core One defaults |
+| `ESP32_PrusaConnectCam/mcu_cfg.h` | XIAO board selected, version 1.1.2-c3, new constants, Core One defaults |
 | `ESP32_PrusaConnectCam/var.cpp`, `var.h` | Thermal guard state |
 | `ESP32_PrusaConnectCam/ESP32_PrusaConnectCam.ino` | Photo task on core 1, load the PrusaLink configuration |
 | `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, current interval, versioned `styles.css` |
@@ -443,6 +492,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 |---|---|
 | 1.1.2-c1 | 11 bugs fixed, Prusa Camera Service, Core One defaults, thermal guard, PrusaLink |
 | 1.1.2-c2 | TLS timeout, browser cache, page sending, rejected camera info, PrusaLink with the printer switched off, 16 KB TLS chunks, batched SD log writes, debug messages (see [section 8](#8-optimizations-in-version-112-c2)) |
+| 1.1.2-c3 | OV2640, OV3660 and OV5640 detected automatically, resolutions per sensor up to 2592×1944, safe camera start, EXIF model, correct resolution sent to Prusa Connect (see [section 8b](#8b-camera-sensors-ov2640-ov3660-ov5640)) |
 
 ---
 
