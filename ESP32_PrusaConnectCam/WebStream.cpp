@@ -177,7 +177,11 @@ AsyncJpegStreamResponse::AsyncJpegStreamResponse(Camera *i_cam, Logs *i_log) {
   _chunked = true;
   _index = 0;
   lastAsyncRequest = 0;
-  memset(&_frame, 0, sizeof(camera_frame_t));
+  FrameBuf = NULL;
+  FrameLen = 0;
+  FrameSent = 0;
+  FrameIdx = -1;
+  FrameSeq = UINT32_MAX;
   camera = i_cam;
   log = i_log;
   camera->SetStreamStatus(true);
@@ -188,8 +192,10 @@ AsyncJpegStreamResponse::AsyncJpegStreamResponse(Camera *i_cam, Logs *i_log) {
  * 
  */
 AsyncJpegStreamResponse::~AsyncJpegStreamResponse() {
+  if (FrameIdx >= 0) {
+    camera->StreamReleaseFrame(FrameIdx);
+  }
   camera->SetStreamStatus(false);
-  camera->CaptureReturnFrameBuffer();
 }
 
 /**
@@ -225,28 +231,22 @@ size_t AsyncJpegStreamResponse::_fillBuffer(uint8_t *buf, size_t maxLen) {
  * @return size_t 
  */
 size_t AsyncJpegStreamResponse::_content(uint8_t *buffer, size_t maxLen, size_t index) {
-
-  if (!_frame.fb || _frame.index == _frame.fb->len) {
-    delay(1);
-
-    if (index && _frame.fb) {
+  if ((FrameIdx < 0) || (FrameSent == FrameLen)) {
+    /* previous frame sent completely: statistics and release of the frame buffer */
+    if (FrameIdx >= 0) {
       uint64_t end = (uint64_t)micros();
-      int fp = (end - lastAsyncRequest) / 1000;
-      float fps = 1000.0 / fp;
-      char buf[50] = { '\0' };
-      camera->StreamSetFrameSize(_frame.fb->len / 1024);
-      camera->StreamSetFrameFps(fps);
-      ////sprintf(buf, "Size: %uKB, Time: %ums (%.1f fps)", _frame.fb->len / 1024, fp, fps);
-      sprintf(buf, "Size: %uKB, FPS: %.1f", _frame.fb->len / 1024, fps);
-      Serial.println(buf);
+      uint32_t frameTimeMs = (uint32_t)((end - lastAsyncRequest) / 1000);
+      if (frameTimeMs > 0) {
+        camera->StreamSetFrameFps(1000.0 / frameTimeMs);
+      }
+      camera->StreamSetFrameSize(FrameLen / 1024);
       lastAsyncRequest = end;
-      camera->CaptureReturnFrameBuffer();
-      _frame.fb = NULL;
+      camera->StreamReleaseFrame(FrameIdx);
+      FrameIdx = -1;
     }
 
     /* check space for headers */
     if (maxLen < (strlen(STREAM_BOUNDARY) + strlen(STREAM_PART) + strlen(JPG_CONTENT_TYPE) + 8)) {
-      log->AddEvent(LogLevel_Error, F("Stream Not space for headers"));
       return RESPONSE_TRY_AGAIN;
     }
 
@@ -256,14 +256,15 @@ size_t AsyncJpegStreamResponse::_content(uint8_t *buffer, size_t maxLen, size_t 
       return 0;
     }
 
-    /* get frame. Returning 0 ends the stream */
-    _frame.index = 0;
-    _frame.fb = NULL;
-    if (false == camera->CaptureStream(&_dframe)) {
+    /* take a frame newer than the last one sent. The capture task captures it while the previous frame is sent,
+       so the WEB server usually does not wait. Returning 0 ends the stream */
+    uint8_t idx = 0;
+    if (false == camera->StreamAcquireFrame(FrameSeq, &FrameBuf, &FrameLen, &idx, &FrameSeq, CAMERA_STREAM_FRAME_TIMEOUT)) {
       log->AddEvent(LogLevel_Error, F("Stream capture frame failed"));
       return 0;
     }
-    _frame.fb = &_dframe;
+    FrameIdx = idx;
+    FrameSent = 0;
 
     /* send boundary */
     size_t blen = 0;
@@ -274,31 +275,26 @@ size_t AsyncJpegStreamResponse::_content(uint8_t *buffer, size_t maxLen, size_t 
     }
 
     /* send header */
-    size_t hlen = sprintf((char *)buffer, STREAM_PART, JPG_CONTENT_TYPE, _frame.fb->len);
+    size_t hlen = sprintf((char *)buffer, STREAM_PART, JPG_CONTENT_TYPE, FrameLen);
     buffer += hlen;
 
-    /* send frame */
-    hlen = maxLen - hlen - blen;
-    if (hlen > _frame.fb->len) {
-      maxLen -= hlen - _frame.fb->len;
-      hlen = _frame.fb->len;
+    /* send the beginning of the frame */
+    size_t dlen = maxLen - hlen - blen;
+    if (dlen > FrameLen) {
+      dlen = FrameLen;
     }
-
-    memcpy(buffer, _frame.fb->buf, hlen);
-    _frame.index += hlen;
-    delay(1);
-    return maxLen;
+    memcpy(buffer, FrameBuf, dlen);
+    FrameSent = dlen;
+    return blen + hlen + dlen;
   }
 
-  /* check next send data */
-  size_t available = _frame.fb->len - _frame.index;
+  /* send the next part of the frame */
+  size_t available = FrameLen - FrameSent;
   if (maxLen > available) {
     maxLen = available;
   }
-
-  delay(1);
-  memcpy(buffer, _frame.fb->buf + _frame.index, maxLen);
-  _frame.index += maxLen;
+  memcpy(buffer, FrameBuf + FrameSent, maxLen);
+  FrameSent += maxLen;
   return maxLen;
 }
 

@@ -13,6 +13,7 @@
 
 #include "esp_camera.h"
 #include "esp_timer.h"
+#include <esp_task_wdt.h>
 #include "img_converters.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -67,12 +68,22 @@ private:
   /* OV2640 camera module pinout and cfg*/
   camera_config_t CameraConfig;             ///< camera configuration
   camera_fb_t *FrameBuffer;                 ///< frame buffer
-  camera_fb_t *FrameBufferDuplicate;        ///< frame buffer duplicate
-  camera_fb_t *FrameBufferExif;             ///< frame buffer with exif data
   sensor_t* sensor;                         ///< sensor
   String Photo;                             ///< photo in string format
-  bool StreamOnOff;                         ///< stream on/off
-  size_t FrameBufferDuplicateCapacity;      ///< allocated size of the duplicate frame buffer data
+  bool StreamOnOff;                         ///< stream on/off, true when at least one stream client is connected
+
+  /* live stream: the capture task fills the buffers in turn, the WEB server sends the latest complete frame */
+  uint8_t *StreamBuf[CAMERA_STREAM_BUFFERS];          ///< stream frame buffers in PSRAM
+  size_t StreamBufLen[CAMERA_STREAM_BUFFERS];         ///< length of the frame in the buffer
+  size_t StreamBufCapacity[CAMERA_STREAM_BUFFERS];    ///< allocated size of the buffer
+  uint8_t StreamBufReaders[CAMERA_STREAM_BUFFERS];    ///< count of readers of the buffer, a buffer with readers is not overwritten
+  int8_t StreamLatest;                      ///< index of the latest complete frame, -1 = none
+  bool StreamLatestConsumed;                ///< the latest frame was taken by a reader
+  uint32_t StreamLatestTime;                ///< time of the latest frame [ms]
+  volatile uint32_t StreamFrameSeq;         ///< sequence number of the latest frame
+  volatile uint8_t StreamClients;           ///< count of connected stream clients
+  SemaphoreHandle_t streamMutex;            ///< mutex for the stream buffer state (short operations only)
+  TaskHandle_t StreamTask;                  ///< stream capture task
   SemaphoreHandle_t frameBufferSemaphore;   ///< semaphore for frame buffer
   float StreamAverageFps;                   ///< stream average fps
   uint16_t StreamAverageSize;               ///< stream average size
@@ -92,6 +103,9 @@ private:
   uint32_t GetSensorXclk();
   void CheckFrameSizeLimit();
   void InitAutofocus();
+  static void StreamTaskEntry(void *);
+  void StreamTaskLoop();
+  bool StreamCaptureFrame();
   camera_pid_t TransformCameraSensorToPid(uint8_t);
   uint8_t TransformPidToCameraSensor(camera_pid_t);
 
@@ -104,10 +118,13 @@ public:
   void ReinitCameraModule();
   void GetCameraModel();
   void CapturePhoto();
-  bool CaptureStream(camera_fb_t *);
   void CaptureReturnFrameBuffer();
+  void StartStreamTask();
   void SetStreamStatus(bool);
   bool GetStreamStatus();
+  uint8_t GetStreamClients();
+  bool StreamAcquireFrame(uint32_t, uint8_t **, size_t *, uint8_t *, uint32_t *, uint32_t);
+  void StreamReleaseFrame(uint8_t);
   bool GetCameraCaptureSuccess();
 
   void StreamSetFrameSize(uint16_t);
@@ -123,7 +140,6 @@ public:
   int GetPhotoSize();
   String GetPhoto();
   camera_fb_t *GetPhotoFb();
-  camera_fb_t* GetPhotoFbDuplicate();
   PhotoExifData_t * GetPhotoExifData();
   bool GetPhotoCopy(uint8_t **, size_t *);
   framesize_t TransformFrameSizeDataType(uint8_t);

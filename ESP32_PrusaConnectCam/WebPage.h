@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c5">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c6">
 	<script src="/jquery-3.7.0.min.js"></script>
 	<script>
 		$(document).ready(function () {
@@ -98,7 +98,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/Prusa-Development/Prusa-Firmware-ESP32-Cam/" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js"></script>
+	<script src="scripts.js?v=1.1.2-c6"></script>
 	<script>
 		sliderCheck();
 		get_data();
@@ -110,7 +110,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -124,7 +124,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -135,7 +135,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<table id="center_tb">
@@ -205,7 +205,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -215,7 +215,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center><table id="data">
@@ -322,7 +322,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -331,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -382,7 +382,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
     var updateCompleted = false;
 	var updateInterval = setInterval(updateProgress, 800);
@@ -392,7 +392,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_temperature_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -415,7 +415,7 @@ const char page_temperature_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
 	get_data("temp");
 </script>
@@ -1468,10 +1468,10 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');
@@ -1480,10 +1480,10 @@ const char license_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char gtac_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the General Terms and Conditions, please visit <a href="https://www.prusa3d.com/page/general-terms-and-conditions_231236/" id="gtac-link">this page</a>.</p></center>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
     addClickListener('gtac-link');
 </script>
@@ -1491,10 +1491,10 @@ const char gtac_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char privacypolicy_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Privacy Policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="privacy-link">this page</a>.</p></center>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
     addClickListener('privacy-link');
 </script>
@@ -1502,10 +1502,10 @@ const char privacypolicy_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char cookies_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c5");</style>
+<style>@import url("styles.css?v=1.1.2-c6");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Cookie policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="cookies-link">this page</a>.</p></center>
-<script src="scripts.js"></script>
+<script src="scripts.js?v=1.1.2-c6"></script>
 <script>
     addClickListener('cookies-link');
 </script>

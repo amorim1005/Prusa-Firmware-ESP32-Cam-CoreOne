@@ -79,7 +79,175 @@ void PrusaConnect::TakePicture() {
 }
 
 /**
- * @brief Sending data to the Camera Service backend
+ * @brief Open a new HTTPS connection to the backend
+ * 
+ * @return true - connected
+ * @return false - connection failed, BackendReceivedStatus contains the error
+ */
+bool PrusaConnect::BackendConnect() {
+  BackendClose();
+  BackendClient.setCACert(root_CAs);
+  BackendClient.setTimeout(BACKEND_SOCKET_TIMEOUT);
+  BackendClient.setHandshakeTimeout(TLS_HANDSHAKE_TIMEOUT);
+  BackendClient.setNoDelay(true);
+
+  log->AddEvent(LogLevel_Verbose, F("Connecting to server..."));
+  esp_task_wdt_reset();
+
+  if (!BackendClient.connect(PrusaConnectHostname.c_str(), 443)) {
+    char err_buf[200];
+    int last_error = BackendClient.lastError(err_buf, sizeof(err_buf));
+    if (BackendAvailability != WaitForFirstConnection) {
+      BackendAvailability = BackendUnavailable;
+    }
+    ConnectFailCounter++;
+    BackendClose();
+
+    BackendReceivedStatus = "Connection failed to domain! Error: " + String(last_error) + " - " + String(err_buf);
+    log->AddEvent(LogLevel_Info, BackendReceivedStatus + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
+    return false;
+  }
+
+  ConnectFailCounter = 0;
+  BackendClientHost = PrusaConnectHostname;
+  log->AddEvent(LogLevel_Verbose, F("Connected to server!"));
+  return true;
+}
+
+/**
+ * @brief Close the HTTPS connection to the backend and release its memory
+ */
+void PrusaConnect::BackendClose() {
+  BackendClient.stop();
+  BackendClientHost = "";
+}
+
+/**
+ * @brief Send one HTTP request on the open connection and read the complete response
+ * 
+ * @param i_data - request body
+ * @param i_data_length - body length
+ * @param i_content_type - body content type
+ * @param i_url_path - url path
+ * @param i_keepAlive - ask the server to keep the connection open
+ * @param o_response - output, beginning of the response for the log
+ * @param o_close - output, true when the connection cannot be used for the next request
+ * @return int - HTTP response code. 0 = no response
+ */
+int PrusaConnect::BackendRequest(const uint8_t *i_data, size_t i_data_length, String i_content_type, String i_url_path, bool i_keepAlive, String *o_response, bool *o_close) {
+  *o_close = true;
+
+  /* send the request header in one write, every write is one TLS record */
+  String header = "PUT " + i_url_path + " HTTP/1.1\r\n";
+  header += "Host: " + PrusaConnectHostname + "\r\n";
+  header += "User-Agent: " BACKEND_USER_AGENT "\r\n";
+  header += (true == i_keepAlive) ? "Connection: keep-alive\r\n" : "Connection: close\r\n";
+  header += "Content-Type: " + i_content_type + "\r\n";
+  header += "Fingerprint: " + Fingerprint + "\r\n";
+  header += "Token: " + Token + "\r\n";
+  header += "Content-Length: " + String(i_data_length) + "\r\n\r\n";
+  if (BackendClient.print(header) != header.length()) {
+    return 0;
+  }
+
+  /* send body. write() can send less data than requested */
+  esp_task_wdt_reset();
+  size_t sent_data = 0;
+  while (sent_data < i_data_length) {
+    size_t chunk = min((size_t)PHOTO_FRAGMENT_SIZE, i_data_length - sent_data);
+    size_t written = BackendClient.write(i_data + sent_data, chunk);
+    if (written == 0) {
+      break;
+    }
+    sent_data += written;
+    esp_task_wdt_reset();
+  }
+  BackendClient.flush();
+  log->AddEvent(LogLevel_Verbose, "Send done: " + String(i_data_length) + "/" + String(sent_data) + " bytes");
+
+  if (i_data_length != sent_data) {
+    log->AddEvent(LogLevel_Error, F("ERROR SEND DATA TO SERVER! INCORRECT DATA LENGTH!"));
+    return 0;
+  }
+
+  /* read the status line and the headers. Never wait longer than BACKEND_RESPONSE_TIMEOUT */
+  int httpCode = 0;
+  long contentLength = -1;
+  bool headersDone = false;
+  bool serverClose = false;
+  unsigned long start = millis();
+  while ((millis() - start) < BACKEND_RESPONSE_TIMEOUT) {
+    if (!BackendClient.available()) {
+      if (!BackendClient.connected()) {
+        break;
+      }
+      delay(5);
+      esp_task_wdt_reset();
+      continue;
+    }
+
+    String line = BackendClient.readStringUntil('\n');
+    line.trim();
+    log->AddEvent(LogLevel_Verbose, line.c_str());
+
+    if (0 == httpCode) {
+      if (line.startsWith("HTTP/1.")) {
+        httpCode = line.substring(9, 12).toInt();
+        *o_response += line + " ";
+      }
+      continue;
+    }
+
+    if (line.length() == 0) {
+      headersDone = true;
+      break;
+    }
+
+    String lower = line;
+    lower.toLowerCase();
+    if (lower.startsWith("content-length:")) {
+      contentLength = lower.substring(15).toInt();
+    } else if (lower.startsWith("connection:") && (lower.indexOf("close") >= 0)) {
+      serverClose = true;
+    }
+  }
+
+  if (false == headersDone) {
+    log->AddEvent(LogLevel_Warning, F("Timeout or incomplete response from server"));
+    return httpCode;
+  }
+
+  /* read the body completely, otherwise the next request on this connection reads the rest of this one.
+     Keep the beginning for the log, the error body is a short JSON */
+  bool bodyDone = false;
+  if (contentLength >= 0) {
+    long received = 0;
+    uint8_t buf[256];
+    while ((received < contentLength) && ((millis() - start) < BACKEND_RESPONSE_TIMEOUT)) {
+      int n = BackendClient.read(buf, min((long)sizeof(buf), contentLength - received));
+      if (n > 0) {
+        if (o_response->length() < 512) {
+          o_response->concat((const char *)buf, n);
+        }
+        received += n;
+      } else if (!BackendClient.connected()) {
+        break;
+      } else {
+        delay(5);
+        esp_task_wdt_reset();
+      }
+    }
+    bodyDone = (received == contentLength);
+  }
+
+  /* the connection is reusable only after a complete response with Content-Length */
+  *o_close = (false == i_keepAlive) || serverClose || (false == bodyDone);
+  return httpCode;
+}
+
+/**
+ * @brief Sending data to the Camera Service backend. The HTTPS connection is kept open between uploads
+ *        when the upload interval is short, a new TLS handshake costs about 1 s of CPU time
  * 
  * @param i_data  - data to send
  * @param i_data_length - data length
@@ -98,94 +266,33 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
     return -1;
   }
 
-  WiFiClientSecure client;
-  client.setCACert(root_CAs);
-  client.setTimeout(BACKEND_SOCKET_TIMEOUT);
-  client.setHandshakeTimeout(TLS_HANDSHAKE_TIMEOUT);
-  client.setNoDelay(true);
-
-  log->AddEvent(LogLevel_Verbose, F("Connecting to server..."));
-  esp_task_wdt_reset();
-
-  /* connecting to server */
-  if (!client.connect(PrusaConnectHostname.c_str(), 443)) {
-    char err_buf[200];
-    int last_error = client.lastError(err_buf, sizeof(err_buf));
-    if (BackendAvailability != WaitForFirstConnection) {
-      BackendAvailability = BackendUnavailable;
-    }
-    ConnectFailCounter++;
-
-    BackendReceivedStatus = "Connection failed to domain! Error: " + String(last_error) + " - " + String(err_buf);
-    log->AddEvent(LogLevel_Info, BackendReceivedStatus + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
-    return 0;
-  }
-  ConnectFailCounter = 0;
-  log->AddEvent(LogLevel_Verbose, F("Connected to server!"));
-
-  /* send the request header in one write, every write is one TLS record */
-  String header = "PUT " + i_url_path + " HTTP/1.1\r\n";
-  header += "Host: " + PrusaConnectHostname + "\r\n";
-  header += "User-Agent: " BACKEND_USER_AGENT "\r\n";
-  header += "Connection: close\r\n";
-  header += "Content-Type: " + i_content_type + "\r\n";
-  header += "Fingerprint: " + Fingerprint + "\r\n";
-  header += "Token: " + Token + "\r\n";
-  header += "Content-Length: " + String(i_data_length) + "\r\n\r\n";
-  client.print(header);
-
-  /* send body. client.write() can send less data than requested */
-  esp_task_wdt_reset();
-  size_t sent_data = 0;
-  while (sent_data < i_data_length) {
-    size_t chunk = min((size_t)PHOTO_FRAGMENT_SIZE, i_data_length - sent_data);
-    size_t written = client.write(i_data + sent_data, chunk);
-    if (written == 0) {
-      break;
-    }
-    sent_data += written;
-    esp_task_wdt_reset();
-  }
-  client.flush();
-  log->AddEvent(LogLevel_Verbose, "Send done: " + String(i_data_length) + "/" + String(sent_data) + " bytes");
-
-  /* check if all data was sent */
-  if (i_data_length != sent_data) {
-    BackendReceivedStatus = F("INCOMPLETE DATA SEND TO SERVER!");
-    log->AddEvent(LogLevel_Error, F("ERROR SEND DATA TO SERVER! INCORRECT DATA LENGTH!"));
-    client.stop();
-    return 0;
-  }
-
-  /* read response from server. The server closes the connection, but never wait longer than BACKEND_RESPONSE_TIMEOUT */
+  bool keepAlive = (GetEffectiveInterval() <= BACKEND_KEEPALIVE_MAX_INTERVAL);
   int httpCode = 0;
   String fullResponse = "";
-  unsigned long start = millis();
-  log->AddEvent(LogLevel_Verbose, F("Response:"));
-  while ((client.connected() || client.available()) && ((millis() - start) < BACKEND_RESPONSE_TIMEOUT)) {
-    if (client.available()) {
-      String response = client.readStringUntil('\n');
-      response.trim();
-      log->AddEvent(LogLevel_Verbose, response.c_str());
 
-      if ((0 == httpCode) && response.startsWith("HTTP/1.")) {
-        httpCode = response.substring(9, 12).toInt();
-      }
-
-      /* keep the beginning of the response for the log, the error body is a short JSON */
-      if (fullResponse.length() < 512) {
-        fullResponse += response + " ";
-      }
-    } else {
-      delay(10);
+  /* second attempt only when a reused connection was closed by the server in the meantime */
+  for (uint8_t attempt = 0; attempt < 2; attempt++) {
+    bool reused = BackendClient.connected() && (BackendClientHost == PrusaConnectHostname);
+    if (reused) {
+      log->AddEvent(LogLevel_Verbose, F("Reusing connection to server"));
+    } else if (false == BackendConnect()) {
+      return 0;
     }
-    esp_task_wdt_reset();
-  }
-  client.stop();
 
-  if ((millis() - start) >= BACKEND_RESPONSE_TIMEOUT) {
-    log->AddEvent(LogLevel_Warning, F("Timeout while reading response from server"));
+    bool closeConnection = true;
+    fullResponse = "";
+    httpCode = BackendRequest(i_data, i_data_length, i_content_type, i_url_path, keepAlive, &fullResponse, &closeConnection);
+    if (closeConnection) {
+      BackendClose();
+    }
+
+    if ((0 == httpCode) && reused && (0 == attempt)) {
+      log->AddEvent(LogLevel_Verbose, F("Reused connection was closed by the server, connecting again"));
+      continue;
+    }
+    break;
   }
+
   log->AddEvent(LogLevel_Verbose, "Full response: " + fullResponse);
 
   if (0 == httpCode) {

@@ -8,7 +8,7 @@ changes are in the commits on top of it.
 Goal: a camera you can rely on every day, on a **Prusa Core One**, with a
 **Seeed Studio XIAO ESP32-S3 Sense** (OV2640 camera).
 
-Firmware version: **1.1.2-c5** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c6** (see the [version history](#version-history)).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
 > The first tests on your printer are the final check. Read
@@ -27,6 +27,7 @@ Firmware version: **1.1.2-c5** (see the [version history](#version-history)).
 7. [Other improvements](#7-other-improvements)
 8. [Optimizations in version 1.1.2-c2](#8-optimizations-in-version-112-c2)
 8b. [Camera sensors: OV2640, OV3660, OV5640](#8b-camera-sensors-ov2640-ov3660-ov5640)
+8c. [Speed and fluidity (version 1.1.2-c6)](#8c-speed-and-fluidity-version-112-c6)
 9. [How to compile (Arduino IDE or VS Code)](#9-how-to-compile)
 10. [How to flash the firmware](#10-how-to-flash-the-firmware)
 11. [Known limitations](#11-known-limitations)
@@ -95,7 +96,7 @@ documentation says new code should use the new ones. What changed:
 | The server certificate is issued by Google Trust Services | Trusted only ISRG Root X1 (Let's Encrypt), so **the connection would fail** | Added GTS Root R4 and GTS Root R1 (ISRG Root X1 kept). Verified against the real server |
 | Camera info with `device: {type: "ESP32", firmware_version, hardware_version}`. Unknown fields are **rejected** | Old format, which would be rejected (error 422) | New format, exactly as documented |
 | Camera name of at most 32 characters | Up to 40 | Cut to 32 |
-| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c5` |
+| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c6` |
 | Only 4 intervals: 10 s, 30 s, 60 s, 10 min. At most 6 uploads per minute | Any value from 10 to 240 s | A list with the 4 values. Old values are converted to the nearest one |
 | Photos of at most 1 MB | Not checked | Checked before uploading |
 | Each error code has its own action | All errors handled the same way | See below |
@@ -202,9 +203,9 @@ never sent to the web page.
 
 - **Capture and upload on core 1:** the ESP32-S3 has 2 cores. Before, everything ran on core 0
   (the same core as Wi-Fi) and core 1 was idle. The photo, TLS and PrusaLink task moved to core 1.
-- **Only one stream client at a time:** the camera has a single image buffer, and two streams
-  "stole" frames from each other (which caused the corruption problems). A second stream gets
-  the message *"The stream is already open in another window"*.
+- **Stream clients:** in version 1.1.2-c1 only one stream client was allowed, because two streams
+  "stole" frames from each other. Since version 1.1.2-c6 up to **2 clients** can watch the
+  stream at the same time (see [section 8c](#8c-speed-and-fluidity-version-112-c6)).
 - **Main page:** shows the **current upload interval** (it already includes the backoff, PrusaLink and the thermal guard).
 - **System page:** shows the current upload interval.
 - **Clear error messages** on the page (for example, for a 403 it explains the 15-minute window).
@@ -238,9 +239,11 @@ Also fixed: the "Save network ip method" log always showed "DHCP", because of an
 precedence error.
 
 **Left for after the first test on the board** (they need real measurements):
-- reuse the HTTPS connection between uploads (*keep-alive*), instead of opening a new one for every photo;
-- more frames per second (FPS) in the stream: remove the 1 ms pause per chunk sent, and copy the image for Prusa Connect only when it is needed;
-- two image buffers in the camera instead of one.
+- ~~reuse the HTTPS connection between uploads~~: done in version 1.1.2-c6;
+- ~~more frames per second in the stream~~: done in version 1.1.2-c6;
+- two image buffers in the camera driver (`fb_count = 2`) instead of one: still open. Version 1.1.2-c6
+  gets most of the gain without it (see section 8c), and it would keep the camera capturing
+  between photos, which means more heat.
 
 ---
 
@@ -300,6 +303,50 @@ and the camera is initialized a second time only if the XCLK is different.
   - OV2640 and OV3660 have a fixed-focus lens: the Camera page shows "Not supported".
 - If the image is upside down or mirrored, use **Vertical flip** / **Horizontal mirror** on the
   Camera page. The firmware does not flip any sensor by itself.
+
+---
+
+## 8c. Speed and fluidity (version 1.1.2-c6)
+
+A full review of the paths that matter for a printer monitoring camera: the live stream, the web
+page, and the uploads to Prusa Connect.
+
+**Live stream**
+
+| Before | Now | Effect |
+|---|---|---|
+| The web server task captured each frame itself and waited for the camera (one frame time) before sending it. While it waited, **no other page or request was answered** | A separate capture task (core 1) captures the frames into 3 rotating buffers in PSRAM. The web server only sends the latest complete frame | The next frame is captured **while** the current one is being sent, so the frame rate is limited by the slower of the two, not by their sum. The web page stays responsive while the stream is open |
+| Three `delay(1)` per sent chunk (10–17 ms per frame) and a serial print per frame | Removed | More frames per second |
+| Every stream frame (about 100 KB) was copied into a second buffer for Prusa Connect, which uses one frame every 10–60 s | Prusa Connect, the SD card and `/saved-photo.jpg` copy the latest stream frame only when they need it | Less CPU and PSRAM traffic per frame |
+| One stream client | Up to **2 clients** (`CAMERA_STREAM_MAX_CLIENTS`), each one gets the latest frame | You can watch from the PC and the phone at the same time |
+
+The capture task captures a new frame only when the latest one was sent, or when it is older than
+300 ms (`CAMERA_STREAM_MAX_FRAME_AGE`). The camera never works faster than the clients receive
+the frames (less heat), and a frame is never more than about 300 ms old. Without a stream client
+the task sleeps and frees its PSRAM buffers.
+
+**Uploads to Prusa Connect**
+
+| Before | Now | Effect |
+|---|---|---|
+| A new HTTPS connection for every upload: a full TLS handshake (about 1 s of CPU time on the ESP32) every 10–60 s | The connection stays open between uploads when the upload interval is at most 90 s (`BACKEND_KEEPALIVE_MAX_INTERVAL`) | Much less CPU time and heat per upload, faster uploads |
+
+Measured from a PC on 2026-10-19: the Camera Service answers with `Connection: keep-alive` and
+`Content-Length`, an idle connection was still open after 65 s, and a request on a reused
+connection took about 60 ms instead of about 150 ms. If the server closed the connection in the
+meantime, the camera reconnects and sends the photo again once (a snapshot upload replaces the
+previous one, so a repeat is safe). With a longer interval (10 min) the connection is closed
+after each upload, which frees about 40 KB of internal RAM.
+
+**Web page**
+
+| Before | Now | Effect |
+|---|---|---|
+| `scripts.js` (19 KB) was downloaded again on every tab click and copied into the internal RAM for every request | Sent directly from flash, cached by the browser, with the firmware version in its URL | Faster tab switches, less RAM use |
+
+**How to check it on the board:** the System telemetry log line "Stream, average data in 30sec.
+FPS: ..., Size: ...KB" shows the stream frame rate. Open the stream and click through the web page
+tabs: the page should answer without waiting for the stream.
 
 ---
 
@@ -441,7 +488,7 @@ If the board is not detected: hold the **B** (boot) button, plug in the USB cabl
   that. If *PrusaLink status* does not show `OK`, open an issue with the message shown.
 - **Thermal limits (75 / 68 °C)** are an estimate for the chip's internal temperature.
   Adjust them after seeing real values on the System page.
-- **Only one stream client** at a time (see section 7).
+- **At most 2 stream clients** at a time (see section 8c).
 - **"Update from cloud"** (on the System page) downloads the **official** Prusa firmware,
   which **replaces** this version. To update this version, flash over USB or use the file
   update with the `.bin` from this repository.
@@ -479,7 +526,8 @@ then disconnect GPIO2 from GND.
 | `ESP32_PrusaConnectCam/connect.cpp`, `connect.h`, `connect_types.h` | Bugs 2, 4, 5, 6, 10. New Camera Service API, backoff, error codes |
 | `ESP32_PrusaConnectCam/Certificate.h` | GTS Root R4 and R1 certificates |
 | `ESP32_PrusaConnectCam/WebServer.cpp` | Bugs 8, 9. Token and interval validation, `/set_prusalink` route, new status fields. (c2) Page caching and sending |
-| `ESP32_PrusaConnectCam/WebStream.cpp` | Buffer over-reads, clean end of the stream, thermal guard |
+| `ESP32_PrusaConnectCam/WebStream.cpp`, `WebStream.h` | Buffer over-reads, clean end of the stream, thermal guard. (c6) Sends the frames of the capture task |
+| `ESP32_PrusaConnectCam/connect.h` (c6) | HTTPS connection kept open between uploads |
 | `ESP32_PrusaConnectCam/wifi_mngt.cpp` | Bug 11 |
 | `ESP32_PrusaConnectCam/system.cpp`, `system.h` | Thermal guard, interval calculation, PrusaLink. (c2) TLS timeouts, verbose logs |
 | `ESP32_PrusaConnectCam/prusalink.cpp`, `prusalink.h` | **New**: PrusaLink client |
@@ -507,6 +555,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 |---|---|
 | 1.1.2-c1 | 11 bugs fixed, Prusa Camera Service, Core One defaults, thermal guard, PrusaLink |
 | 1.1.2-c2 | TLS timeout, browser cache, page sending, rejected camera info, PrusaLink with the printer switched off, 16 KB TLS chunks, batched SD log writes, debug messages (see [section 8](#8-optimizations-in-version-112-c2)) |
+| 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached (see [section 8c](#8c-speed-and-fluidity-version-112-c6)) |
 | 1.1.2-c5 | OV5640 continuous autofocus, autofocus state on the Camera page |
 | 1.1.2-c4 | Camera sensor detected once and saved: later starts initialize the camera only once |
 | 1.1.2-c3 | OV2640, OV3660 and OV5640 detected automatically, resolutions per sensor up to 2592×1944, safe camera start, EXIF model, correct resolution sent to Prusa Connect (see [section 8b](#8b-camera-sensors-ov2640-ov3660-ov5640)) |

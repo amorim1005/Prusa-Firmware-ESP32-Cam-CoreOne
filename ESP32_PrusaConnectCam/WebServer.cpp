@@ -155,7 +155,7 @@ void Server_InitWebServer_WebPages() {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get scripts.js"));
     if (Server_CheckBasicAuth(request) == false)
       return;
-    request->send(200, "application/javascript", scripts_js);
+    Server_handleCacheRequest(request, "application/javascript", scripts_js);
   });
 
 
@@ -1331,9 +1331,9 @@ void Server_streamJpg(AsyncWebServerRequest* request) {
     return;
   }
 
-  /* the camera has one frame buffer, two stream clients would steal frames from each other */
-  if (true == SystemCamera.GetStreamStatus()) {
-    request->send(503, "text/plain", "The stream is already open in another window. Only one stream client is supported");
+  /* every client gets the latest frame from the stream buffers, the count is limited by the WiFi bandwidth */
+  if (SystemCamera.GetStreamClients() >= CAMERA_STREAM_MAX_CLIENTS) {
+    request->send(503, "text/plain", "The stream is already open in " + String(CAMERA_STREAM_MAX_CLIENTS) + " windows. Close one of them first");
     return;
   }
 

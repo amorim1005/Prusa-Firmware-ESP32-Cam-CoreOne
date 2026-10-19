@@ -29,20 +29,21 @@ Camera::Camera(Configuration* i_conf, Logs* i_log, int8_t i_FlashPin) {
   CameraFlashPin = i_FlashPin;
   StreamOnOff = false;
   frameBufferSemaphore = xSemaphoreCreateMutex();
+  streamMutex = xSemaphoreCreateMutex();
 
-  /* Allocate memory for the frame buffer */
-  FrameBufferDuplicate = (camera_fb_t*)heap_caps_malloc(sizeof(camera_fb_t), MALLOC_CAP_SPIRAM);
-  if (FrameBufferDuplicate != NULL) {
-    memset(FrameBufferDuplicate, 0, sizeof(camera_fb_t)); 
-    FrameBufferDuplicate->buf = NULL;
+  /* stream buffers are allocated by the capture task, when a stream client connects */
+  for (uint8_t i = 0; i < CAMERA_STREAM_BUFFERS; i++) {
+    StreamBuf[i] = NULL;
+    StreamBufLen[i] = 0;
+    StreamBufCapacity[i] = 0;
+    StreamBufReaders[i] = 0;
   }
-  /* Allocate memory for the frame buffer */
-  FrameBufferExif = (camera_fb_t*)heap_caps_malloc(sizeof(camera_fb_t), MALLOC_CAP_SPIRAM);
-  if (FrameBufferExif != NULL) {
-    memset(FrameBufferExif, 0, sizeof(camera_fb_t)); 
-    FrameBufferExif->buf = NULL;
-  }
-  FrameBufferDuplicateCapacity = 0;
+  StreamLatest = -1;
+  StreamLatestConsumed = false;
+  StreamLatestTime = 0;
+  StreamFrameSeq = 0;
+  StreamClients = 0;
+  StreamTask = NULL;
   FrameBuffer = NULL;
   CameraCaptureSuccess = false;
   sensor = NULL;
@@ -627,8 +628,20 @@ void Camera::CapturePhoto() {
     return;
   }
 
-  /* Check if stream is on */
-  if (false == StreamOnOff) {
+  /* Stream is on: the photo for Prusa Connect is the latest stream frame, the camera is used by the stream capture task */
+  if (true == StreamOnOff) {
+    xSemaphoreGive(frameBufferSemaphore);
+
+    /* wait for the first frame after the stream start */
+    uint32_t start = millis();
+    while ((StreamLatest < 0) && ((millis() - start) < CAMERA_STREAM_FRAME_TIMEOUT)) {
+      delay(10);
+    }
+    CameraCaptureSuccess = (StreamLatest >= 0);
+    return;
+  }
+
+  {
     CameraCaptureSuccess = false;
     /* check flash, and enable FLASH LED */
     if (true == CameraFlashEnable) {
@@ -700,10 +713,6 @@ void Camera::CapturePhoto() {
     if (true == CameraFlashEnable) {
       SetFlashStatus(false);
     }
-
-  } else {
-    /* Stream is on, the photo for Prusa Connect is the last stream frame */
-    CameraCaptureSuccess = ((FrameBufferDuplicate != NULL) && (FrameBufferDuplicate->buf != NULL) && (FrameBufferDuplicate->len > 0));
   }
   xSemaphoreGive(frameBufferSemaphore);
 
@@ -716,117 +725,223 @@ void Camera::CapturePhoto() {
 }
 
 /**
-   @brief Capture Stream
-   @param camera_fb_t * - pointer to camera_fb_t, filled with the captured frame
-   @return bool - true when a frame was captured
+   @brief Start the stream capture task. Call it once, after the camera init
+   @param none
+   @return none
 */
-bool Camera::CaptureStream(camera_fb_t* i_buf) {
+void Camera::StartStreamTask() {
+  if (NULL == StreamTask) {
+    /* core 1: the WiFi stack runs on core 0 */
+    xTaskCreatePinnedToCore(Camera::StreamTaskEntry, "StreamCapture", CAMERA_STREAM_TASK_STACK, this, 2, &StreamTask, 1);
+  }
+}
+
+/**
+   @brief Stream capture task entry point
+   @param void * - pointer to the Camera object
+   @return none
+*/
+void Camera::StreamTaskEntry(void *i_param) {
+  static_cast<Camera *>(i_param)->StreamTaskLoop();
+}
+
+/**
+   @brief Stream capture task. Captures frames only while a stream client is connected
+   @param none
+   @return none
+*/
+void Camera::StreamTaskLoop() {
+  log->AddEvent(LogLevel_Info, F("Stream capture task. core: "), String(xPortGetCoreID()));
+  esp_task_wdt_add(NULL);
+
+  while (true) {
+    esp_task_wdt_reset();
+
+    if (0 == StreamClients) {
+      /* no client: release the PSRAM of the stream buffers that nobody reads */
+      xSemaphoreTake(streamMutex, portMAX_DELAY);
+      for (uint8_t i = 0; i < CAMERA_STREAM_BUFFERS; i++) {
+        if ((NULL != StreamBuf[i]) && (0 == StreamBufReaders[i])) {
+          free(StreamBuf[i]);
+          StreamBuf[i] = NULL;
+          StreamBufCapacity[i] = 0;
+          StreamBufLen[i] = 0;
+        }
+      }
+      StreamLatest = -1;
+      xSemaphoreGive(streamMutex);
+
+      /* woken up by SetStreamStatus when a client connects */
+      ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
+      continue;
+    }
+
+    if (false == StreamCaptureFrame()) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+  }
+}
+
+/**
+   @brief Capture one stream frame into a free stream buffer.
+          A new frame is captured when the latest frame was taken by a client, or when it is older than
+          CAMERA_STREAM_MAX_FRAME_AGE, so the camera does not work faster than the clients receive the frames
+   @param none
+   @return bool - false when the capture failed
+*/
+bool Camera::StreamCaptureFrame() {
+  /* find a free buffer: not the latest frame and not being sent */
+  int8_t w = -1;
+  xSemaphoreTake(streamMutex, portMAX_DELAY);
+  bool wait = (StreamLatest >= 0) && (false == StreamLatestConsumed) && ((millis() - StreamLatestTime) < CAMERA_STREAM_MAX_FRAME_AGE);
+  if (false == wait) {
+    for (uint8_t i = 0; i < CAMERA_STREAM_BUFFERS; i++) {
+      if ((i != StreamLatest) && (0 == StreamBufReaders[i])) {
+        w = i;
+        break;
+      }
+    }
+  }
+  xSemaphoreGive(streamMutex);
+
+  if (w < 0) {
+    vTaskDelay(pdMS_TO_TICKS(2));
+    return true;
+  }
+
   if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
     log->AddEvent(LogLevel_Error, F("Stream: failed to take frame buffer semaphore"));
     return false;
   }
 
-  /* capture frame, bad frames are returned to the driver and captured again */
-  const int maxAttempts = 5;
-  for (int attempts = 0; attempts < maxAttempts; attempts++) {
-    FrameBuffer = esp_camera_fb_get();
-    if ((FrameBuffer == NULL) || (FrameBuffer->len > 100)) {
-      break;
-    }
-    esp_camera_fb_return(FrameBuffer);
-    FrameBuffer = NULL;
+  /* the stream may have ended while waiting for the semaphore */
+  if (false == StreamOnOff) {
+    xSemaphoreGive(frameBufferSemaphore);
+    return true;
   }
 
-  if (FrameBuffer == NULL) {
-    log->AddEvent(LogLevel_Error, F("Camera capture failed! stream"));
+  camera_fb_t* fb = esp_camera_fb_get();
+  if ((NULL == fb) || (fb->len <= 100)) {
+    if (NULL != fb) {
+      esp_camera_fb_return(fb);
+    }
     xSemaphoreGive(frameBufferSemaphore);
+    log->AddEvent(LogLevel_Error, F("Camera capture failed! stream"));
     return false;
   }
 
-  /* check if the photo is rotated */
-  bool ExifStatus = false;
-
+  /* optional EXIF header with the image rotation */
+  const uint8_t* Header = NULL;
+  size_t HeaderLen = 0;
+  size_t Offset = 0;
 #if (true == CAMERA_EXIF_ROTATION_STREAM)
   if (1 != imageExifRotation) { /* 1 = image rotation 0 degree */
-    /* generate exif header */
     update_exif_from_cfg(imageExifRotation);
-    get_exif_header(FrameBuffer, &PhotoExifData.header, &PhotoExifData.len);
-    PhotoExifData.offset = get_jpeg_data_offset(FrameBuffer);
-    if (PhotoExifData.header != NULL) {
-      /* memory allocation release */
-      if (FrameBufferExif != NULL) {
-        if (FrameBufferExif->buf != NULL) {
-          free(FrameBufferExif->buf);
-        }
-        free(FrameBufferExif);
-        FrameBufferExif = NULL;
-      }
-
-      /* Allocate memory for the duplicate frame structure */
-      size_t totalSize = PhotoExifData.len + FrameBuffer->len - PhotoExifData.offset;
-      FrameBufferExif = (camera_fb_t*)heap_caps_malloc(sizeof(camera_fb_t), MALLOC_CAP_SPIRAM);
-      if (FrameBufferExif != NULL) {
-        memcpy(FrameBufferExif, FrameBuffer, sizeof(camera_fb_t));
-        FrameBufferExif->buf = (uint8_t*)heap_caps_malloc(totalSize, MALLOC_CAP_SPIRAM);
-      }
-
-      if ((FrameBufferExif != NULL) && (FrameBufferExif->buf != NULL)) {
-        /* copy the EXIF data and the image data to the buffer */
-        memcpy(FrameBufferExif->buf, PhotoExifData.header, PhotoExifData.len);
-        memcpy(FrameBufferExif->buf + PhotoExifData.len, FrameBuffer->buf + PhotoExifData.offset, FrameBuffer->len - PhotoExifData.offset);
-        FrameBufferExif->len = totalSize;
-        ExifStatus = true;
-      } else {
-        log->AddEvent(LogLevel_Error, F("Failed to allocate memory for EXIF buffer"));
-        if (FrameBufferExif != NULL) {
-          free(FrameBufferExif);
-          FrameBufferExif = NULL;
-        }
-      }
+    get_exif_header(fb, &Header, &HeaderLen);
+    Offset = get_jpeg_data_offset(fb);
+    if ((NULL == Header) || (Offset >= fb->len)) {
+      Header = NULL;
+      HeaderLen = 0;
+      Offset = 0;
     }
   }
 #endif
 
-  camera_fb_t* Source = (true == ExifStatus) ? FrameBufferExif : FrameBuffer;
-  *i_buf = *Source;
-
-  /* copy the frame to the duplicate frame buffer, it is the photo for Prusa Connect while the stream is running.
-     Reuse the old buffer when it is big enough, so the PSRAM is not fragmented by every frame */
-  if ((FrameBufferDuplicate != NULL) && (FrameBufferDuplicate->buf != NULL) && (FrameBufferDuplicateCapacity < Source->len)) {
-    free(FrameBufferDuplicate->buf);
-    FrameBufferDuplicate->buf = NULL;
-    FrameBufferDuplicateCapacity = 0;
+  /* the buffer grows when a frame is larger, it is not allocated for every frame */
+  size_t Total = HeaderLen + fb->len - Offset;
+  if (StreamBufCapacity[w] < Total) {
+    free(StreamBuf[w]);
+    size_t Capacity = Total + (Total / 4);
+    StreamBuf[w] = (uint8_t*)heap_caps_malloc(Capacity, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    StreamBufCapacity[w] = (NULL != StreamBuf[w]) ? Capacity : 0;
   }
 
-  if (FrameBufferDuplicate == NULL) {
-    FrameBufferDuplicate = (camera_fb_t*)heap_caps_malloc(sizeof(camera_fb_t), MALLOC_CAP_SPIRAM);
-    if (FrameBufferDuplicate != NULL) {
-      memset(FrameBufferDuplicate, 0, sizeof(camera_fb_t));
+  bool ret = false;
+  if (NULL != StreamBuf[w]) {
+    if (HeaderLen > 0) {
+      memcpy(StreamBuf[w], Header, HeaderLen);
     }
-    FrameBufferDuplicateCapacity = 0;
+    memcpy(StreamBuf[w] + HeaderLen, fb->buf + Offset, fb->len - Offset);
+    ret = true;
+  } else {
+    log->AddEvent(LogLevel_Error, F("Stream: failed to allocate frame buffer"));
   }
 
-  if (FrameBufferDuplicate != NULL) {
-    uint8_t* DuplicateBuf = FrameBufferDuplicate->buf;
-    if (DuplicateBuf == NULL) {
-      DuplicateBuf = (uint8_t*)heap_caps_malloc(Source->len, MALLOC_CAP_SPIRAM);
-      FrameBufferDuplicateCapacity = (DuplicateBuf != NULL) ? Source->len : 0;
-    }
-
-    if (DuplicateBuf != NULL) {
-      memcpy(FrameBufferDuplicate, Source, sizeof(camera_fb_t));
-      FrameBufferDuplicate->buf = DuplicateBuf;
-      memcpy(FrameBufferDuplicate->buf, Source->buf, Source->len);
-    } else {
-      /* keep the structure consistent: no data */
-      FrameBufferDuplicate->buf = NULL;
-      FrameBufferDuplicate->len = 0;
-      log->AddEvent(LogLevel_Error, F("Failed to allocate memory for the duplicate frame buffer"));
-    }
-  }
-
+  /* return the frame to the driver now, the next frame is captured while this one is being sent */
+  esp_camera_fb_return(fb);
   xSemaphoreGive(frameBufferSemaphore);
-  return true;
+
+  if (true == ret) {
+    xSemaphoreTake(streamMutex, portMAX_DELAY);
+    StreamBufLen[w] = Total;
+    StreamLatest = w;
+    StreamLatestConsumed = false;
+    StreamLatestTime = millis();
+    StreamFrameSeq++;
+    xSemaphoreGive(streamMutex);
+  }
+
+  return ret;
+}
+
+/**
+   @brief Take the latest stream frame. The frame is not overwritten until StreamReleaseFrame is called
+   @param uint32_t - sequence number of the last frame the caller has, it waits for a newer frame
+   @param uint8_t ** - output, frame data
+   @param size_t * - output, frame length
+   @param uint8_t * - output, buffer index for StreamReleaseFrame
+   @param uint32_t * - output, frame sequence number
+   @param uint32_t - maximum waiting time [ms]
+   @return bool - true when a frame was taken
+*/
+bool Camera::StreamAcquireFrame(uint32_t i_lastSeq, uint8_t **o_buf, size_t *o_len, uint8_t *o_idx, uint32_t *o_seq, uint32_t i_timeout) {
+  uint32_t start = millis();
+
+  while (true) {
+    xSemaphoreTake(streamMutex, portMAX_DELAY);
+    if ((StreamLatest >= 0) && (StreamFrameSeq != i_lastSeq)) {
+      *o_idx = StreamLatest;
+      *o_buf = StreamBuf[StreamLatest];
+      *o_len = StreamBufLen[StreamLatest];
+      *o_seq = StreamFrameSeq;
+      StreamBufReaders[StreamLatest]++;
+      StreamLatestConsumed = true;
+      xSemaphoreGive(streamMutex);
+      return true;
+    }
+    xSemaphoreGive(streamMutex);
+
+    if (((millis() - start) >= i_timeout) || (0 == StreamClients)) {
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
+}
+
+/**
+   @brief Release a stream frame taken by StreamAcquireFrame
+   @param uint8_t - buffer index
+   @return none
+*/
+void Camera::StreamReleaseFrame(uint8_t i_idx) {
+  if (i_idx >= CAMERA_STREAM_BUFFERS) {
+    return;
+  }
+
+  xSemaphoreTake(streamMutex, portMAX_DELAY);
+  if (StreamBufReaders[i_idx] > 0) {
+    StreamBufReaders[i_idx]--;
+  }
+  xSemaphoreGive(streamMutex);
+}
+
+/**
+   @brief Get count of connected stream clients
+   @param none
+   @return uint8_t - count
+*/
+uint8_t Camera::GetStreamClients() {
+  return StreamClients;
 }
 
 /**
@@ -853,21 +968,42 @@ void Camera::CaptureReturnFrameBuffer() {
    @return none
 */
 void Camera::SetStreamStatus(bool i_status) {
-  if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
+  /* the client count must always be updated, also when the camera is busy */
+  bool locked = xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT));
+  if (!locked) {
     log->AddEvent(LogLevel_Error, F("Set stream status: failed to take semaphore"));
-    return;
   }
 
-  StreamOnOff = i_status;
-  if (FrameBuffer) {
-    esp_camera_fb_return(FrameBuffer);
-    FrameBuffer = NULL;
+  xSemaphoreTake(streamMutex, portMAX_DELAY);
+  if (true == i_status) {
+    if (0 == StreamClients) {
+      /* new stream session: never send a frame from the previous session */
+      StreamLatest = -1;
+      StreamLatestConsumed = false;
+    }
+    StreamClients++;
+  } else if (StreamClients > 0) {
+    StreamClients--;
+  }
+  StreamOnOff = (StreamClients > 0);
+  xSemaphoreGive(streamMutex);
+
+  if (locked) {
+    /* the held photo blocks the single camera frame buffer, return it to the driver for the stream */
+    if (FrameBuffer) {
+      esp_camera_fb_return(FrameBuffer);
+      FrameBuffer = NULL;
+    }
+
+    /* a new photo is captured in the next cycle */
+    CameraCaptureSuccess = false;
+    xSemaphoreGive(frameBufferSemaphore);
   }
 
-  /* the last photo was returned to the driver, a new one is captured in the next cycle */
-  CameraCaptureSuccess = false;
-  xSemaphoreGive(frameBufferSemaphore);
-  log->AddEvent(LogLevel_Info, F("Camera video stream: "), String(StreamOnOff));
+  if (NULL != StreamTask) {
+    xTaskNotifyGive(StreamTask);
+  }
+  log->AddEvent(LogLevel_Info, F("Camera video stream clients: "), String(StreamClients));
 }
 
 /**
@@ -882,6 +1018,32 @@ bool Camera::GetPhotoCopy(uint8_t** o_buf, size_t* o_len) {
   *o_buf = NULL;
   *o_len = 0;
 
+  /* stream is on: copy the latest stream frame, the camera is used by the stream capture task */
+  if (true == StreamOnOff) {
+    uint8_t* Frame = NULL;
+    size_t FrameLen = 0;
+    uint8_t Idx = 0;
+    uint32_t Seq = 0;
+    if (false == StreamAcquireFrame(UINT32_MAX, &Frame, &FrameLen, &Idx, &Seq, CAMERA_STREAM_FRAME_TIMEOUT)) {
+      log->AddEvent(LogLevel_Error, F("Photo copy: no stream frame"));
+      return false;
+    }
+
+    uint8_t* Buf = (uint8_t*)heap_caps_malloc(FrameLen, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (Buf == NULL) {
+      Buf = (uint8_t*)malloc(FrameLen);
+    }
+    if (Buf != NULL) {
+      memcpy(Buf, Frame, FrameLen);
+      *o_buf = Buf;
+      *o_len = FrameLen;
+    } else {
+      log->AddEvent(LogLevel_Error, F("Photo copy: failed to allocate memory: "), String(FrameLen));
+    }
+    StreamReleaseFrame(Idx);
+    return (Buf != NULL);
+  }
+
   if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
     log->AddEvent(LogLevel_Error, F("Photo copy: failed to take frame buffer semaphore"));
     return false;
@@ -892,12 +1054,7 @@ bool Camera::GetPhotoCopy(uint8_t** o_buf, size_t* o_len) {
   const uint8_t* Data = NULL;
   size_t DataLen = 0;
 
-  if (true == StreamOnOff) {
-    if ((FrameBufferDuplicate != NULL) && (FrameBufferDuplicate->buf != NULL)) {
-      Data = FrameBufferDuplicate->buf;
-      DataLen = FrameBufferDuplicate->len;
-    }
-  } else if ((true == CameraCaptureSuccess) && (FrameBuffer != NULL)) {
+  if ((false == StreamOnOff) && (true == CameraCaptureSuccess) && (FrameBuffer != NULL)) {
     if ((PhotoExifData.header != NULL) && (PhotoExifData.offset < FrameBuffer->len)) {
       Header = PhotoExifData.header;
       HeaderLen = PhotoExifData.len;
@@ -1013,15 +1170,6 @@ String Camera::GetPhoto() {
 */
 camera_fb_t* Camera::GetPhotoFb() {
   return FrameBuffer;
-}
-
-/**
-   @brief Get Photo Frame Buffer Duplicate
-   @param none
-   @return camera_fb_t* - photo frame buffer duplicate
-*/
-camera_fb_t* Camera::GetPhotoFbDuplicate() {
-  return FrameBufferDuplicate;
 }
 
 /**

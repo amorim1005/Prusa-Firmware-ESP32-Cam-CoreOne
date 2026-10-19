@@ -22,12 +22,21 @@
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c5"               ///< SW version
+#define SW_VERSION                  "1.1.2-c6"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
 #define CAMERA_MAX_FAIL_CAPTURE     10                      ///< maximum count for failed capture
 #define CAMERA_SEMAPHORE_TIMEOUT    5000                    ///< maximum waiting time for the camera frame buffer semaphore [ms]
+
+/* ------------------ LIVE STREAM ---------------*/
+/* A capture task fills the stream buffers in turn, the WEB server sends the latest complete frame.
+   The capture of the next frame runs while the current frame is being sent */
+#define CAMERA_STREAM_BUFFERS       3                       ///< count of stream frame buffers in PSRAM (one per client + one in capture)
+#define CAMERA_STREAM_MAX_CLIENTS   2                       ///< maximum count of stream clients at the same time
+#define CAMERA_STREAM_FRAME_TIMEOUT 3000                    ///< maximum waiting time for a new stream frame [ms]. Then the stream ends
+#define CAMERA_STREAM_MAX_FRAME_AGE 300                     ///< capture a new frame when the latest one was not sent yet but is older than this [ms]
+#define CAMERA_STREAM_TASK_STACK    4096                    ///< stream capture task stack size [bytes]
 
 /* --------------- CAMERA SENSORS  --------------*/
 /* The camera driver detects the sensor automatically: OV2640 (max. 1600x1200), OV3660 (max. 2048x1536), OV5640 (max. 2592x1944) */
@@ -55,6 +64,7 @@
 #define TLS_HANDSHAKE_TIMEOUT       15                      ///< TLS handshake timeout [s]. Must be shorter than WDG_TIMEOUT, the library default is 120 s
 #define BACKEND_RESPONSE_TIMEOUT    10000                   ///< maximum waiting time for the backend response [ms]
 #define BACKEND_BACKOFF_MAX         600                     ///< maximum waiting time after a failed upload [s]
+#define BACKEND_KEEPALIVE_MAX_INTERVAL 90                   ///< keep the HTTPS connection open between uploads when the upload interval is at most this [s]. The server keeps an idle connection open at least 65 s (measured 2026-10)
 #define BACKEND_CONNECT_FAIL_WIFI_RECONNECT 10              ///< reconnect WiFi after this count of consecutive failed connections to the backend
 #define CAMERA_SERVICE_SNAPSHOT_MAX_SIZE 1000000            ///< maximum snapshot size [bytes]
 #define CAMERA_SERVICE_NAME_MAX_LEN 32                      ///< maximum length of the camera name

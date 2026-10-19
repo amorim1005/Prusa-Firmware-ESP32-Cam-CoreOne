@@ -45,12 +45,18 @@ private:
   String Fingerprint;                             ///< fingerprint for backend communication 
   String PrusaConnectHostname;                    ///< hostname of prusa connect backend          
 
+  WiFiClientSecure BackendClient;                 ///< HTTPS connection to the backend, kept open between uploads
+  String BackendClientHost;                       ///< hostname of the open connection
+
   Configuration *config;                          ///< pointer to configuration object
   Logs *log;                                      ///< pointer to logs object
   Camera *camera;                                 ///< pointer to camera object
   WiFiMngt *wifi;                                 ///< pointer to wifi object
 
   int SendDataToBackend(const uint8_t *, size_t, String, String, String);
+  bool BackendConnect();
+  void BackendClose();
+  int BackendRequest(const uint8_t *, size_t, String, String, bool, String *, bool *);
   void ProcessBackendResult(int, SendDataToBackendType);
   String TranslateRefreshIntervalToTriggerScheme(uint16_t);
   int TranslateExifRotationToDegree(uint8_t);
