@@ -921,6 +921,16 @@ void Configuration::SavePrusaLinkPassword(String i_data) {
 }
 
 /**
+   @info save the detected camera sensor
+   @param uint8_t - CAMERA_SENSOR_xxx
+   @return none
+*/
+void Configuration::SaveCameraSensor(uint8_t i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save camera sensor: "), String(i_data));
+  SaveUint8(EEPROM_ADDR_CAMERA_SENSOR_START, i_data);
+}
+
+/**
    @info load refresh interval from eeprom 
    @param none
    @return uint16_t - refresh interval [s]. Always one of the Camera Service trigger schemes 10 s, 30 s, 60 s, 10 min
@@ -1524,6 +1534,21 @@ String Configuration::LoadPrusaLinkUser() {
 String Configuration::LoadPrusaLinkPassword() {
   Log->AddEvent(LogLevel_Info, F("PrusaLink password: "), false);
   String ret = LoadString(EEPROM_ADDR_PRUSALINK_PASSWORD_START, EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH, false);
+
+  return ret;
+}
+
+/**
+ * @brief Load the camera sensor detected on a previous start. After a firmware upgrade the EEPROM cell is 0xFF, it means unknown
+ *
+ * @return uint8_t - CAMERA_SENSOR_xxx
+ */
+uint8_t Configuration::LoadCameraSensor() {
+  uint8_t ret = EEPROM.read(EEPROM_ADDR_CAMERA_SENSOR_START);
+  if (ret > CAMERA_SENSOR_OV5640) {
+    ret = CAMERA_SENSOR_UNKNOWN;
+  }
+  Log->AddEvent(LogLevel_Info, F("Saved camera sensor: "), String(ret));
 
   return ret;
 }

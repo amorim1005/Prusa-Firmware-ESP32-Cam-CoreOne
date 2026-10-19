@@ -48,7 +48,7 @@ Camera::Camera(Configuration* i_conf, Logs* i_log, int8_t i_FlashPin) {
   sensor = NULL;
   CameraType = (camera_pid_t)0;
   CameraName = F("Unknown");
-  SensorMaxFrameSize = CAMERA_SAFE_INIT_FRAMESIZE;
+  SensorMaxFrameSize = CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE;
 
   PhotoExifData.header = NULL;
   PhotoExifData.len = 0;
@@ -76,19 +76,28 @@ void Camera::Init() {
   SetFlashStatus(false);
 #endif
 
-  /* The sensor is known only after the first init. Start with a frame size and XCLK every supported sensor accepts,
-     a saved 5 MP frame size on a 2 MP sensor must not end in a reboot loop */
-  framesize_t InitFrameSize = (TFrameSize > CAMERA_SAFE_INIT_FRAMESIZE) ? CAMERA_SAFE_INIT_FRAMESIZE : TFrameSize;
-  InitCameraModule(InitFrameSize);
+  /* Init with the sensor saved on a previous start (XCLK and frame size limit). The driver reads the sensor ID
+     on every init anyway, so the saved sensor is always checked. A frame size above the sensor maximum
+     is limited by the driver, a wrong saved sensor cannot cause a failed init */
+  camera_pid_t SavedType = CameraType;
+  if ((camera_pid_t)0 != SavedType) {
+    CheckFrameSizeLimit();
+  }
+  InitCameraModule(TFrameSize);
   GetCameraModel();
   CheckFrameSizeLimit();
 
-  /* init again with the final frame size and the XCLK of the detected sensor */
-  if ((InitFrameSize != TFrameSize) || (GetSensorXclk() != (uint32_t)CameraConfig.xclk_freq_hz)) {
-    log->AddEvent(LogLevel_Info, F("Init camera module again for the detected sensor"));
-    esp_camera_deinit();
-    delay(100);
-    InitCameraModule(TFrameSize);
+  if (TransformPidToCameraSensor(CameraType) != TransformPidToCameraSensor(SavedType)) {
+    /* first start, or the camera module was changed: save the sensor, the next start needs only one init */
+    log->AddEvent(LogLevel_Warning, "New camera sensor detected: " + CameraName);
+    config->SaveCameraSensor(TransformPidToCameraSensor(CameraType));
+
+    if (GetSensorXclk() != (uint32_t)CameraConfig.xclk_freq_hz) {
+      log->AddEvent(LogLevel_Info, F("Init camera module again with the XCLK of the detected sensor"));
+      esp_camera_deinit();
+      delay(100);
+      InitCameraModule(TFrameSize);
+    }
   }
 
   ApplyCameraCfg();
@@ -209,6 +218,54 @@ void Camera::LoadCameraCfgFromEeprom() {
   CameraFlashEnable = config->LoadCameraFlashEnable();
   CameraFlashTime = config->LoadCameraFlashTime();
   imageExifRotation = config->LoadCameraImageExifRotation();
+
+  /* sensor detected on a previous start */
+  CameraType = TransformCameraSensorToPid(config->LoadCameraSensor());
+  if ((camera_pid_t)0 != CameraType) {
+    sensor_id_t id = {};
+    id.PID = CameraType;
+    camera_sensor_info_t* info = esp_camera_sensor_get_info(&id);
+    if (info != NULL) {
+      CameraName = info->name;
+      SensorMaxFrameSize = info->max_size;
+    }
+  }
+}
+
+/**
+   @brief Translate the saved camera sensor code to the sensor PID
+   @param uint8_t - CAMERA_SENSOR_xxx
+   @return camera_pid_t - PID, 0 when unknown
+*/
+camera_pid_t Camera::TransformCameraSensorToPid(uint8_t i_data) {
+  switch (i_data) {
+    case CAMERA_SENSOR_OV2640:
+      return OV2640_PID;
+    case CAMERA_SENSOR_OV3660:
+      return OV3660_PID;
+    case CAMERA_SENSOR_OV5640:
+      return OV5640_PID;
+    default:
+      return (camera_pid_t)0;
+  }
+}
+
+/**
+   @brief Translate the sensor PID to the camera sensor code saved in the EEPROM
+   @param camera_pid_t - PID
+   @return uint8_t - CAMERA_SENSOR_xxx, CAMERA_SENSOR_UNKNOWN for other sensors
+*/
+uint8_t Camera::TransformPidToCameraSensor(camera_pid_t i_data) {
+  switch (i_data) {
+    case OV2640_PID:
+      return CAMERA_SENSOR_OV2640;
+    case OV3660_PID:
+      return CAMERA_SENSOR_OV3660;
+    case OV5640_PID:
+      return CAMERA_SENSOR_OV5640;
+    default:
+      return CAMERA_SENSOR_UNKNOWN;
+  }
 }
 
 /**

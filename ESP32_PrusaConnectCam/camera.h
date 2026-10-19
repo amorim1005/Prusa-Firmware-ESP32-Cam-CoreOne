@@ -88,6 +88,8 @@ private:
   void InitCameraModule(framesize_t);
   uint32_t GetSensorXclk();
   void CheckFrameSizeLimit();
+  camera_pid_t TransformCameraSensorToPid(uint8_t);
+  uint8_t TransformPidToCameraSensor(camera_pid_t);
 
 public:
   Camera(Configuration*, Logs*, int8_t);

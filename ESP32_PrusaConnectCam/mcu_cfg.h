@@ -22,7 +22,7 @@
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c3"               ///< SW version
+#define SW_VERSION                  "1.1.2-c4"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -34,7 +34,11 @@
 #define CAMERA_XCLK_OV2640          15000000                ///< XCLK for the OV2640 [Hz]
 #define CAMERA_XCLK_OV3660          20000000                ///< XCLK for the OV3660 [Hz], Espressif reference value
 #define CAMERA_XCLK_OV5640          20000000                ///< XCLK for the OV5640 [Hz], Espressif reference value
-#define CAMERA_SAFE_INIT_FRAMESIZE  FRAMESIZE_UXGA          ///< frame size for the first init, every supported sensor accepts it
+#define CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE FRAMESIZE_UXGA  ///< maximum frame size on the WEB page when the sensor is not detected
+#define CAMERA_SENSOR_UNKNOWN       0                       ///< saved sensor code: not detected yet
+#define CAMERA_SENSOR_OV2640        1                       ///< saved sensor code: OV2640
+#define CAMERA_SENSOR_OV3660        2                       ///< saved sensor code: OV3660
+#define CAMERA_SENSOR_OV5640        3                       ///< saved sensor code: OV5640
 
 /* ------------ PRUSA BACKEND CFG  --------------*/
 /* Prusa Camera Service API: https://camera-service.prusa3d.com/docs/ */
@@ -347,6 +351,9 @@
 #define EEPROM_ADDR_PRUSALINK_PASSWORD_START      (EEPROM_ADDR_PRUSALINK_USER_START + EEPROM_ADDR_PRUSALINK_USER_LENGTH)
 #define EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH     33                                                                                      ///< maximum length 32 + 1 byte for save length
 
+#define EEPROM_ADDR_CAMERA_SENSOR_START           (EEPROM_ADDR_PRUSALINK_PASSWORD_START + EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH)
+#define EEPROM_ADDR_CAMERA_SENSOR_LENGTH          1                                                                                       ///< detected camera sensor, CAMERA_SENSOR_xxx
+
 #define EEPROM_SIZE (EEPROM_ADDR_REFRESH_INTERVAL_LENGTH + EEPROM_ADDR_FINGERPRINT_LENGTH + EEPROM_ADDR_TOKEN_LENGTH + \
                      EEPROM_ADDR_FRAMESIZE_LENGTH + EEPROM_ADDR_BRIGHTNESS_LENGTH + EEPROM_ADDR_CONTRAST_LENGTH + \
                      EEPROM_ADDR_SATURATION_LENGTH + EEPROM_ADDR_HMIRROR_LENGTH + EEPROM_ADDR_VFLIP_LENGTH + \
@@ -364,7 +371,7 @@
                      EEPROM_ADDR_NETWORK_STATIC_DNS_LENGTH + EEPROM_ADDR_IMAGE_ROTATION_LENGTH + EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH + \
                      EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH + EEPROM_ADDR_PRUSALINK_HOST_LENGTH + EEPROM_ADDR_PRUSALINK_USER_LENGTH + \
-                     EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH)    ///< how many bits do we need for eeprom memory
+                     EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH + EEPROM_ADDR_CAMERA_SENSOR_LENGTH)    ///< how many bits do we need for eeprom memory
 
 #endif
 

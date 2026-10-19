@@ -80,6 +80,7 @@ public:
   void SavePrusaLinkHost(String);
   void SavePrusaLinkUser(String);
   void SavePrusaLinkPassword(String);
+  void SaveCameraSensor(uint8_t);
 
   uint16_t LoadRefreshInterval();
   String LoadToken();
@@ -128,6 +129,7 @@ public:
   String LoadPrusaLinkHost();
   String LoadPrusaLinkUser();
   String LoadPrusaLinkPassword();
+  uint8_t LoadCameraSensor();
 
 private:
   Logs *Log;              ///< Pointer to Logs object
