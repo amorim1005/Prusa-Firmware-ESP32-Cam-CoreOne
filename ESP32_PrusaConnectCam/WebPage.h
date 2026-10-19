@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c4">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c5">
 	<script src="/jquery-3.7.0.min.js"></script>
 	<script>
 		$(document).ready(function () {
@@ -110,7 +110,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -135,7 +135,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<table id="center_tb">
@@ -215,7 +215,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center><table id="data">
@@ -235,6 +235,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
 		<tr><td class="pc1">Camera sensor</td><td class="pc2"><span id="camera_detected"></span> (detected automatically)</td></tr>
+		<tr><td class="pc1">Autofocus</td><td class="pc2"><span id="camera_autofocus"></span></td></tr>
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
@@ -330,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -391,7 +392,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_temperature_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center>
@@ -963,6 +964,7 @@ function get_data(val) {
 				}
 				document.getElementById('framesizeid').value = obj.framesize;
 				$("#camera_detected").text(obj.camera_detected);
+				$("#camera_autofocus").text(obj.camera_autofocus);
 				document.getElementById('brightnessid').value = obj.brightness;
 				document.getElementById('contrastid').value = obj.contrast;
 				document.getElementById('saturationid').value = obj.saturation;
@@ -1466,7 +1468,7 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
 <script src="scripts.js"></script>
@@ -1478,7 +1480,7 @@ const char license_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char gtac_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the General Terms and Conditions, please visit <a href="https://www.prusa3d.com/page/general-terms-and-conditions_231236/" id="gtac-link">this page</a>.</p></center>
 <script src="scripts.js"></script>
@@ -1489,7 +1491,7 @@ const char gtac_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char privacypolicy_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Privacy Policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="privacy-link">this page</a>.</p></center>
 <script src="scripts.js"></script>
@@ -1500,7 +1502,7 @@ const char privacypolicy_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char cookies_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <center><p>To read the Cookie policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="cookies-link">this page</a>.</p></center>
 <script src="scripts.js"></script>

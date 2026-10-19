@@ -1226,6 +1226,7 @@ String Server_GetJsonData() {
   doc_json["framesize"] = String(SystemCamera.GetFrameSize());
   doc_json["framesize_supported"] = SystemCamera.GetSupportedFrameSizes();
   doc_json["camera_detected"] = SystemCamera.GetDetectedSensorName();
+  doc_json["camera_autofocus"] = SystemCamera.GetAutofocusStatus();
   doc_json["brightness"] = String(SystemCamera.GetBrightness());
   doc_json["contrast"] = String(SystemCamera.GetContrast());
   doc_json["saturation"] = String(SystemCamera.GetSaturation());

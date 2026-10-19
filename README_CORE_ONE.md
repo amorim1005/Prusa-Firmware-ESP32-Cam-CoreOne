@@ -8,7 +8,7 @@ changes are in the commits on top of it.
 Goal: a camera you can rely on every day, on a **Prusa Core One**, with a
 **Seeed Studio XIAO ESP32-S3 Sense** (OV2640 camera).
 
-Firmware version: **1.1.2-c4** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c5** (see the [version history](#version-history)).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
 > The first tests on your printer are the final check. Read
@@ -95,7 +95,7 @@ documentation says new code should use the new ones. What changed:
 | The server certificate is issued by Google Trust Services | Trusted only ISRG Root X1 (Let's Encrypt), so **the connection would fail** | Added GTS Root R4 and GTS Root R1 (ISRG Root X1 kept). Verified against the real server |
 | Camera info with `device: {type: "ESP32", firmware_version, hardware_version}`. Unknown fields are **rejected** | Old format, which would be rejected (error 422) | New format, exactly as documented |
 | Camera name of at most 32 characters | Up to 40 | Cut to 32 |
-| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c4` |
+| `User-Agent` with name and version | `ESP32-CAM` | `PrusaESP32Cam/1.1.2-c5` |
 | Only 4 intervals: 10 s, 30 s, 60 s, 10 min. At most 6 uploads per minute | Any value from 10 to 240 s | A list with the 4 values. Old values are converted to the nearest one |
 | Photos of at most 1 MB | Not checked | Checked before uploading |
 | Each error code has its own action | All errors handled the same way | See below |
@@ -265,7 +265,7 @@ and the camera is initialized a second time only if the XCLK is different.
 |---|---|---|---|
 | OV2640 | 1600×1200 | 15 MHz (unchanged) | |
 | OV3660 | 2048×1536 | 20 MHz (Espressif reference value) | |
-| OV5640 | 2592×1944 | 20 MHz (Espressif reference value) | Autofocus is not used, see below |
+| OV5640 | 2592×1944 | 20 MHz (Espressif reference value) | Continuous autofocus, see below |
 
 **What the firmware does for each sensor:**
 - **Resolutions:** the resolution list on the Camera page shows only the resolutions the
@@ -286,10 +286,18 @@ and the camera is initialized a second time only if the XCLK is different.
   status shows a clear message.
 - Very high JPEG quality at high resolutions can make a photo larger than the camera's frame
   buffer (the driver logs `FB-OVF`). The quality slider stops at 10, which avoids the worst cases.
-- **OV5640 autofocus is not used.** The camera driver in the ESP32 core 3.1.0 has no autofocus
-  support. Newer versions of the esp32-camera driver have an optional autofocus API
-  (`CONFIG_CAMERA_AF_SUPPORT`, off by default), which needs a newer core. Without autofocus the
-  lens stays at its rest position, so check the sharpness at your mounting distance.
+- **OV5640 autofocus (version 1.1.2-c5).** After every camera start the firmware loads the
+  OmniVision autofocus firmware (4 KB) into the OV5640 and starts **continuous autofocus**. The
+  Camera page shows the autofocus state (focused / focusing / idle). It uses the library
+  [OV5640 Auto Focus for ESP32 Camera](https://github.com/0015/ESP32-OV5640-AF) 0.1.1 (MIT), the
+  same approach as Seeed's examples.
+  - *Why not a newer ESP32 core?* The esp32-camera driver has an autofocus API
+    (`esp_camera_af.h`), but the official Arduino core builds have it switched off: in the newest
+    core (3.3.12, checked 2026-10) `CONFIG_CAMERA_AF_SUPPORT` is not set, so every call returns
+    `ESP_ERR_NOT_SUPPORTED`. Updating the core would not give autofocus.
+  - Loading the firmware takes about 1–2 s and is repeated after every camera re-init (for
+    example when you change the resolution), because the sensor loses it.
+  - OV2640 and OV3660 have a fixed-focus lens: the Camera page shows "Not supported".
 - If the image is upside down or mirrored, use **Vertical flip** / **Horizontal mirror** on the
   Camera page. The firmware does not flip any sensor by itself.
 
@@ -307,6 +315,7 @@ repository's `libraries/` folder:
 | AsyncTCP (mathieucarbou) | 3.3.1 | LGPL-3.0 |
 | ESPAsyncWebServer (mathieucarbou) | 3.4.5 | LGPL-3.0 |
 | DHTNEW | 0.5.2 | MIT |
+| OV5640 Auto Focus for ESP32 Camera | 0.1.1 | MIT |
 
 > Use **these versions**. Newer versions of the ESP32 core or of ESPAsyncWebServer may not
 > compile or may behave differently.
@@ -325,7 +334,7 @@ Before compiling, check in `ESP32_PrusaConnectCam/mcu_cfg.h` that only the XIAO 
    `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
 3. **Tools → Board → Boards Manager**: search for **esp32 by Espressif Systems** and install
    **version 3.1.0** (choose the version in the list before pressing Install).
-4. Copy **the 5 folders** inside this repository's `libraries/` to the Arduino libraries folder:
+4. Copy **the 6 folders** inside this repository's `libraries/` to the Arduino libraries folder:
    - Windows: `Documents\Arduino\libraries\`
    - Linux: `~/Arduino/libraries/`
    - macOS: `~/Documents/Arduino/libraries/`
@@ -498,6 +507,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 |---|---|
 | 1.1.2-c1 | 11 bugs fixed, Prusa Camera Service, Core One defaults, thermal guard, PrusaLink |
 | 1.1.2-c2 | TLS timeout, browser cache, page sending, rejected camera info, PrusaLink with the printer switched off, 16 KB TLS chunks, batched SD log writes, debug messages (see [section 8](#8-optimizations-in-version-112-c2)) |
+| 1.1.2-c5 | OV5640 continuous autofocus, autofocus state on the Camera page |
 | 1.1.2-c4 | Camera sensor detected once and saved: later starts initialize the camera only once |
 | 1.1.2-c3 | OV2640, OV3660 and OV5640 detected automatically, resolutions per sensor up to 2592×1944, safe camera start, EXIF model, correct resolution sent to Prusa Connect (see [section 8b](#8b-camera-sensors-ov2640-ov3660-ov5640)) |
 

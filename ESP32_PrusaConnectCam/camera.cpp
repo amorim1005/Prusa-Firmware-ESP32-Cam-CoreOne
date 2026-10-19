@@ -49,6 +49,7 @@ Camera::Camera(Configuration* i_conf, Logs* i_log, int8_t i_FlashPin) {
   CameraType = (camera_pid_t)0;
   CameraName = F("Unknown");
   SensorMaxFrameSize = CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE;
+  AutofocusStatus = F("Not supported by the camera sensor");
 
   PhotoExifData.header = NULL;
   PhotoExifData.len = 0;
@@ -101,6 +102,76 @@ void Camera::Init() {
   }
 
   ApplyCameraCfg();
+  InitAutofocus();
+}
+
+/**
+   @brief Load the autofocus firmware to the OV5640 and start continuous autofocus.
+          The sensor loses the firmware on every camera init, so it is loaded after every init.
+          OV2640 and OV3660 have a fixed focus lens.
+   @param none
+   @return none
+*/
+void Camera::InitAutofocus() {
+  if ((OV5640_PID != CameraType) || (sensor == NULL)) {
+    AutofocusStatus = F("Not supported by the camera sensor");
+    return;
+  }
+
+  /* the library checks the chip ID, an OV5640 module without the focus motor has the same ID */
+  if (false == Ov5640Autofocus.start(sensor)) {
+    AutofocusStatus = F("Failed: OV5640 not found");
+    log->AddEvent(LogLevel_Error, AutofocusStatus);
+    return;
+  }
+
+  log->AddEvent(LogLevel_Info, F("Load OV5640 autofocus firmware"));
+  uint32_t start = millis();
+  uint8_t ret = Ov5640Autofocus.focusInit();
+  if (0 != ret) {
+    AutofocusStatus = "Failed: autofocus firmware not started (" + String(ret) + ")";
+    log->AddEvent(LogLevel_Error, AutofocusStatus);
+    return;
+  }
+
+  ret = Ov5640Autofocus.autoFocusMode();
+  if (0 != ret) {
+    AutofocusStatus = "Failed: continuous autofocus not started (" + String(ret) + ")";
+    log->AddEvent(LogLevel_Error, AutofocusStatus);
+    return;
+  }
+
+  AutofocusStatus = F("Continuous autofocus");
+  log->AddEvent(LogLevel_Info, "OV5640 continuous autofocus started in " + String(millis() - start) + " ms");
+}
+
+/**
+   @brief Get autofocus status for the WEB page. Reads the focus state from the OV5640
+   @param none
+   @return String - status
+*/
+String Camera::GetAutofocusStatus() {
+  if ((OV5640_PID != CameraType) || (false == AutofocusStatus.startsWith(F("Continuous")))) {
+    return AutofocusStatus;
+  }
+
+  /* the sensor must not be read during a camera reinit. When the camera is busy, return the last status */
+  if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(100))) {
+    return AutofocusStatus;
+  }
+
+  /* FW_STATUS: 0x10 focused, 0x00-0x0F and 0x80-0x8F focusing, 0x70 idle */
+  uint8_t state = Ov5640Autofocus.getFWStatus();
+  xSemaphoreGive(frameBufferSemaphore);
+  String ret = AutofocusStatus;
+  if (FW_STATUS_S_FOCUSED == state) {
+    ret += F(" - focused");
+  } else if ((state <= 0x0F) || ((state >= 0x80) && (state <= 0x8F))) {
+    ret += F(" - focusing");
+  } else if (FW_STATUS_S_IDLE == state) {
+    ret += F(" - idle");
+  }
+  return ret;
 }
 
 /**
@@ -508,6 +579,7 @@ void Camera::ReinitCameraModule() {
   delay(100);
   InitCameraModule();
   ApplyCameraCfg();
+  InitAutofocus();
 
   if (locked) {
     xSemaphoreGive(frameBufferSemaphore);

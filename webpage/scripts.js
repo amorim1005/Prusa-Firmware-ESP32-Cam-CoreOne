@@ -32,6 +32,7 @@ function get_data(val) {
 				}
 				document.getElementById('framesizeid').value = obj.framesize;
 				$("#camera_detected").text(obj.camera_detected);
+				$("#camera_autofocus").text(obj.camera_autofocus);
 				document.getElementById('brightnessid').value = obj.brightness;
 				document.getElementById('contrastid').value = obj.contrast;
 				document.getElementById('saturationid').value = obj.saturation;

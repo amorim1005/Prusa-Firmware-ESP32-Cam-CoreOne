@@ -21,6 +21,7 @@
 #include "log.h"
 #include "cfg.h"
 #include "exif.h"
+#include "ESP32_OV5640_AF.h"
 #include "module_templates.h"
 #include "mcu_cfg.h"
 #include "var.h"
@@ -80,6 +81,8 @@ private:
   camera_pid_t CameraType;                  ///< detected camera sensor PID. 0 = not detected
   String CameraName;                        ///< detected camera sensor name
   framesize_t SensorMaxFrameSize;           ///< maximum frame size of the detected sensor
+  OV5640 Ov5640Autofocus;                   ///< OV5640 autofocus firmware loader
+  String AutofocusStatus;                   ///< autofocus status for the WEB page
 
   Configuration *config;                    ///< pointer to Configuration object
   Logs *log;                                ///< pointer to Logs object
@@ -88,6 +91,7 @@ private:
   void InitCameraModule(framesize_t);
   uint32_t GetSensorXclk();
   void CheckFrameSizeLimit();
+  void InitAutofocus();
   camera_pid_t TransformCameraSensorToPid(uint8_t);
   uint8_t TransformPidToCameraSensor(camera_pid_t);
 
@@ -132,6 +136,7 @@ public:
   bool CheckFrameSizeSupported(uint8_t);
   String GetSupportedFrameSizes();
   String GetDetectedSensorName();
+  String GetAutofocusStatus();
   void SetBrightness(int8_t);
   void SetContrast(int8_t);
   void SetSaturation(int8_t);

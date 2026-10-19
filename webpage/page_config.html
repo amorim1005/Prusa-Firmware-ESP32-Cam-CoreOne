@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c4");</style>
+<style>@import url("styles.css?v=1.1.2-c5");</style>
 <script src="jquery-3.7.0.min.js"></script>
 <body>
 	<center><table id="data">
@@ -18,6 +18,7 @@
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
 		<tr><td class="pc1">Camera sensor</td><td class="pc2"><span id="camera_detected"></span> (detected automatically)</td></tr>
+		<tr><td class="pc1">Autofocus</td><td class="pc2"><span id="camera_autofocus"></span></td></tr>
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
