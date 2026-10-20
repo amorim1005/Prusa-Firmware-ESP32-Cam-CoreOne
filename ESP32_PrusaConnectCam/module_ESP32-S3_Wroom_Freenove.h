@@ -90,9 +90,5 @@
 #define STATUS_LED_GPIO_NUM         2       ///< GPIO pin for status LED
 #define STATUS_LED_OFF_PIN_LEVEL    LOW     ///< GPIO pin level for status LED ON
 
-/* -------------- DHT SENSOR CFG ----------------*/
-#define DHT_SENSOR_ENABLE           false   ///< enable/disable DHT sensor
-#define DHT_SENSOR_PIN              47     ///< GPIO pin for DHT sensor
-
 #endif  // AI_THINKER_ESP32_CAM
 /* EOF */

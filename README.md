@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c8** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c9** (see the [version history](#version-history)).
 The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
@@ -26,6 +26,7 @@ The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/)
 - faster stream (separate capture task, 2 clients) and HTTPS keep-alive for the uploads;
 - health checks: automatic restart after low memory, camera problems shown in Prusa Connect;
 - no update from the internet: update from a `.bin` file on the System page, or over USB;
+- no external DHT temperature sensor: the Core One measures the chamber temperature itself;
 - a reproducible build: exact libraries in `libraries/`, a build script, compiled binaries.
 
 ---
@@ -42,7 +43,6 @@ The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/)
 - [Camera sensors and focus](#camera-sensors)
 - [Service AP, status LED and factory reset](#service-ap)
 - [Debug logs, serial console and web API](#debug-logs)
-- [External temperature sensor DHT22/DHT11](#ext-temp)
 - [Troubleshooting](#troubleshooting)
 - [Known limitations](#known-limitations)
 
@@ -363,34 +363,7 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 | `http://IP/flash?on`, `http://IP/flash?off` | Flash on / off |
 | `http://IP/action_reboot` | Restart the camera |
 | `http://IP/get_logs` | Download the log from the micro SD card |
-| `http://IP/get_temp`, `http://IP/get_hum` | External sensor temperature / humidity |
 | `http://IP/json_input` | All the status values (JSON), including the Health section |
-
----
-
-<a name="ext-temp"></a>
-## External temperature sensor DHT22/DHT11
-
-An optional **DHT22** or **DHT11** sensor can measure the air temperature and humidity (enable it on
-the temperature page). It is read every 30 seconds.
-
-| XIAO | DHT22 / DHT11 |
-|---|---|
-| 3.3 V | VCC |
-| GND | GND |
-| GPIO1 | Data |
-
-Use the **module** (with the 4.7 kΩ pull-up resistor on its board), not the bare sensor; with a
-bare sensor add a 4.7 kΩ resistor between Data and 3.3 V. **Power it with 3.3 V**, 5 V can damage
-the camera board.
-
-|  | DHT11 | DHT22 |
-|---|---|---|
-| Temperature range | 0–50 °C ± 2 °C | −40–80 °C ± 0.5 °C |
-| Humidity range | 20–80 % ± 5 % | 0–100 % ± 2–5 % |
-| Sampling rate | 1 Hz | 0.5 Hz |
-
-<img src="doc/DHT22-Schematic.png" width=40% height=40%>
 
 ---
 
@@ -759,7 +732,6 @@ The firmware compiles with the **ESP32 core 3.1.0** and the exact libraries in t
 | ArduinoUniqueID | 1.3.0 | MIT |
 | AsyncTCP (mathieucarbou) | 3.3.1 | LGPL-3.0 |
 | ESPAsyncWebServer (mathieucarbou) | 3.4.5 | LGPL-3.0 |
-| DHTNEW | 0.5.2 | MIT |
 | OV5640 Auto Focus for ESP32 Camera | 0.1.1 | MIT |
 
 > Use **these versions**. Newer versions of the ESP32 core or of ESPAsyncWebServer may not compile
@@ -875,7 +847,8 @@ files (browser cache), regenerate `WebPage.h`, and rebuild `firmware/` **after**
 | `ESP32_PrusaConnectCam/var.cpp`, `var.h` | Thermal guard state. (c7) Health state, restart reason in RTC memory |
 | `ESP32_PrusaConnectCam/ESP32_PrusaConnectCam.ino` | Photo task on core 1, load the PrusaLink configuration |
 | `ESP32_PrusaConnectCam/Certificate_ota.h`, cloud update code | **Removed** (c7) |
-| `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, sensor and autofocus, Health section, firmware update from file, versioned CSS and JS |
+| `ESP32_PrusaConnectCam/ExternalTemperatureSensor*`, `libraries/DHTNEW`, `module_*.h` DHT pins, DHT wiring images in `doc/` | **Removed** (c9). The EEPROM bytes of the sensor stay reserved, the settings after them keep their address |
+| `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, sensor and autofocus, Health section, firmware update from file, versioned CSS and JS. (c9) Temperature page removed |
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
 | `firmware/xiao-esp32-s3/` | **New**: compiled firmware |
@@ -900,6 +873,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c9 | External DHT22/DHT11 temperature sensor removed (code, Temperature page, `/get_temp`, `/get_hum`, DHTNEW library, wiring docs). The Core One has its own chamber temperature sensor |
 
 ---
 

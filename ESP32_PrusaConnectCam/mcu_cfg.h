@@ -22,7 +22,7 @@
 #define ESP32_S3_WROOM_FREENOVE         false
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c8"               ///< SW version
+#define SW_VERSION                  "1.1.2-c9"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -202,8 +202,6 @@
 #define FACTORY_CFG_NETWORK_STATIC_DNS        F("255.255.255.255") ///< Static DNS
 #define FACTORY_CFG_IMAGE_EXIF_ROTATION       1                 ///< Image rotation 1 - 0°, 6 - 90°, 3 - 180°, 8 - 270°
 #define FACTORY_CFG_TIMELAPS_ENABLE           0                 ///< enable timelaps functionality
-#define FACTORY_CFG_ENABLE_EXT_SENSOR         0                 ///< enable DHT22 sensor
-#define FACTORY_CFG_EXT_SENSOR_UNIT           0                 ///< 0 = celsius, 1 = fahrenheit
 #define FACTORY_CFG_PRUSALINK_ENABLE          0                 ///< read printer state from PrusaLink and upload often only during printing
 #define FACTORY_CFG_PRUSALINK_HOST            F("")             ///< PrusaLink printer IP address or hostname
 #define FACTORY_CFG_PRUSALINK_USER            F(PRUSALINK_DEFAULT_USER) ///< PrusaLink user name
@@ -346,13 +344,11 @@
 #define EEPROM_ADDR_TIMELAPS_ENABLE_START         (EEPROM_ADDR_IMAGE_ROTATION_START + EEPROM_ADDR_IMAGE_ROTATION_LENGTH)
 #define EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH        1
 
-#define EEPROM_ADDR_EXT_SENS_ENABLE_START         (EEPROM_ADDR_TIMELAPS_ENABLE_START + EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH)
-#define EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH        1
+/* unused: the removed external temperature sensor. Kept, so the settings after it stay at the same address */
+#define EEPROM_ADDR_RESERVED_START                (EEPROM_ADDR_TIMELAPS_ENABLE_START + EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH)
+#define EEPROM_ADDR_RESERVED_LENGTH               2
 
-#define EEPROM_ADDR_EXT_SENS_UNIT_START           (EEPROM_ADDR_EXT_SENS_ENABLE_START + EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH)
-#define EEPROM_ADDR_EXT_SENS_UNIT_LENGTH          1
-
-#define EEPROM_ADDR_PRUSALINK_ENABLE_START        (EEPROM_ADDR_EXT_SENS_UNIT_START + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH)
+#define EEPROM_ADDR_PRUSALINK_ENABLE_START        (EEPROM_ADDR_RESERVED_START + EEPROM_ADDR_RESERVED_LENGTH)
 #define EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH       1
 
 #define EEPROM_ADDR_PRUSALINK_HOST_START          (EEPROM_ADDR_PRUSALINK_ENABLE_START + EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH)
@@ -385,7 +381,7 @@
                      EEPROM_ADDR_HOSTNAME_LENGTH + EEPROM_ADDR_SERVICE_AP_ENABLE_LENGTH + EEPROM_ADDR_NETWORK_IP_METHOD_LENGTH +\
                      EEPROM_ADDR_NETWORK_STATIC_IP_LENGTH + EEPROM_ADDR_NETWORK_STATIC_MASK_LENGTH + EEPROM_ADDR_NETWORK_STATIC_GATEWAY_LENGTH + \
                      EEPROM_ADDR_NETWORK_STATIC_DNS_LENGTH + EEPROM_ADDR_IMAGE_ROTATION_LENGTH + EEPROM_ADDR_TIMELAPS_ENABLE_LENGTH + \
-                     EEPROM_ADDR_EXT_SENS_ENABLE_LENGTH + EEPROM_ADDR_EXT_SENS_UNIT_LENGTH + \
+                     EEPROM_ADDR_RESERVED_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH + EEPROM_ADDR_PRUSALINK_HOST_LENGTH + EEPROM_ADDR_PRUSALINK_USER_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH + EEPROM_ADDR_CAMERA_SENSOR_LENGTH + \
                      EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH)    ///< how many bits do we need for eeprom memory

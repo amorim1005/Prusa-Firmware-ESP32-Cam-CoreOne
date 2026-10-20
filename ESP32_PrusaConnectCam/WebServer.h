@@ -34,7 +34,6 @@
 #include "connect.h"
 #include "wifi_mngt.h"
 #include "WebStream.h"
-#include "ExternalTemperatureSensor.h"
 
 extern AsyncWebServer server;  ///< global variable for web server
 

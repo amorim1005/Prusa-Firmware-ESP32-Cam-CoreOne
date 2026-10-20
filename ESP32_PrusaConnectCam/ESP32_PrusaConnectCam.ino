@@ -13,7 +13,6 @@
    - ArduinoJson       - MIT      - 7.3.0   - https://github.com/bblanchon/ArduinoJson
    - ArduinoUniqueID   - MIT      - 1.3.0   - https://github.com/ricaun/ArduinoUniqueID
    - arduino-esp32     - LGPL 2.1 - 3.1.0   - https://github.com/espressif/arduino-esp32
-   - DHTnew            - MIT      - 0.5.2   - https://github.com/RobTillaart/DHTNew
 
    Arduino IDE configuration for the MCU are stored in the module_XXX.h file.
 
@@ -96,9 +95,6 @@ void setup() {
 
   /* init class for communication with PrusaConnect */
   Connect.Init();
-
-  /* init external temperature sensor */
-  ExternalTemperatureSensor.Init();
 
   /* init wdg */
   SystemLog.AddEvent(LogLevel_Info, F("Init WDG"));

@@ -93,9 +93,5 @@
 #define STATUS_LED_GPIO_NUM         21      ///< GPIO pin for status LED
 #define STATUS_LED_OFF_PIN_LEVEL    LOW    ///< GPIO pin level for status LED ON
 
-/* -------------- DHT SENSOR CFG ----------------*/
-#define DHT_SENSOR_ENABLE           true   ///< enable/disable DHT sensor
-#define DHT_SENSOR_PIN              1      ///< GPIO pin for DHT sensor
-
 #endif  // CAMERA_MODEL_XIAO_ESP32_S3_CAM
 /* EOF */

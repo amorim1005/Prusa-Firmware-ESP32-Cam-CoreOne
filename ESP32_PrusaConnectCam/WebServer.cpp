@@ -179,15 +179,6 @@ void Server_InitWebServer_WebPages() {
     Server_handleCacheRequest(request, "text/html", page_system_html);
   });
 
-  /* route for temperature web page */
-  server.on("/page_temperature.html", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get page_temperature.html"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "text/html", page_temperature_html);
-  });
-
   /* route to license page */
   server.on("/license.html", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get license.html"));
@@ -236,24 +227,6 @@ void Server_InitWebServer_WebPages() {
     } else {
       request->send(404, "text/plain", "Micro SD card not found with FAT32 partition!");
     }
-  });
-
-  /* route to get temperature */
-  server.on("/get_temp", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get get_temp"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    request->send(200, "text/plain", String(ExternalTemperatureSensor.GetTemperature()));
-  });
-
-  /* route to get humidity */
-  server.on("/get_hum", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get get_hum"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    request->send(200, "text/plain", String(ExternalTemperatureSensor.GetHumidity()));
   });
 }
 
@@ -639,14 +612,6 @@ void Server_InitWebServer_Sets() {
       response = true;
     }
 
-    /* set saturation */
-    if (request->hasParam("temp_unit")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Set temp_unit"));
-      ExternalTemperatureSensor.SetUnit((TemperatureSensorUnit_enum) request->getParam("temp_unit")->value().toInt());
-      response_msg = MSG_SAVE_OK;
-      response = true;
-    }
-
     if (true == response) {
       request->send(200, F("text/html"), response_msg.c_str());
     }
@@ -765,13 +730,6 @@ void Server_InitWebServer_Sets() {
 #else
         Connect.SetTimeLapsPhotoSaveStatus(false);
 #endif
-      response = true;
-    }
-
-    /* set external temperature sensor enable */
-    if (request->hasParam("extsens_enable")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Set enable ext temperature"));
-      ExternalTemperatureSensor.EnableSensor(Server_TransfeStringToBool(request->getParam("extsens_enable")->value()));
       response = true;
     }
 
@@ -1294,11 +1252,6 @@ String Server_GetJsonData() {
   doc_json["job_progress"] = String(SystemPrusaLink.GetJobProgress(), 0);
   doc_json["sw_build"] = SW_BUILD;
   doc_json["sw_ver"] = SW_VERSION;
-  doc_json["extsens_stat"] = ExternalTemperatureSensor.GetSensorStatus();
-  doc_json["extsen_en"] = ExternalTemperatureSensor.GetUserEnableSensor();
-  doc_json["ext_temp"] = ExternalTemperatureSensor.GetTemperatureString();
-  doc_json["ext_hum"] = ExternalTemperatureSensor.GetHumidityString();
-  doc_json["exttemp_unit"] = ExternalTemperatureSensor.GetTemperatureUnit();
 
   serializeJson(doc_json, string_json);
   SystemLog.AddEvent(LogLevel_Verbose, string_json);

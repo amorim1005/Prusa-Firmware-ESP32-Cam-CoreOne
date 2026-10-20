@@ -10,7 +10,6 @@ What we need for functionality
 - Schematic main board is [here](#schematic)
 - FLASH LED issue [here](#flash-led-issue)
 - Power supply [here](#power_supply)
-- External temperature sensor DHT22/DHT11 [here](#ext_sens)
 - Potential issue [here](#issue)
 
 <a name="esp32"></a>
@@ -181,18 +180,6 @@ The board does not have an LED that could serve as a camera flash. However, ther
 ## Power Supply
 
 The device requires a 5V power supply, with a maximum current consumption of 2A. Power is supplied via a micro USB connector when using the original programmer.
-
-<a name="ext_sens"></a>
-## External temperature sensor DHT22/DHT11
-Below you will find the wiring diagram for the DHT22 or DHT11 sensor.
-
-| Camera board | DHT22/DHT11 |
-|--------------|-------------|
-| 3.3V (red)   | VCC         |
-| GND  (blue)  | GND         |
-| IO46 (green) | Data        |
-
-<img src="esp32-s3-eye-dht22.png" width=30% height=30%>
 
 <a name="issue"></a>
 ## Potential issue with this board

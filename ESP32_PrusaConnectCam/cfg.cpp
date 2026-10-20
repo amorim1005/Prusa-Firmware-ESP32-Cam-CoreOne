@@ -175,8 +175,6 @@ void Configuration::DefaultCfg() {
   SaveNetworkDns(FACTORY_CFG_NETWORK_STATIC_DNS);
   SaveCameraImageExifRotation(FACTORY_CFG_IMAGE_EXIF_ROTATION);
   SaveTimeLapseFunctionStatus(FACTORY_CFG_TIMELAPS_ENABLE);
-  SaveExternalTemperatureSensorEnable(FACTORY_CFG_ENABLE_EXT_SENSOR);
-  SaveExternalTemperatureSensorUnit(FACTORY_CFG_EXT_SENSOR_UNIT);
   SavePrusaLinkEnable(FACTORY_CFG_PRUSALINK_ENABLE);
   SavePrusaLinkHost(FACTORY_CFG_PRUSALINK_HOST);
   SavePrusaLinkUser(FACTORY_CFG_PRUSALINK_USER);
@@ -862,26 +860,6 @@ void Configuration::SaveTimeLapseFunctionStatus(bool i_data) {
 }
 
 /**
-   @info Save external temperature sensor enable
-   @param bool - value
-   @return none
-*/
-void Configuration::SaveExternalTemperatureSensorEnable(bool i_data) {
-  Log->AddEvent(LogLevel_Verbose, F("Save external temperature sensor enable: "), String(i_data)); 
-  SaveBool(EEPROM_ADDR_EXT_SENS_ENABLE_START, i_data);
-}
-
-/**
-   @info Save external temperature sensor unit
-   @param uint8_t - value
-   @return none
-*/
-void Configuration::SaveExternalTemperatureSensorUnit(uint8_t i_data) {
-  Log->AddEvent(LogLevel_Verbose, F("Save external temperature sensor unit: "), String(i_data)); 
-  SaveUint8(EEPROM_ADDR_EXT_SENS_UNIT_START, i_data);
-}
-
-/**
    @info save PrusaLink enable flag
    @param bool - enable
    @return none
@@ -1462,39 +1440,6 @@ bool Configuration::LoadTimeLapseFunctionStatus() {
   }
 
   return (bool) ret;
-}
-
-/**
- * @brief Load external temperature sensor enable
- * 
- * @return bool - status
- */
-bool Configuration::LoadExternalTemperatureSensorEnable() {
-  uint8_t ret = EEPROM.read(EEPROM_ADDR_EXT_SENS_ENABLE_START);
-  Log->AddEvent(LogLevel_Info, F("External temperature sensor enable: "), String(ret));
-
-  if (ret == 255) {
-    ret = 0;
-  }
-
-  return (bool) ret;
-}
-
-/**
- * @brief Load external temperature sensor unit
- * 
- * @return uint8_t - unit
- */
-uint8_t Configuration::LoadExternalTemperatureSensorUnit() {
-  uint8_t ret = EEPROM.read(EEPROM_ADDR_EXT_SENS_UNIT_START);
-  Log->AddEvent(LogLevel_Info, F("External temperature sensor unit: "), String(ret));
-
-  if (ret == 255) {
-    ret = 0;
-  }
-
-  return ret;
-
 }
 
 /**

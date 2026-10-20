@@ -607,8 +607,6 @@ void System_TaskSystemTelemetry(void *pvParameters) {
     SystemLog.AddEvent(LogLevel_Info, "Free PSRAM: " + String(ESP.getFreePsram()) + " B" + ", Min: " + String(ESP.getMinFreePsram()) + ", Largest block: " + String(heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM)));
     SystemLog.AddEvent(LogLevel_Info, "MCU Temperature: " + String(McuTemperature.TemperatureCelsius) + " *C");
 
-    ExternalTemperatureSensor.ReadSensorData();
-
     /* reset wdg */
     esp_task_wdt_reset();
 

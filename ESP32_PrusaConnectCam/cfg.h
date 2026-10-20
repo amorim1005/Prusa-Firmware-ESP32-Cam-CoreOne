@@ -74,8 +74,6 @@ public:
   void SaveNetworkDns(String);
   void SaveCameraImageExifRotation(uint8_t);
   void SaveTimeLapseFunctionStatus(bool);
-  void SaveExternalTemperatureSensorEnable(bool);
-  void SaveExternalTemperatureSensorUnit(uint8_t);
   void SavePrusaLinkEnable(bool);
   void SavePrusaLinkHost(String);
   void SavePrusaLinkUser(String);
@@ -124,8 +122,6 @@ public:
   String LoadNetworkDns();
   uint8_t LoadCameraImageExifRotation();
   bool LoadTimeLapseFunctionStatus();
-  bool LoadExternalTemperatureSensorEnable();
-  uint8_t LoadExternalTemperatureSensorUnit();
   bool LoadPrusaLinkEnable();
   String LoadPrusaLinkHost();
   String LoadPrusaLinkUser();

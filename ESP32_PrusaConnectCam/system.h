@@ -36,7 +36,6 @@
 #include "prusalink.h"
 #include "serial_cfg.h"
 #include "sys_led.h"
-#include "ExternalTemperatureSensor.h"
 
 void System_Init();
 void System_LoadCfg();

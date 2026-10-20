@@ -80,7 +80,6 @@
 # 8. Install necessary libraries:
 #    ./arduino-cli lib install ArduinoJson
 #    ./arduino-cli lib install ArduinoUniqueID
-#    ./arduino-cli lib install DHTNEW
 #    ./arduino-cli lib install --zip-path ../libraries/zip/AsyncTCP-3.1.4.zip
 #    ./arduino-cli lib install --zip-path ../libraries/zip/ESPAsyncWebServer-2.10.8.zip
 #    Check installed libraries again:
