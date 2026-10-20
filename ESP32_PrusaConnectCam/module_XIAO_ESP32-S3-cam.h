@@ -69,7 +69,7 @@
 #define SD_PIN_DATA0                8       ///< GPIO pin for SD card data 0
 
 /* ---------- RESET CFG CONFIGURATION  ----------*/
-#define CFG_RESET_PIN               2       ///< GPIO 1 is for reset CFG to default. This is button UP+`
+#define CFG_RESET_PIN               2       ///< GPIO2 (pad D1) to GND during the start resets the CFG to default
 #define CFG_RESET_LED_PIN           21      ///< GPIO for indication of reset CFG
 #define CFG_RESET_LED_LEVEL_ON      LOW     ///< GPIO pin level for status LED ON
 

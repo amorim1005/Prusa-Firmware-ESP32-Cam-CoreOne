@@ -37,6 +37,7 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 
 **Using the camera**
 - [Quick start](#quick-start)
+- [The board: XIAO ESP32-S3 Sense](#board)
 - [How to flash the firmware](#flash)
 - [First setup](#first-setup)
 - [The web interface](#web-interface)
@@ -78,6 +79,53 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 
 ---
 
+<a name="board"></a>
+## The board: XIAO ESP32-S3 Sense
+
+The camera is two small boards joined by a board-to-board connector:
+
+- the **XIAO ESP32-S3**: processor, 8 MB flash, 8 MB PSRAM, USB-C, Wi-Fi antenna connector,
+  **R** (reset) and **B** (boot) buttons, a red charge LED and the orange user LED (the status
+  LED of this firmware);
+- the **Sense** expansion board: camera connector and micro SD card slot.
+
+<img src="doc/XIAO_ESP32S3/boards.jpg" width=35%> <img src="doc/XIAO_ESP32S3/desription.png" width=50%>
+
+If the camera or the SD card is not detected, the two boards are usually not pressed together
+well at the connector.
+
+**Camera module.** The standard module (OV2640) sees about 66°. In the Core One the camera is
+close to the bed, so a **wide-angle module (120° or 160°)** with the same connector shows the
+whole bed. The original documentation tested OV2640 modules with 66°, 120° and 160°. OV3660 and
+OV5640 modules work too, see [camera sensors](#camera-sensors).
+
+**Pins used by this firmware:**
+
+| Pin (pad) | Use |
+|---|---|
+| GPIO2 (D1) | Factory reset: connect to GND during the start |
+| GPIO21 (orange LED) | Status LED |
+| GPIO7, GPIO8, GPIO9 (D8, D9, D10) | Micro SD card |
+| GPIO12, GPIO13 (D11, D12 on the Sense board) | Camera |
+| GPIO10, 11, 14–18, 38–40, 47, 48 | Camera, inside the connector |
+| GPIO1, GPIO3–6, GPIO43, GPIO44 (D0, D2–D7) | **Free**, not used |
+
+The power is 5 V over USB-C. The original documentation asks for a supply rated for 2 A.
+
+<details>
+<summary>Pinout and schematics</summary>
+
+<img src="doc/XIAO_ESP32S3/pinoutF.png" width=60%>
+
+<img src="doc/XIAO_ESP32S3/pinoutB.png" width=60%>
+
+Schematics (PDF): [XIAO ESP32-S3](doc/XIAO_ESP32S3/XIAO_ESP32S3_SCH_v1.1.pdf),
+[Sense expansion board](doc/XIAO_ESP32S3/XIAO_ESP32S3_ExpBoard_v1.0_SCH.pdf).
+OV2640 [datasheet](doc/XIAO_ESP32S3/OV2640-datasheet.pdf).
+</details>
+
+---
+
 <a name="flash"></a>
 ## How to flash the firmware
 
@@ -99,6 +147,13 @@ esptool.py --chip esp32s3 -p /dev/ttyACM0 -b 921600 --before default_reset --aft
   0x10000 ESP32_PrusaConnectCam.ino.bin
 ```
 To **update without losing the configuration**, use the same command **without** `--erase-all`.
+
+**Windows, Flash Download Tool** from [Espressif](https://www.espressif.com/en/support/download/other-tools):
+choose the chip **ESP32-S3**, then add the three files with their addresses (0x0 bootloader,
+0x8000 partitions, 0x10000 firmware), SPI speed 80 MHz, SPI mode QIO, and the COM port. The first
+time, press **ERASE** before **START**.
+
+<img src="doc/XIAO_ESP32S3/chip_select.jpg" width=25%> <img src="doc/XIAO_ESP32S3/flash.jpg" width=30%>
 
 **Over Wi-Fi:** once the camera runs, later versions can be installed from the System page with
 the file `ESP32_PrusaConnectCam.ino.bin` (see [firmware update from file](#firmware-update)).
@@ -215,7 +270,8 @@ early or too late in your tests, adjust these values.
 **Mounting:**
 - If possible, mount the camera **outside the heated chamber** (looking through the door or the
   glass), or at a spot with moving air.
-- Stick a **small aluminium heatsink** on the back of the XIAO.
+- Stick a **small aluminium heatsink** on the back of the XIAO, on the **thermal pad** under the
+  chip (see the back pinout in [the board](#board)).
 - The Core One's steel frame blocks Wi-Fi: place the **external antenna outside** the metal frame.
 - The camera module and the processor board are joined by a connector. If the camera or the SD
   card is not detected, check that the boards are pressed together well.
@@ -304,7 +360,8 @@ itself off **5 minutes** after the start if no device is connected to it (and no
 You can switch the service AP off completely on the Wi-Fi page. If the service AP does not work for
 you, use the [serial console](#serial-console).
 
-**Status LED** (GPIO21, the small LED on the XIAO). It lights up at power on, then blinks:
+**Status LED** (GPIO21, the small orange LED next to the USB-C connector). It lights up at power
+on, then blinks:
 
 | Blink interval | Meaning |
 |---|---|
@@ -316,6 +373,11 @@ you, use the [serial console](#serial-console).
 The camera needs about 15–20 s to start.
 
 **Factory reset:**
+
+<img src="doc/XIAO_ESP32S3/factory_cfg.png" width=25%> <img src="doc/XIAO_ESP32S3/status_led.png" width=25%>
+
+*Left: the pins for the factory reset, GPIO2 (left arrow) and GND (right arrow). Right: the status LED.*
+
 1. Connect pin **GPIO2** to **GND**.
 2. Power on and wait about 10 s, until the LED blinks.
 3. Disconnect GPIO2 from GND. The LED stops blinking and the configuration is back to the factory
@@ -323,8 +385,7 @@ The camera needs about 15–20 s to start.
 
 The board's fingerprint for Prusa Connect is computed from the chip, so it survives a factory reset.
 
-More board details (pinout, schematics, photos): [doc/XIAO_ESP32S3](doc/XIAO_ESP32S3/README.md)
-(original documentation, it describes the original firmware).
+Pins, photos and schematics: [the board](#board).
 
 ---
 
