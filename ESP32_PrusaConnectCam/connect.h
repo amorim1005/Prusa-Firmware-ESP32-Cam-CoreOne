@@ -41,6 +41,9 @@ private:
   uint16_t ConnectFailCounter;                    ///< count of consecutive failed connections to the backend server
   bool EnableTimelapsPhotoSave;                   ///< flag for saving photo to SD card
   uint32_t UploadOkCount;                         ///< photos accepted by the backend since the start
+  uint32_t LastPhotoSize;                         ///< size of the last photo [B], 0 = no photo yet. The WEB page estimates the photo size from it
+  uint8_t LastPhotoFrameSize;                     ///< resolution of the last photo, index of the WEB page list
+  uint8_t LastPhotoQuality;                       ///< JPEG quality of the last photo, 10-63, lower is better
   uint32_t UploadFailedCount;                     ///< photos not uploaded since the start: capture or upload failed
   bool CaptureFailed;                             ///< the last photo capture failed
   String HealthStatus;                            ///< camera problem shown in Prusa Connect as a part of the camera name. Empty = OK
@@ -103,6 +106,9 @@ public:
   String CovertBackendAvailabilitStatusToString(BackendAvailabilitStatus);
   bool GetTimeLapsPhotoSaveStatus();
   uint32_t GetUploadOkCount();
+  uint32_t GetLastPhotoSize();
+  uint8_t GetLastPhotoFrameSize();
+  uint8_t GetLastPhotoQuality();
   uint32_t GetUploadFailedCount();
   bool GetCaptureFailed();
   String GetHealthStatus();

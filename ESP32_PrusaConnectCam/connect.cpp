@@ -31,6 +31,9 @@ PrusaConnect::PrusaConnect(Configuration *i_conf, Logs *i_log, Camera *i_camera,
   BackoffInterval = 0;
   ConnectFailCounter = 0;
   UploadOkCount = 0;
+  LastPhotoSize = 0;
+  LastPhotoFrameSize = 0;
+  LastPhotoQuality = 0;
   UploadFailedCount = 0;
   CaptureFailed = false;
   HealthStatus = "";
@@ -468,6 +471,11 @@ void PrusaConnect::TakePictureAndSendToBackend() {
     return;
   }
 
+  /* real size of a photo with these settings, for the photo size estimate on the WEB page */
+  LastPhotoSize = photo_len;
+  LastPhotoFrameSize = camera->GetFrameSize();
+  LastPhotoQuality = camera->GetPhotoQuality();
+
   if (true == SendPhotoToBackend(photo, photo_len)) {
     UploadOkCount++;
   } else {
@@ -862,6 +870,18 @@ void PrusaConnect::SetHealthStatus(String i_data) {
 
 uint32_t PrusaConnect::GetUploadOkCount() {
   return UploadOkCount;
+}
+
+uint32_t PrusaConnect::GetLastPhotoSize() {
+  return LastPhotoSize;
+}
+
+uint8_t PrusaConnect::GetLastPhotoFrameSize() {
+  return LastPhotoFrameSize;
+}
+
+uint8_t PrusaConnect::GetLastPhotoQuality() {
+  return LastPhotoQuality;
 }
 
 uint32_t PrusaConnect::GetUploadFailedCount() {

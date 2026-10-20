@@ -1051,6 +1051,10 @@ String Server_GetJsonData() {
   doc_json["refreshInterval"] = String(Connect.GetRefreshInterval());
   doc_json["photoquality"] = String(73 - SystemCamera.GetPhotoQuality());
   doc_json["framesize"] = String(SystemCamera.GetFrameSize());
+  doc_json["last_photo_size"] = Connect.GetLastPhotoSize();
+  doc_json["last_photo_framesize"] = Connect.GetLastPhotoFrameSize();
+  doc_json["last_photo_quality"] = Connect.GetLastPhotoQuality();
+  doc_json["photo_max_size"] = CAMERA_SERVICE_SNAPSHOT_MAX_SIZE;
   doc_json["framesize_supported"] = SystemCamera.GetSupportedFrameSizes();
   doc_json["camera_detected"] = SystemCamera.GetDetectedSensorName();
   doc_json["camera_autofocus"] = SystemCamera.GetAutofocusStatus();

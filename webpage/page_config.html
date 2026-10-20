@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c10");</style>
+<style>@import url("styles.css?v=1.1.2-c11");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -35,6 +35,8 @@
 				</select> <span class="pc1">pixels</span>
 			</td>
 		</tr>
+		<tr><td class="pc1">Estimated photo size</td><td class="pc2"><span id="photo_size_estimate"></span></td></tr>
+		<tr><td></td><td class="pc2"><span id="photo_size_warning" style="display: block; max-width: 420px; line-height: 16px;"></span></td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Brightness</td><td class="pc2">Low <input type="range" class="slider" name="brightness" id=brightnessid min="-2" max="2" step="1" onchange="changeValue(this.value, 'set_int?brightness=', 'config')">High</td></tr>
 		<tr><td class="pc1">Contrast</td><td class="pc2">Low <input type="range" class="slider" name="contrast" id=contrastid min="-2" max="2" step="1" onchange="changeValue(this.value, 'set_int?contrast=', 'config')"> High</td></tr>
@@ -100,8 +102,9 @@
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c10"></script>
+<script src="scripts.js?v=1.1.2-c11"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
+	setupPhotoSizeEstimate();
 </script>

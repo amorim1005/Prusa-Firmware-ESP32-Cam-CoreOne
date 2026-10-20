@@ -80,6 +80,8 @@ function get_data(val) {
 			setText('status_gain_ctrl', (obj.gain_ctrl == "true") ? "On" : "Off");
 			setText('status_timelaps', (obj.timelaps == "true") ? "On" : "Off");
 			sliderCheck();
+			PhotoSizeData = obj;
+			updatePhotoSizeEstimate();
 		}
 
 		if (val == "auth") {
@@ -148,6 +150,76 @@ function get_data(val) {
 	}).catch(function(error) {
 		console.log("json timeout or error: " + error);
 	});
+}
+
+/* photo size estimate on the Camera page. The size grows with the pixels and with the JPEG quality.
+   With a photo from this camera the estimate scales its real size, so it knows the scene. Without a photo
+   it uses a typical scene */
+var PhotoSizeData = null;
+
+/* pixels of a resolution from the list, the option text starts with "1600x1200" */
+function photoPixels(framesize) {
+	var option = document.querySelector('#framesizeid option[value="' + framesize + '"]');
+	if (!option) {
+		return 0;
+	}
+	var size = option.text.split(' ')[0].split('x');
+	return parseInt(size[0]) * parseInt(size[1]);
+}
+
+/* relative bytes per pixel of a JPEG quality 10-63 (lower is better) */
+function photoQualityFactor(quality) {
+	return Math.pow(10 / quality, 0.8);
+}
+
+function updatePhotoSizeEstimate() {
+	var estimateText = document.getElementById('photo_size_estimate');
+	var warningText = document.getElementById('photo_size_warning');
+	if (!PhotoSizeData || !estimateText || !warningText) {
+		return;
+	}
+
+	var data = PhotoSizeData;
+	var max = data.photo_max_size;
+	var pixels = photoPixels(document.getElementById('framesizeid').value);
+	/* the slider is reversed: right = better quality = lower JPEG quality value, like on the camera */
+	var quality = 73 - document.getElementById('photo_qualityid').value;
+	var lastPixels = photoPixels(data.last_photo_framesize);
+	var estimate = 0;
+	var margin = 0;
+	var basis = "";
+
+	if ((data.last_photo_size > 0) && (lastPixels > 0) && (data.last_photo_quality >= 10)) {
+		estimate = data.last_photo_size * (pixels / lastPixels) * (photoQualityFactor(quality) / photoQualityFactor(data.last_photo_quality));
+		margin = 1.2;
+		basis = "based on the last photo";
+	} else {
+		estimate = pixels * 0.14 * photoQualityFactor(quality);
+		margin = 1.5;
+		basis = "typical scene, no photo yet";
+	}
+
+	var size = (estimate >= 1000000) ? ((estimate / 1000000).toFixed(2) + " MB") : (Math.round(estimate / 1000) + " KB");
+	estimateText.textContent = "about " + size + " (" + basis + ")";
+
+	if (estimate > max) {
+		estimateText.style.color = "#d32f2f";
+		warningText.style.color = "#d32f2f";
+		warningText.textContent = "Too large: this firmware only supports photos up to 1 MB (Prusa Camera Service limit), larger photos are not uploaded. Lower the resolution or the image quality.";
+	} else if ((estimate * margin) > max) {
+		estimateText.style.color = "#e08a00";
+		warningText.style.color = "#e08a00";
+		warningText.textContent = "Close to the 1 MB limit: a photo with more detail can be larger and is then not uploaded.";
+	} else {
+		estimateText.style.color = "#2e7d32";
+		warningText.style.color = "";
+		warningText.textContent = "";
+	}
+}
+
+function setupPhotoSizeEstimate() {
+	document.getElementById('photo_qualityid').addEventListener('input', updatePhotoSizeEstimate);
+	document.getElementById('framesizeid').addEventListener('change', updatePhotoSizeEstimate);
 }
 
 function sliderCheck() {

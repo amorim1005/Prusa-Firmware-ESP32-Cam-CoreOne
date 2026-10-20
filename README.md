@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c10** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c11** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
@@ -256,6 +256,19 @@ module, the new sensor is detected and saved.
 - The Prusa Camera Service accepts photos up to **1 MB**. At 2048×1536 and above, keep the image
   quality moderate (the default 12 or higher). Photos over 1 MB are not uploaded and the status
   shows a clear message.
+- The **Estimated photo size** below the resolution on the Camera page shows the size of the photo
+  with the chosen resolution and image quality, while you move the slider:
+
+  | Color | Meaning |
+  |---|---|
+  | Green | Well below 1 MB |
+  | Orange | Close to 1 MB: a photo with more detail can be larger |
+  | Red | Over 1 MB, with the warning *this firmware only supports photos up to 1 MB*. Lower the resolution or the quality |
+
+  After the first photo, the estimate scales the real size of the last photo (pixels × JPEG
+  quality factor), so it already includes your scene and light. Before the first photo it uses a
+  typical scene and a larger safety margin. Brightness, contrast and the other settings change the
+  size only a little and are not part of the estimate.
 - Very high JPEG quality at high resolutions can make a photo larger than the frame buffer (the
   driver logs `FB-OVF`). The quality slider stops at 10, which avoids the worst cases.
 - If the image is upside down or mirrored, use **Vertical flip** / **Horizontal mirror** on the
@@ -818,7 +831,7 @@ four `.bin` files and their `SHA256SUMS.txt` as a GitHub release, the binaries a
 
 | Test | What it checks | How to run |
 |---|---|---|
-| `test/web/` | All web pages in headless Chromium with fake camera data: values shown, switches, Wi-Fi table, tabs, collapsible sections, no JavaScript errors | Install Playwright (see `test/web/run.sh`), then `PYTHON=<venv>/bin/python test/web/run.sh` |
+| `test/web/` | All web pages in headless Chromium with fake camera data: values shown, switches, photo size estimate and the 1 MB warning, Wi-Fi table, tabs, collapsible sections, no JavaScript errors. With `SCREENSHOTS=<folder>` it saves screenshots of the estimate | Install Playwright (see `test/web/run.sh`), then `PYTHON=<venv>/bin/python test/web/run.sh` |
 
 ---
 
@@ -829,7 +842,7 @@ four `.bin` files and their `SHA256SUMS.txt` as a GitHub release, the binaries a
 |---|---|
 | `ESP32_PrusaConnectCam/camera.cpp`, `camera.h` | Bugs 1, 3, 7. Safe copy of the photo (`GetPhotoCopy`), semaphore in every operation on the buffers. (c3) Sensor detection, resolution table, safe start. (c5) OV5640 autofocus. (c6) Stream capture task |
 | `ESP32_PrusaConnectCam/exif.cpp`, `exif.h` | (c3) EXIF model from the detected sensor |
-| `ESP32_PrusaConnectCam/connect.cpp`, `connect.h`, `connect_types.h` | Bugs 2, 4, 5, 6, 10. New Camera Service API, backoff, error codes. (c6) HTTPS keep-alive. (c7) Camera health in the name, upload counters |
+| `ESP32_PrusaConnectCam/connect.cpp`, `connect.h`, `connect_types.h` | Bugs 2, 4, 5, 6, 10. New Camera Service API, backoff, error codes. (c6) HTTPS keep-alive. (c7) Camera health in the name, upload counters. (c11) Size, resolution and quality of the last photo |
 | `ESP32_PrusaConnectCam/Certificate.h` | GTS Root R4 and R1 certificates |
 | `ESP32_PrusaConnectCam/WebServer.cpp`, `WebServer.h` | Bugs 8, 9. Token and interval validation, `/set_prusalink` route, new status fields. (c2) Page caching and sending. (c8) Firmware update from file, with checks of the file before writing |
 | `ESP32_PrusaConnectCam/WebStream.cpp`, `WebStream.h` | Buffer over-reads, clean end of the stream, thermal guard. (c6) Sends the frames of the capture task |
@@ -844,11 +857,11 @@ four `.bin` files and their `SHA256SUMS.txt` as a GitHub release, the binaries a
 | `ESP32_PrusaConnectCam/Certificate_ota.h`, cloud update code | **Removed** (c7) |
 | `module_*.h` of the other boards, `module_templates.h`, `jquery.h`, LED flash and light code, unused photo copy functions, `gtac`/`privacypolicy`/`cookies` pages, `fw_build.sh`, `doc/` of the other boards | **Removed** (c10). The 3 EEPROM bytes of the flash stay reserved, the settings after them keep their address |
 | `ESP32_PrusaConnectCam/ExternalTemperatureSensor*`, `libraries/DHTNEW`, `module_*.h` DHT pins, DHT wiring images in `doc/` | **Removed** (c9). The EEPROM bytes of the sensor stay reserved, the settings after them keep their address |
-| `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, sensor and autofocus, Health section, firmware update from file, versioned CSS and JS. (c9) Temperature page removed |
+| `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, sensor and autofocus, Health section, firmware update from file, versioned CSS and JS. (c9) Temperature page removed. (c11) Estimated photo size |
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
 | `firmware/` | Compiled firmware of c1–c9. **Removed** (c10): the binaries are in the GitHub releases |
-| `test/web/` | **New** (c10): browser test of the web pages |
+| `test/web/` | **New** (c10): browser test of the web pages. (c11) Photo size estimate |
 
 To see every change line by line against the original:
 ```bash
@@ -870,6 +883,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c11 | Estimated photo size on the Camera page, with a warning above 1 MB |
 | 1.1.2-c10 | Only the XIAO ESP32-S3 Sense: other boards, LED flash and light, jQuery (87 KB) and the Prusa legal pages removed. Fixed: the switches on the Camera, Wi-Fi and Authentication pages always showed "on" (bug of the original page). The Wi-Fi scan table shows network names as text. Binaries moved to GitHub releases, `doc/` reduced from 231 MB to 8 MB |
 | 1.1.2-c9 | External DHT22/DHT11 temperature sensor removed (code, Temperature page, `/get_temp`, `/get_hum`, DHTNEW library, wiring docs). The Core One has its own chamber temperature sensor |
 

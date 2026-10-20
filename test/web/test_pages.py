@@ -28,6 +28,8 @@ STATUS = {
     "sd_free_p": 70, "sd_used_p": 30, "mcu_temp": "55 *C", "health_status": "OK", "upload_ok": 12,
     "upload_failed": 1, "unplanned_restarts": 0, "last_restart": "Power on", "mcu_temp_max": "60 *C",
     "mem_internal": "100 KB", "mem_psram": "7000 KB", "log_level": 2,
+    "framesize_supported": "3,4,5,6,9,10", "last_photo_size": 150000, "last_photo_framesize": 4,
+    "last_photo_quality": 12, "photo_max_size": 1000000, "photoquality": 61,
 }
 WIFI = [{"ssid": "HomeNet", "rssi": -55, "rssi_percentage": 80, "channel": 6, "encryption": "WPA2"},
         {"ssid": "<b>evil</b>", "rssi": -80, "rssi_percentage": 20, "channel": 11, "encryption": "OPEN"}]
@@ -59,6 +61,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.send(open(f, 'rb').read(), ctype)
         if path.endswith('.jpg'):
             return self.send(b'', 'image/jpeg')
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        if path == 'set_int' and 'framesize' in query:
+            STATUS['framesize'] = int(query['framesize'][0])
+        if path == 'set_int' and 'photo_quality' in query:
+            STATUS['photoquality'] = int(query['photo_quality'][0])
         return self.send('OK')   # set_* routes
 
 
@@ -67,6 +74,15 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 base = 'http://127.0.0.1:%d/' % server.server_port
 
 failures = []
+SHOTS = os.environ.get('SCREENSHOTS')   # optional folder for screenshots of the photo size estimate
+
+
+def shot(page, name):
+    if SHOTS:
+        page.locator('#photo_size_estimate').scroll_into_view_if_needed()
+        page.screenshot(path=os.path.join(SHOTS, name + '.png'), clip=page.eval_on_selector('#framesizeid', "e => { var t = e.closest('table').getBoundingClientRect(); var r = e.getBoundingClientRect(); return {x: t.x, y: r.y - 60 + window.scrollY - window.scrollY, width: t.width, height: 175}; }"))
+
+
 def check(cond, what):
     print(('  PASS ' if cond else '  FAIL ') + what)
     if not cond:
@@ -98,6 +114,31 @@ with sync_playwright() as p:
     check(page.query_selector('#ledid') is None and page.query_selector('#flashid') is None, 'no LED / flash controls')
     check(page.query_selector('#light-icon') is None, 'no light button')
     check('active' in (page.get_attribute('a[href="page_config.html"]', 'class') or ''), 'Camera tab active')
+
+    print('photo size estimate')
+    est = page.inner_text('#photo_size_estimate')
+    # 150 KB at 1024x768 -> 1600x1200 at the same quality = 150000 * 1920000 / 786432 = 366 KB
+    check(est == 'about 366 KB (based on the last photo)', 'calibrated estimate: %s' % est)
+    check(page.eval_on_selector('#photo_size_estimate', 'e => e.style.color') == 'rgb(46, 125, 50)', 'green under the limit')
+    check(page.inner_text('#photo_size_warning') == '', 'no warning under the limit')
+    shot(page, 'estimate_ok')
+    page.select_option('#framesizeid', '10')
+    page.wait_for_function("document.getElementById('framesizeid').value == '10'")
+    page.eval_on_selector('#photo_qualityid', "s => { s.value = 63; s.dispatchEvent(new Event('input')); }")
+    est = page.inner_text('#photo_size_estimate')
+    warn = page.inner_text('#photo_size_warning')
+    check(est.endswith('MB (based on the last photo)') and float(est.split()[1]) > 1.0, '2592x1944 at the best quality is over 1 MB: %s' % est)
+    check('only supports photos up to 1 MB' in warn, 'warning about the 1 MB limit')
+    shot(page, 'estimate_too_large')
+    check(page.eval_on_selector('#photo_size_warning', 'e => e.style.color') == 'rgb(211, 47, 47)', 'warning in red')
+    page.eval_on_selector('#photo_qualityid', "s => { s.value = 30; s.dispatchEvent(new Event('input')); }")
+    check(page.inner_text('#photo_size_warning') == '', 'lower quality removes the warning: %s' % page.inner_text('#photo_size_estimate'))
+    STATUS['last_photo_size'] = 0
+    STATUS['framesize'] = 6
+    page.evaluate("get_data('config')")
+    page.wait_for_function("document.getElementById('photo_size_estimate').textContent.indexOf('typical') >= 0")
+    check('typical scene, no photo yet' in page.inner_text('#photo_size_estimate'), 'estimate without a photo: %s' % page.inner_text('#photo_size_estimate'))
+    STATUS['last_photo_size'] = 150000
 
     print('collapsible section')
     content = page.locator('.btn_collapsible').first

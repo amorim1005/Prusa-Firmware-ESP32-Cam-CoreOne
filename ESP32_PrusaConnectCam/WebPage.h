@@ -27,7 +27,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c10">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c11">
 </head>
 <body>
     <nav>
@@ -80,7 +80,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c10"></script>
+	<script src="scripts.js?v=1.1.2-c11"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -127,7 +127,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c10");</style>
+<style>@import url("styles.css?v=1.1.2-c11");</style>
 <body>
 	<center>
 		<table>
@@ -140,7 +140,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c10"></script>
+<script src="scripts.js?v=1.1.2-c11"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -151,7 +151,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c10");</style>
+<style>@import url("styles.css?v=1.1.2-c11");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -220,7 +220,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c10"></script>
+<script src="scripts.js?v=1.1.2-c11"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -230,7 +230,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c10");</style>
+<style>@import url("styles.css?v=1.1.2-c11");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -267,6 +267,8 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 				</select> <span class="pc1">pixels</span>
 			</td>
 		</tr>
+		<tr><td class="pc1">Estimated photo size</td><td class="pc2"><span id="photo_size_estimate"></span></td></tr>
+		<tr><td></td><td class="pc2"><span id="photo_size_warning" style="display: block; max-width: 420px; line-height: 16px;"></span></td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="pc1">Brightness</td><td class="pc2">Low <input type="range" class="slider" name="brightness" id=brightnessid min="-2" max="2" step="1" onchange="changeValue(this.value, 'set_int?brightness=', 'config')">High</td></tr>
 		<tr><td class="pc1">Contrast</td><td class="pc2">Low <input type="range" class="slider" name="contrast" id=contrastid min="-2" max="2" step="1" onchange="changeValue(this.value, 'set_int?contrast=', 'config')"> High</td></tr>
@@ -332,16 +334,17 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c10"></script>
+<script src="scripts.js?v=1.1.2-c11"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
+	setupPhotoSizeEstimate();
 </script>
 )rawliteral";
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c10");</style>
+<style>@import url("styles.css?v=1.1.2-c11");</style>
 <body>
 	<center>
         <table id="data">
@@ -399,7 +402,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c10"></script>
+<script src="scripts.js?v=1.1.2-c11"></script>
 <script>
 	get_data("system");
 </script>
@@ -996,6 +999,8 @@ function get_data(val) {
 			setText('status_gain_ctrl', (obj.gain_ctrl == "true") ? "On" : "Off");
 			setText('status_timelaps', (obj.timelaps == "true") ? "On" : "Off");
 			sliderCheck();
+			PhotoSizeData = obj;
+			updatePhotoSizeEstimate();
 		}
 
 		if (val == "auth") {
@@ -1064,6 +1069,76 @@ function get_data(val) {
 	}).catch(function(error) {
 		console.log("json timeout or error: " + error);
 	});
+}
+
+/* photo size estimate on the Camera page. The size grows with the pixels and with the JPEG quality.
+   With a photo from this camera the estimate scales its real size, so it knows the scene. Without a photo
+   it uses a typical scene */
+var PhotoSizeData = null;
+
+/* pixels of a resolution from the list, the option text starts with "1600x1200" */
+function photoPixels(framesize) {
+	var option = document.querySelector('#framesizeid option[value="' + framesize + '"]');
+	if (!option) {
+		return 0;
+	}
+	var size = option.text.split(' ')[0].split('x');
+	return parseInt(size[0]) * parseInt(size[1]);
+}
+
+/* relative bytes per pixel of a JPEG quality 10-63 (lower is better) */
+function photoQualityFactor(quality) {
+	return Math.pow(10 / quality, 0.8);
+}
+
+function updatePhotoSizeEstimate() {
+	var estimateText = document.getElementById('photo_size_estimate');
+	var warningText = document.getElementById('photo_size_warning');
+	if (!PhotoSizeData || !estimateText || !warningText) {
+		return;
+	}
+
+	var data = PhotoSizeData;
+	var max = data.photo_max_size;
+	var pixels = photoPixels(document.getElementById('framesizeid').value);
+	/* the slider is reversed: right = better quality = lower JPEG quality value, like on the camera */
+	var quality = 73 - document.getElementById('photo_qualityid').value;
+	var lastPixels = photoPixels(data.last_photo_framesize);
+	var estimate = 0;
+	var margin = 0;
+	var basis = "";
+
+	if ((data.last_photo_size > 0) && (lastPixels > 0) && (data.last_photo_quality >= 10)) {
+		estimate = data.last_photo_size * (pixels / lastPixels) * (photoQualityFactor(quality) / photoQualityFactor(data.last_photo_quality));
+		margin = 1.2;
+		basis = "based on the last photo";
+	} else {
+		estimate = pixels * 0.14 * photoQualityFactor(quality);
+		margin = 1.5;
+		basis = "typical scene, no photo yet";
+	}
+
+	var size = (estimate >= 1000000) ? ((estimate / 1000000).toFixed(2) + " MB") : (Math.round(estimate / 1000) + " KB");
+	estimateText.textContent = "about " + size + " (" + basis + ")";
+
+	if (estimate > max) {
+		estimateText.style.color = "#d32f2f";
+		warningText.style.color = "#d32f2f";
+		warningText.textContent = "Too large: this firmware only supports photos up to 1 MB (Prusa Camera Service limit), larger photos are not uploaded. Lower the resolution or the image quality.";
+	} else if ((estimate * margin) > max) {
+		estimateText.style.color = "#e08a00";
+		warningText.style.color = "#e08a00";
+		warningText.textContent = "Close to the 1 MB limit: a photo with more detail can be larger and is then not uploaded.";
+	} else {
+		estimateText.style.color = "#2e7d32";
+		warningText.style.color = "";
+		warningText.textContent = "";
+	}
+}
+
+function setupPhotoSizeEstimate() {
+	document.getElementById('photo_qualityid').addEventListener('input', updatePhotoSizeEstimate);
+	document.getElementById('framesizeid').addEventListener('change', updatePhotoSizeEstimate);
 }
 
 function sliderCheck() {
@@ -1359,9 +1434,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c10");</style>
+<style>@import url("styles.css?v=1.1.2-c11");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c10"></script>
+<script src="scripts.js?v=1.1.2-c11"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');
