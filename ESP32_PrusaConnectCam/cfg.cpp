@@ -74,8 +74,6 @@ void Configuration::ReadCfg() {
   LoadBasicAuthUsername();
   LoadBasicAuthPassword();
   LoadBasicAuthFlag();
-  LoadCameraFlashEnable();
-  LoadCameraFlashTime();
   LoadMdnsRecord();
   LoadAec2();
   LoadAeLevel();
@@ -158,8 +156,6 @@ void Configuration::DefaultCfg() {
   SaveBasicAuthUsername(FACTORY_CFG_WEB_AUTH_USERNAME);
   SaveBasicAuthPassword(FACTORY_CFG_WEB_AUTH_PASSWORD);
   SaveBasicAuthFlag(FACTORY_CFG_WEB_AUTH_ENABLE);
-  SaveCameraFlashEnable(FACTORY_CFG_CAMERA_FLASH_ENABLE);
-  SaveCameraFlashTime(FACTORY_CFG_CAMERA_FLASH_TIME);
   SaveMdnsRecord(FACTORY_CFG_MDNS_RECORD_HOST);
   SaveAec2(FACTORY_CFG_AEC2);
   SaveAeLevel(FACTORY_CFG_AE_LEVEL);
@@ -689,26 +685,6 @@ void Configuration::SaveBasicAuthFlag(bool i_data) {
 }
 
 /**
-   @info save status enable/disable photo flash to EEPROM
-   @param bool - status
-   @return none
-*/
-void Configuration::SaveCameraFlashEnable(uint8_t i_data) {
-  Log->AddEvent(LogLevel_Verbose, F("Save Enable/disable camera flash: "), String(i_data));
-  SaveUint8(EEPROM_ADDR_CAMERA_FLASH_ENABLE_START, i_data);
-}
-
-/**
-   @info save time for photo flash to EEPROM
-   @param bool - status
-   @return none
-*/
-void Configuration::SaveCameraFlashTime(uint16_t i_data) {
-  Log->AddEvent(LogLevel_Verbose, F("Save camera flash time: "), String(i_data));
-  SaveUint16(EEPROM_ADDR_CAMERA_FLASH_TIME_START, i_data);
-}
-
-/**
    @info Save mdns record
    @param String - value
    @return none
@@ -1219,30 +1195,6 @@ String Configuration::LoadBasicAuthPassword() {
 bool Configuration::LoadBasicAuthFlag() {
   bool ret = EEPROM.read(EEPROM_ADDR_BASIC_AUTH_ENABLE_FLAG_START);
   Log->AddEvent(LogLevel_Info, F("web auth enable: "), String(ret));
-
-  return ret;
-}
-
-/**
-   @info Load flag for enable/disable flash from eeprom
-   @param none
-   @return bool - status
-*/
-bool Configuration::LoadCameraFlashEnable() {
-  bool ret = EEPROM.read(EEPROM_ADDR_CAMERA_FLASH_ENABLE_START);
-  Log->AddEvent(LogLevel_Info, F("Camera flash: "), String(ret));
-
-  return ret;
-}
-
-/**
-   @info Load time for photo flash
-   @param none
-   @return uint16_t - time
-*/
-uint16_t Configuration::LoadCameraFlashTime() {
-  uint16_t ret = LoadUint16(EEPROM_ADDR_CAMERA_FLASH_TIME_START);
-  Log->AddEvent(LogLevel_Info, F("Camera flash time: "), String(ret));
 
   return ret;
 }

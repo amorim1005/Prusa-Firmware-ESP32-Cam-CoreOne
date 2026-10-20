@@ -3,22 +3,7 @@
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c9">
-	<script src="/jquery-3.7.0.min.js"></script>
-	<script>
-		$(document).ready(function () {
-			$("a").click(function (e) {
-				e.preventDefault();
-				var page = $(this).attr("href");
-				$("#content").load(page);
-				setActive(this);
-			});
-			$("#content").load("page_config.html", function() {
-				var defaultLink = document.querySelector('a[href="page_config.html"]');
-				setActive(defaultLink);
-			});
-		});
-	</script>
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c10">
 </head>
 <body>
     <nav>
@@ -28,7 +13,6 @@
 		<li><a class=p5 href="https://help.prusa3d.com/guide/esp-camera-for-prusa-connect_390199" id="forum-link">Help</a></li>
       </ul>
       <ul class="top_bar" style="justify-content:flex-end;">
-		<li><a class=p4 href="#" onclick="javascript:actionButton('/action_led',true,'')"><div id="light-icon"></div> Light </a></li>
 		<li><a class=p4 href="#" onclick="location.reload();"><svg height="25" width="25"><image href="refresh-icon.svg"></svg> Refresh </a></li>
 		<li><a class=p4 href="#" onclick="javascript:actionButton('/action_reboot',false,'Reboot process started, wait several seconds for mcu to boot up. You can close this window now.')"><svg height="25" width="25"><image href="reboot-icon.svg"></svg> Reboot </a></li>
       </ul>
@@ -68,12 +52,47 @@
 	<table id=botton><tr>
 		<td><p class=p2>Prusa Connect ESP32 cam</p> </td>
 		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> </td>
-		<td><a href="license.html" class=p3>Licence</a> | <a href="gtac.html" class=p3>General Terms and Conditions</a> | <a href="privacypolicy.html" class=p3>Privacy Policy</a> | <a href="cookie.html" class=p3>Cookie Preferences</a> </td>
-		<td><a href="https://github.com/Prusa-Development/Prusa-Firmware-ESP32-Cam/" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
+		<td><a href="license.html" class="p3 page-link">Licence</a></td>
+		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c9"></script>
+	<script src="scripts.js?v=1.1.2-c10"></script>
 	<script>
+		/* load a page into #content and run its scripts in order, like the old jQuery load() */
+		function loadPage(page) {
+			getText(page, 10000).then(function(html) {
+				var content = document.getElementById('content');
+				content.innerHTML = html;
+				var scripts = Array.from(content.querySelectorAll('script'));
+				(function run(i) {
+					if (i >= scripts.length) {
+						return;
+					}
+					var old = scripts[i];
+					var script = document.createElement('script');
+					if (old.src) {
+						script.src = old.src;
+						script.onload = script.onerror = function() { run(i + 1); };
+						old.replaceWith(script);
+					} else {
+						script.textContent = old.textContent;
+						old.replaceWith(script);
+						run(i + 1);
+					}
+				})(0);
+			});
+		}
+
+		document.querySelectorAll('#links a, a.page-link').forEach(function(link) {
+			link.addEventListener('click', function(e) {
+				e.preventDefault();
+				loadPage(link.getAttribute('href'));
+				setActive(link);
+			});
+		});
+
+		loadPage("page_config.html");
+		setActive(document.querySelector('a[href="page_config.html"]'));
 		sliderCheck();
 		get_data();
 		addClickListener('github-link');

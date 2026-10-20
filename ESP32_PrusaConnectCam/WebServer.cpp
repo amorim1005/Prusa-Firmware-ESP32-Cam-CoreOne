@@ -54,15 +54,6 @@ void Server_InitWebServer() {
     request->send(response);
   });
 
-  /* route to jquery */
-  server.on("/jquery-3.7.0.min.js", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get jquery-3.7.0.min.js"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "application/javascript", jquery_3_7_0_js);
-  });
-
   Server_InitWebServer_JsonData();
   Server_InitWebServer_WebPages();
   Server_InitWebServer_Icons();
@@ -188,33 +179,6 @@ void Server_InitWebServer_WebPages() {
     Server_handleCacheRequest(request, "text/html", license_html);
   });
 
-  /* route to gtac page */
-  server.on("/gtac.html", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get gtac.html"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "text/html", gtac_html);
-  });
-
-  /* route to privacy policy page */
-  server.on("/privacypolicy.html", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get privacypolicy.html"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "text/html", privacypolicy_html);
-  });
-
-  /* route to cookie page */
-  server.on("/cookie.html", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get cookie.html"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "text/html", cookies_html);
-  });
-
   /* route to logs page */
   server.on("/get_logs", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get get_logs.html"));
@@ -252,24 +216,6 @@ void Server_InitWebServer_Icons() {
       return;
 
     Server_handleCacheRequest(request, "image/svg+xml", github_icon_svg);
-  });
-
-  /* route to light on icon */
-  server.on("/light-on-icon.svg", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get light-icon.svg"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "image/svg+xml", light_icon_on_svg);
-  });
-
-  /* route to light off icon */
-  server.on("/light-off-icon.svg", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get light-icon.svg"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    Server_handleCacheRequest(request, "image/svg+xml", light_icon_off_svg);
   });
 
   /* route to refresh icon */
@@ -387,64 +333,6 @@ void Server_InitWebServer_Actions() {
     request->send(200, "text/plain", "Send Photo");
   });
 
-  /* route for change LED status */
-  server.on("/action_led", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /action_led Change LED status"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    SystemCamera.SetFlashStatus(!SystemCamera.GetFlashStatus());
-    SystemCamera.SetCameraFlashEnable(false);
-
-    request->send(200, "text/plain", "Change LED status");
-  });
-
-  /* route for change LED status */
-  server.on("/light", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /light set LED status"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    if (request->hasArg("on")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Turning light ON"));
-      SystemCamera.SetFlashStatus(true);
-      SystemCamera.SetCameraFlashEnable(false);
-      request->send(200, "text/plain", "Light ON");
-
-    } else if (request->hasArg("off")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Turning light OFF"));
-      SystemCamera.SetFlashStatus(false);
-      SystemCamera.SetCameraFlashEnable(false);
-      request->send(200, "text/plain", "Light OFF");
-
-    } else {
-      request->send(400, "text/plain", "Invalid request");
-    }
-  });
-
-  /* route for change FLASH status */
-  server.on("/flash", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /flash set flash status"));
-    if (Server_CheckBasicAuth(request) == false)
-      return;
-
-    if (request->hasArg("on")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Turning flash ON"));
-      SystemCamera.SetCameraFlashEnable(true);
-      SystemCamera.SetFlashStatus(false);
-      request->send(200, "text/plain", "Flash ON");
-
-    } else if (request->hasArg("off")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Turning flash OFF"));
-      SystemCamera.SetCameraFlashEnable(false);
-      SystemCamera.SetFlashStatus(false);
-      request->send(200, "text/plain", "Flash OFF");
-
-    } else {
-      request->send(400, "text/plain", "Invalid request");
-    }
-  });
-
   /* reboot MCU */
   server.on("/action_reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /action_reboo reboot MCU!"));
@@ -535,14 +423,6 @@ void Server_InitWebServer_Sets() {
     if (request->hasParam("photo_quality")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set photo_quality"));
       SystemCamera.SetPhotoQuality(73 - request->getParam("photo_quality")->value().toInt());
-      response_msg = MSG_SAVE_OK;
-      response = true;
-    }
-
-    /* set flash time */
-    if (request->hasParam("flash_time")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Set flash_time"));
-      SystemCamera.SetCameraFlashTime(request->getParam("flash_time")->value().toInt());
       response_msg = MSG_SAVE_OK;
       response = true;
     }
@@ -699,14 +579,6 @@ void Server_InitWebServer_Sets() {
     if (request->hasParam("gain_ctrl")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set gain_ctrl"));
       SystemCamera.SetGainCtrl(Server_TransfeStringToBool(request->getParam("gain_ctrl")->value()));
-      response = true;
-    }
-
-    /* set flash */
-    if (request->hasParam("flash")) {
-      SystemLog.AddEvent(LogLevel_Verbose, F("Set flash"));
-      SystemCamera.SetCameraFlashEnable(Server_TransfeStringToBool(request->getParam("flash")->value()));
-      SystemCamera.SetFlashStatus(false);
       response = true;
     }
 
@@ -1200,9 +1072,6 @@ String Server_GetJsonData() {
   doc_json["aec_value"] = SystemCamera.GetAecValue();
   doc_json["gain_ctrl"] = Server_TranslateBoolToString(SystemCamera.GetGainCtrl());
   doc_json["agc_gain"] = SystemCamera.GetAgcGaint();
-  doc_json["led"] = Server_TranslateBoolToString(SystemCamera.GetFlashStatus());
-  doc_json["flash"] = Server_TranslateBoolToString(SystemCamera.GetCameraFlashEnable());
-  doc_json["flash_time"] = SystemCamera.GetCameraFlashTime();
   doc_json["ssid"] = SystemWifiMngt.GetStaSsid();
   doc_json["bssid"] = SystemWifiMngt.GetStaBssid();
   doc_json["rssi"] = String(WiFi.RSSI());

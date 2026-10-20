@@ -13,20 +13,18 @@
 */
 #include "camera.h"
 
-Camera SystemCamera(&SystemConfig, &SystemLog, FLASH_GPIO_NUM);
+Camera SystemCamera(&SystemConfig, &SystemLog);
 
 /**
    @brief Init camera constructor
    @param Configuration* - pointer to Configuration class
    @param Logs* - pointer to Logs class
-   @param uint8_t - flash pin
    @return none
 */
-Camera::Camera(Configuration* i_conf, Logs* i_log, int8_t i_FlashPin) {
+Camera::Camera(Configuration* i_conf, Logs* i_log) {
   config = i_conf;
   log = i_log;
 
-  CameraFlashPin = i_FlashPin;
   StreamOnOff = false;
   frameBufferSemaphore = xSemaphoreCreateMutex();
   streamMutex = xSemaphoreCreateMutex();
@@ -65,18 +63,6 @@ Camera::Camera(Configuration* i_conf, Logs* i_log, int8_t i_FlashPin) {
 */
 void Camera::Init() {
   log->AddEvent(LogLevel_Info, F("Init camera lib"));
-
-#if (true == ENABLE_CAMERA_FLASH)
-  log->AddEvent(LogLevel_Info, F("Init GPIO"));
-#if (true == CAMERA_FLASH_PWM_CTRL)
-  ledcAttach(FLASH_GPIO_NUM, FLASH_PWM_FREQ, FLASH_PWM_RESOLUTION);
-
-#elif (true == CAMERA_FLASH_DIGITAL_CTRL)
-  pinMode(FLASH_GPIO_NUM, OUTPUT);
-  digitalWrite(FLASH_GPIO_NUM, LOW);
-#endif
-  SetFlashStatus(false);
-#endif
 
   /* Init with the sensor saved on a previous start (XCLK and frame size limit). The driver reads the sensor ID
      on every init anyway, so the saved sensor is always checked. A frame size above the sensor maximum
@@ -287,8 +273,6 @@ void Camera::LoadCameraCfgFromEeprom() {
   vflip = config->LoadVflip();
   lensc = config->LoadLensCorrect();
   exposure_ctrl = config->LoadExposureCtrl();
-  CameraFlashEnable = config->LoadCameraFlashEnable();
-  CameraFlashTime = config->LoadCameraFlashTime();
   imageExifRotation = config->LoadCameraImageExifRotation();
 
   /* sensor detected on a previous start */
@@ -452,66 +436,6 @@ String Camera::GetDetectedSensorName() {
 }
 
 /**
-   @brief Function set flash status
-   @param bool i_data - true = on, false = off
-   @return none
-*/
-void Camera::SetFlashStatus(bool i_data) {
-#if (true == ENABLE_CAMERA_FLASH)
-/* PWM control of the FLASH */
-#if (true == CAMERA_FLASH_PWM_CTRL)
-  if (true == i_data) {
-    ledcWrite(FLASH_GPIO_NUM, FLASH_ON_STATUS);
-  } else if (false == i_data) {
-    ledcWrite(FLASH_GPIO_NUM, FLASH_OFF_STATUS);
-  }
-
-/* Digital control of the FLASH */
-#elif (true == CAMERA_FLASH_DIGITAL_CTRL)
-  if (true == i_data) {
-    digitalWrite(FLASH_GPIO_NUM, HIGH);
-  } else if (false == i_data) {
-    digitalWrite(FLASH_GPIO_NUM, LOW);
-  }
-#endif
-
-/* rgbLedWrite control of the FLASH */
-#if (true == CAMERA_FLASH_NEOPIXEL)
-  if (true == i_data) {
-    rgbLedWrite(FLASH_NEOPIXEL_LED_PIN, RGB_BRIGHTNESS, RGB_BRIGHTNESS, RGB_BRIGHTNESS);
-  } else if (false == i_data) {
-    rgbLedWrite(FLASH_NEOPIXEL_LED_PIN, 0, 0, 0);
-  }
-#endif
-#endif
-}
-
-/**
-   @brief Function get flash status
-   @param none
-   @return bool - true = on, false = off
-*/
-bool Camera::GetFlashStatus() {
-#if (true == ENABLE_CAMERA_FLASH)
-#if (true == CAMERA_FLASH_PWM_CTRL)
-  if (ledcRead(FLASH_GPIO_NUM) == FLASH_OFF_STATUS) {
-    return false;
-  } else if (ledcRead(FLASH_GPIO_NUM) == FLASH_ON_STATUS) {
-    return true;
-  }
-
-#elif (true == CAMERA_FLASH_DIGITAL_CTRL)
-  if (digitalRead(FLASH_GPIO_NUM) == LOW) {
-    return false;
-  } else if (digitalRead(FLASH_GPIO_NUM) == HIGH) {
-    return true;
-  }
-#endif
-#endif
-  return false;
-}
-
-/**
    @brief Function set camer acfg
    @param none
    @return none
@@ -643,11 +567,6 @@ void Camera::CapturePhoto() {
 
   {
     CameraCaptureSuccess = false;
-    /* check flash, and enable FLASH LED */
-    if (true == CameraFlashEnable) {
-      SetFlashStatus(true);
-      delay(CameraFlashTime);
-    }
 
     if (FrameBuffer) {
       esp_camera_fb_return(FrameBuffer);
@@ -707,11 +626,6 @@ void Camera::CapturePhoto() {
 
     if (false == CameraCaptureSuccess) {
       log->AddEvent(LogLevel_Error, F("Failed to capture a valid photo"));
-    }
-
-    /* Disable flash, also when the capture failed */
-    if (true == CameraFlashEnable) {
-      SetFlashStatus(false);
     }
   }
   xSemaphoreGive(frameBufferSemaphore);
@@ -1151,97 +1065,6 @@ void Camera::StreamClearFrameData() {
 }
 
 /**
-   @brief Get Photo
-   @param none
-   @return String - photo
-*/
-String Camera::GetPhoto() {
-  Photo = "";
-  for (size_t i = 0; i < FrameBuffer->len; i++) {
-    Photo += (char)FrameBuffer->buf[i];
-  }
-  return Photo;
-}
-
-/**
-   @brief Get Photo Frame Buffer
-   @param none
-   @return camera_fb_t* - photo frame buffer
-*/
-camera_fb_t* Camera::GetPhotoFb() {
-  return FrameBuffer;
-}
-
-/**
-   @brief Get Photo Exif Data
-   @param none
-   @return PhotoExifData_t* - photo exif data
-*/
-PhotoExifData_t* Camera::GetPhotoExifData() {
-  return &PhotoExifData;
-}
-
-/**
-   @brief Copy Photo
-   @param camera_fb_t* - pointer to camera_fb_t
-   @return none
-*/
-void Camera::CopyPhoto(camera_fb_t* i_data) {
-  *i_data = *FrameBuffer;
-}
-
-/**
-   @brief Copy Photo
-   @param String* - pointer to string
-   @return none
-*/
-void Camera::CopyPhoto(String* i_data) {
-  Photo = "";
-  for (size_t i = 0; i < FrameBuffer->len; i++) {
-    Photo += (char)FrameBuffer->buf[i];
-  }
-  *i_data = Photo;
-}
-
-/**
- * @brief Copy photo from frame buffer to string array with range
- * 
- * @param i_data - pointer to string 
- * @param i_from - start index
- * @param i_to - end index
- */
-void Camera::CopyPhoto(String* i_data, int i_from, int i_to) {
-  *i_data = "";
-
-  for (int i = i_from; i < i_to; i++) {
-    *i_data += (char)FrameBuffer->buf[i];
-  }
-}
-
-/**
- * @brief Copy photo from frame buffer to char array with range
- * 
- * @param i_data - pointer to char array
- * @param i_from - start index
- * @param i_to - end index
- */
-void Camera::CopyPhoto(char* i_data, int i_from, int i_to) {
-  int length = i_to - i_from;
-  memcpy(i_data, FrameBuffer->buf + i_from, length);
-  i_data[length + 1] = '\0';
-}
-
-/**
- * @brief Get Photo Size
- * 
- * @return int - photo size
- */
-int Camera::GetPhotoSize() {
-  log->AddEvent(LogLevel_Verbose, F("Photo size: "), String(FrameBuffer->len));
-  return (int)FrameBuffer->len;
-}
-
-/**
    @brief Set Photo Quality
    @param uint8_t - photo quality
    @return none
@@ -1468,26 +1291,6 @@ void Camera::SetExposureCtrl(bool i_data) {
   ApplyCameraCfg();
 }
 
-/**
-   @brief Set Camera Flash Enable
-   @param bool - flash enable/disable
-   @return none
-*/
-void Camera::SetCameraFlashEnable(bool i_data) {
-  config->SaveCameraFlashEnable(i_data);
-  CameraFlashEnable = i_data;
-}
-
-/**
-   @brief Set Camera Flash Time
-   @param uint16_t - flash time
-   @return none
-*/
-void Camera::SetCameraFlashTime(uint16_t i_data) {
-  config->SaveCameraFlashTime(i_data);
-  CameraFlashTime = i_data;
-}
-
 void Camera::SetCameraImageRotation(uint8_t i_data) {
   config->SaveCameraImageExifRotation(i_data);
   imageExifRotation = i_data;
@@ -1689,24 +1492,6 @@ bool Camera::GetLensC() {
 */
 bool Camera::GetExposureCtrl() {
   return exposure_ctrl;
-}
-
-/**
-   @brief Get Camera Flash Enable status
-   @param none
-   @return bool - camera flash enable status
-*/
-bool Camera::GetCameraFlashEnable() {
-  return CameraFlashEnable;
-}
-
-/**
- * @brief Get camera flash time
- * @param none
- * @return uint16_t - camera flash time
- */
-uint16_t Camera::GetCameraFlashTime() {
-  return CameraFlashTime;
 }
 
 uint8_t Camera::GetCameraImageRotation() {

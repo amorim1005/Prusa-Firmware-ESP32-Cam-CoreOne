@@ -20,7 +20,7 @@
 #include "log.h"
 #include "log_level.h"
 #include "mcu_cfg.h"
-#include "module_templates.h"
+#include "module_XIAO_ESP32-S3-cam.h"
 #include "var.h"
 #include "wifi_mngt.h"
 
@@ -57,8 +57,6 @@ public:
   void SaveBasicAuthUsername(String);
   void SaveBasicAuthPassword(String);
   void SaveBasicAuthFlag(bool);
-  void SaveCameraFlashEnable(uint8_t);
-  void SaveCameraFlashTime(uint16_t);
   void SaveMdnsRecord(String);
   void SaveAec2(bool);
   void SaveAeLevel(int8_t);
@@ -105,8 +103,6 @@ public:
   String LoadBasicAuthUsername();
   String LoadBasicAuthPassword();
   bool LoadBasicAuthFlag();
-  bool LoadCameraFlashEnable();
-  uint16_t LoadCameraFlashTime();
   String LoadMdnsRecord();
   bool LoadAec2();
   int8_t LoadAeLevel();

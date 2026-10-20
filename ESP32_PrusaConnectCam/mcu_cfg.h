@@ -12,17 +12,10 @@
 #ifndef _MCU_CFG_H_
 #define _MCU_CFG_H_
 
-/* ----------------- CAMERA TYPE  ---------------*/
-#define AI_THINKER_ESP32_CAM            false
-#define ESP32_WROVER_DEV                false
-#define CAMERA_MODEL_ESP32_S3_DEV_CAM   false
-#define CAMERA_MODEL_ESP32_S3_EYE_2_2   false
-#define CAMERA_MODEL_XIAO_ESP32_S3_CAM  true
-#define CAMERA_MODEL_ESP32_S3_CAM       false
-#define ESP32_S3_WROOM_FREENOVE         false
+/* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c9"               ///< SW version
+#define SW_VERSION                  "1.1.2-c10"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -185,8 +178,6 @@
 #define FACTORY_CFG_WEB_AUTH_USERNAME         F("admin")        ///< user name for login to WEB interface. definition WEB_ENABLE_BASIC_AUTH must be true
 #define FACTORY_CFG_WEB_AUTH_PASSWORD         F("admin")        ///< password for login to WEB interface. definition WEB_ENABLE_BASIC_AUTH must be true
 #define FACTORY_CFG_WEB_AUTH_ENABLE           false             ///< enable web auth for login to WEB interface. definition WEB_ENABLE_BASIC_AUTH must be 
-#define FACTORY_CFG_CAMERA_FLASH_ENABLE       false             ///< enable camera flash functionality
-#define FACTORY_CFG_CAMERA_FLASH_TIME         200               ///< time for camera flash duration time [ms]
 #define FACTORY_CFG_MDNS_RECORD_HOST          F("prusa-esp32cam") ///< mdns record http://MDNS_RECORD_HOST.local
 #define FACTORY_CFG_AEC2                      0                 ///< enable automatic exposition
 #define FACTORY_CFG_AE_LEVEL                  0                 ///< automatic exposition level
@@ -272,13 +263,11 @@
 #define EEPROM_ADDR_FIRST_MCU_START_FLAG_START    (EEPROM_ADDR_BASIC_AUTH_ENABLE_FLAG_START + EEPROM_ADDR_BASIC_AUTH_ENABLE_FLAG_LENGTH)  ///< where is stored flag for first MCU start check
 #define EEPROM_ADDR_FIRST_MCU_START_FLAG_LENGTH   1                                                                                       ///< how long is flag
 
-#define EEPROM_ADDR_CAMERA_FLASH_ENABLE_START     (EEPROM_ADDR_FIRST_MCU_START_FLAG_START + EEPROM_ADDR_FIRST_MCU_START_FLAG_LENGTH)      ///< where is stored flag for enable/disable camera flash
-#define EEPROM_ADDR_CAMERA_FLASH_ENABLE_LENGTH    1                                                                                       ///< how long is flag
+/* unused: the removed LED flash (enable 1 B, time 2 B). Kept, so the settings after it stay at the same address */
+#define EEPROM_ADDR_RESERVED_FLASH_START          (EEPROM_ADDR_FIRST_MCU_START_FLAG_START + EEPROM_ADDR_FIRST_MCU_START_FLAG_LENGTH)
+#define EEPROM_ADDR_RESERVED_FLASH_LENGTH         3
 
-#define EEPROM_ADDR_CAMERA_FLASH_TIME_START       (EEPROM_ADDR_CAMERA_FLASH_ENABLE_START + EEPROM_ADDR_CAMERA_FLASH_ENABLE_LENGTH)        ///< where is stored value camera flash during time
-#define EEPROM_ADDR_CAMERA_FLASH_TIME_LENGTH      2                                                                                       ///< how long is the value
-
-#define EEPROM_ADDR_MDNS_RECORD_START             (EEPROM_ADDR_CAMERA_FLASH_TIME_START + EEPROM_ADDR_CAMERA_FLASH_TIME_LENGTH)
+#define EEPROM_ADDR_MDNS_RECORD_START             (EEPROM_ADDR_RESERVED_FLASH_START + EEPROM_ADDR_RESERVED_FLASH_LENGTH)
 #define EEPROM_ADDR_MDNS_RECORD_LENGTH            41
 
 #define EEPROM_ADDR_AWB_ENABLE_START              (EEPROM_ADDR_MDNS_RECORD_START + EEPROM_ADDR_MDNS_RECORD_LENGTH)
@@ -373,7 +362,7 @@
                      EEPROM_ADDR_PHOTO_QUALITY_LENGTH + EEPROM_ADDR_WIFI_SSID_LENGTH + EEPROM_ADDR_WIFI_PASSWORD_LENGTH + \
                      EEPROM_ADDR_WIFI_ACTIVE_FLAG_LENGTH + EEPROM_ADDR_BASIC_AUTH_USERNAME_LENGTH + EEPROM_ADDR_BASIC_AUTH_PASSWORD_LENGTH + \
                      EEPROM_ADDR_BASIC_AUTH_ENABLE_FLAG_LENGTH + EEPROM_ADDR_FIRST_MCU_START_FLAG_LENGTH + \
-                     EEPROM_ADDR_CAMERA_FLASH_ENABLE_LENGTH + EEPROM_ADDR_CAMERA_FLASH_TIME_LENGTH + \
+                     EEPROM_ADDR_RESERVED_FLASH_LENGTH + \
                      EEPROM_ADDR_MDNS_RECORD_LENGTH + EEPROM_ADDR_AWB_ENABLE_LENGTH + EEPROM_ADDR_AWB_GAIN_ENABLE_LENGTH + \
                      EEPROM_ADDR_AWB_MODE_ENABLE_LENGTH + EEPROM_ADDR_BPC_ENABLE_LENGTH + EEPROM_ADDR_WPC_ENABLE_LENGTH + \
                      EEPROM_ADDR_RAW_GAMA_ENABLE_LENGTH + EEPROM_ADDR_AEC2_LENGTH + EEPROM_ADDR_AE_LEVEL_LENGTH + \

@@ -27,22 +27,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c9">
-	<script src="/jquery-3.7.0.min.js"></script>
-	<script>
-		$(document).ready(function () {
-			$("a").click(function (e) {
-				e.preventDefault();
-				var page = $(this).attr("href");
-				$("#content").load(page);
-				setActive(this);
-			});
-			$("#content").load("page_config.html", function() {
-				var defaultLink = document.querySelector('a[href="page_config.html"]');
-				setActive(defaultLink);
-			});
-		});
-	</script>
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c10">
 </head>
 <body>
     <nav>
@@ -52,7 +37,6 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<li><a class=p5 href="https://help.prusa3d.com/guide/esp-camera-for-prusa-connect_390199" id="forum-link">Help</a></li>
       </ul>
       <ul class="top_bar" style="justify-content:flex-end;">
-		<li><a class=p4 href="#" onclick="javascript:actionButton('/action_led',true,'')"><div id="light-icon"></div> Light </a></li>
 		<li><a class=p4 href="#" onclick="location.reload();"><svg height="25" width="25"><image href="refresh-icon.svg"></svg> Refresh </a></li>
 		<li><a class=p4 href="#" onclick="javascript:actionButton('/action_reboot',false,'Reboot process started, wait several seconds for mcu to boot up. You can close this window now.')"><svg height="25" width="25"><image href="reboot-icon.svg"></svg> Reboot </a></li>
       </ul>
@@ -92,12 +76,47 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<table id=botton><tr>
 		<td><p class=p2>Prusa Connect ESP32 cam</p> </td>
 		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> </td>
-		<td><a href="license.html" class=p3>Licence</a> | <a href="gtac.html" class=p3>General Terms and Conditions</a> | <a href="privacypolicy.html" class=p3>Privacy Policy</a> | <a href="cookie.html" class=p3>Cookie Preferences</a> </td>
-		<td><a href="https://github.com/Prusa-Development/Prusa-Firmware-ESP32-Cam/" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
+		<td><a href="license.html" class="p3 page-link">Licence</a></td>
+		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c9"></script>
+	<script src="scripts.js?v=1.1.2-c10"></script>
 	<script>
+		/* load a page into #content and run its scripts in order, like the old jQuery load() */
+		function loadPage(page) {
+			getText(page, 10000).then(function(html) {
+				var content = document.getElementById('content');
+				content.innerHTML = html;
+				var scripts = Array.from(content.querySelectorAll('script'));
+				(function run(i) {
+					if (i >= scripts.length) {
+						return;
+					}
+					var old = scripts[i];
+					var script = document.createElement('script');
+					if (old.src) {
+						script.src = old.src;
+						script.onload = script.onerror = function() { run(i + 1); };
+						old.replaceWith(script);
+					} else {
+						script.textContent = old.textContent;
+						old.replaceWith(script);
+						run(i + 1);
+					}
+				})(0);
+			});
+		}
+
+		document.querySelectorAll('#links a, a.page-link').forEach(function(link) {
+			link.addEventListener('click', function(e) {
+				e.preventDefault();
+				loadPage(link.getAttribute('href'));
+				setActive(link);
+			});
+		});
+
+		loadPage("page_config.html");
+		setActive(document.querySelector('a[href="page_config.html"]'));
 		sliderCheck();
 		get_data();
 		addClickListener('github-link');
@@ -108,8 +127,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
+<style>@import url("styles.css?v=1.1.2-c10");</style>
 <body>
 	<center>
 		<table>
@@ -122,7 +140,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c9"></script>
+<script src="scripts.js?v=1.1.2-c10"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -133,8 +151,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
+<style>@import url("styles.css?v=1.1.2-c10");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -203,7 +220,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c9"></script>
+<script src="scripts.js?v=1.1.2-c10"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -213,8 +230,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
+<style>@import url("styles.css?v=1.1.2-c10");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -269,10 +285,6 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		<tr><td class="pc1">Horizontal mirror</td><td class="pc2"><label class="switch"><input type="checkbox" name="hmirror" id=hmirrorid  onchange="changeValue(this.checked, 'set_bool?hmirror=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_hmirror"></span></td></tr>
 		<tr><td class="pc1">Vertical flip</td><td class="pc2"><label class="switch"><input type="checkbox" name="vflip" id=vflipid onchange="changeValue(this.checked, 'set_bool?vflip=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_vflip"></span></td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
-		<tr><td class="pc1">LED light</td><td class="pc2"><label class="switch"><input type="checkbox" name="led" id=ledid onchange="changeValue(this.checked, 'action_led?/led=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_led"></span></td></tr>
-		<tr><td class="pc1">LED flash</td><td class="pc2"><label class="switch"><input type="checkbox" name="flash" id=flashid onchange="changeValue(this.checked, 'set_bool?flash=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_flash"></span></td></tr>
-		<tr><td class="pc1">Flash duration</td><td class="pc2">Low <input type="range" class="slider" name="flash_time" id=flash_timeid min="50" max="1500" step="50" onchange="changeValue(this.value, 'set_int?flash_time=', 'config')">High</td></tr>
-		<tr><td class="pc1">Flash duration</td><td class="pc2"><span id="flash_time_value"></span> ms</td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="ps3">PrusaLink printer state</td><td></td></tr>
 		<tr><td class="pc1">Upload often only while printing</td><td class="pc2"><label class="switch"><input type="checkbox" name="prusalink" id=prusalinkid onchange="setPrusaLink()"><span class="checkbox_slider round"></span></label> <span id="status_prusalink"></span></td></tr>
@@ -320,7 +332,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c9"></script>
+<script src="scripts.js?v=1.1.2-c10"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -329,8 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
+<style>@import url("styles.css?v=1.1.2-c10");</style>
 <body>
 	<center>
         <table id="data">
@@ -388,7 +399,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c9"></script>
+<script src="scripts.js?v=1.1.2-c10"></script>
 <script>
 	get_data("system");
 </script>
@@ -903,158 +914,155 @@ input:checked+.checkbox_slider:before {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char scripts_js[] PROGMEM = R"rawliteral(
+/* set the text of an element, a missing element is skipped */
+function setText(id, value) {
+	var element = document.getElementById(id);
+	if (element) {
+		element.textContent = value;
+	}
+}
+
+/* GET request with a timeout, returns a promise with the response text */
+function getText(url, timeout) {
+	var controller = new AbortController();
+	var timer = setTimeout(function() { controller.abort(); }, timeout);
+	return fetch(url, { signal: controller.signal }).then(function(response) {
+		clearTimeout(timer);
+		return response.text();
+	});
+}
+
 function get_data(val) {
-	jQuery.ajax({
-		url: 'json_input',
-		type: 'GET',
-		timeout: 5000,
-		success: function(data) {
-			console.log("Incommming data: ");
-			console.log(data);
-			var obj = JSON.parse(data);
-			console.log(obj);
+	getText('json_input', 5000).then(function(data) {
+		var obj = JSON.parse(data);
 
-			if (!document.querySelector('#light-icon img')) {
-				var img = document.createElement('img');
-				img.src = (obj.led == "true") ? 'light-on-icon.svg' : 'light-off-icon.svg';
-				document.getElementById('light-icon').appendChild(img);
+		document.title = obj.mdns;
+		setText('refreshInterval', obj.upload_interval);
+		
+		if (val == "config") {
+			setText('fingerprint', obj.fingerprint);
+			document.getElementById('tokenid').value = obj.token;
+			document.getElementById('refreshid').value = obj.refreshInterval;
+			document.getElementById('photo_qualityid').value = obj.photoquality;
+			/* show only the resolutions supported by the detected camera sensor */
+			var supported = obj.framesize_supported.split(",");
+			var framesizeOptions = document.getElementById('framesizeid').options;
+			for (var i = 0; i < framesizeOptions.length; i++) {
+				var available = supported.includes(framesizeOptions[i].value);
+				framesizeOptions[i].hidden = !available;
+				framesizeOptions[i].disabled = !available;
 			}
-			document.title = obj.mdns;
-			$("#refreshInterval").text(obj.upload_interval);
-			
-			if (val == "config") {
-				$("#fingerprint").text(obj.fingerprint);
-				document.getElementById('tokenid').value = obj.token;
-				document.getElementById('refreshid').value = obj.refreshInterval;
-				document.getElementById('photo_qualityid').value = obj.photoquality;
-				/* show only the resolutions supported by the detected camera sensor */
-				var supported = obj.framesize_supported.split(",");
-				var framesizeOptions = document.getElementById('framesizeid').options;
-				for (var i = 0; i < framesizeOptions.length; i++) {
-					var available = supported.includes(framesizeOptions[i].value);
-					framesizeOptions[i].hidden = !available;
-					framesizeOptions[i].disabled = !available;
-				}
-				document.getElementById('framesizeid').value = obj.framesize;
-				$("#camera_detected").text(obj.camera_detected);
-				$("#camera_autofocus").text(obj.camera_autofocus);
-				document.getElementById('brightnessid').value = obj.brightness;
-				document.getElementById('contrastid').value = obj.contrast;
-				document.getElementById('saturationid').value = obj.saturation;
-				document.getElementById('image_rotationid').value = obj.image_rotation;
-				document.getElementById('hmirrorid').checked = obj.hmirror;
-				document.getElementById('vflipid').checked = obj.vflip;
-				document.getElementById('lencid').checked = obj.lensc;
-				document.getElementById('exposure_ctrlid').checked = obj.exposure_ctrl;
-				document.getElementById('awbid').checked = obj.awb;
-				document.getElementById('awb_gainid').checked = obj.awb_gain;
-				document.getElementById('wb_modeid').value = obj.wb_mode;
-				document.getElementById('ledid').checked = obj.led;
-				document.getElementById('flashid').checked = obj.flash;
-				document.getElementById('flash_timeid').value = obj.flash_time;
-				document.getElementById('bpcid').checked = obj.bpc;
-				document.getElementById('wpcid').checked = obj.wpc;
-				document.getElementById('raw_gamaid').checked = obj.raw_gama;
-				document.getElementById('aec2id').checked = obj.aec2;
-				document.getElementById('ae_levelid').value = obj.ae_level;
-				document.getElementById('aec_valueid').value = obj.aec_value;
-				document.getElementById('gain_ctrlid').checked = obj.gain_ctrl;
-				document.getElementById('agc_gainid').value = obj.agc_gain;
-				document.getElementById("flash_time_value").innerText = obj.flash_time;
-				document.getElementById("aec_value_value").innerText = obj.aec_value;
-				document.getElementById('timelapsid').checked = obj.timelaps;
-				document.getElementById('prusalinkid').checked = (obj.prusalink_enable == "true");
-				document.getElementById('prusalink_hostid').value = obj.prusalink_host;
-				document.getElementById('prusalink_userid').value = obj.prusalink_user;
-				$("#status_prusalink").text((obj.prusalink_enable == "true") ? "On" : "Off");
-				$("#prusalink_status").text(obj.prusalink_status);
-				$("#printer_state").text(obj.printer_state);
-				$("#job_progress").text((obj.printer_state == "PRINTING") ? obj.job_progress + " %" : "");
-				$("#status_hmirror").text((obj.hmirror == "true") ? "On" : "Off");
-				$("#status_vflip").text((obj.vflip == "true") ? "On" : "Off");
-				$("#status_lensc").text((obj.lensc == "true") ? "On" : "Off");
-				$("#status_exposure_ctrl").text((obj.exposure_ctrl == "true") ? "On" : "Off");
-				$("#status_awb").text((obj.awb == "true") ? "On" : "Off");
-				$("#status_awb_gain").text((obj.awb_gain == "true") ? "On" : "Off");
-				$("#status_led").text((obj.led == "true") ? "On" : "Off");
-				$("#status_flash").text((obj.flash == "true") ? "On" : "Off");
-				$("#status_bpc").text((obj.bpc == "true") ? "On" : "Off");
-				$("#status_wpc").text((obj.wpc == "true") ? "On" : "Off");
-				$("#status_raw_gama").text((obj.raw_gama == "true") ? "On" : "Off");
-				$("#status_aec2").text((obj.aec2 == "true") ? "On" : "Off");
-				$("#status_gain_ctrl").text((obj.gain_ctrl == "true") ? "On" : "Off");
-				$("#status_timelaps").text((obj.timelaps == "true") ? "On" : "Off");
-				sliderCheck();
-			}
-
-			if (val == "auth") {
-				document.getElementById('authid').checked = obj.auth;
-				$("#status_auth").text((obj.auth == "true") ? "On" : "Off");
-				document.getElementById('auth_username').value = obj.auth_username;
-			}
-
-			if (val == "wifi") {
-				document.getElementById('serviceapid').checked = obj.serviceap;
-				$("#status_serviceap").text((obj.serviceap == "true") ? "On" : "Off");
-				$("#ssid").text(obj.ssid);
-				$("#rssi").text(obj.rssi);
-				$("#rssi_percentage").text(obj.rssi_percentage);
-				$("#ip").text(obj.ip);
-				$("#mdns").text(obj.mdns);
-				$("#wifi_network_status").text(obj.wifi_network_status);
-				document.getElementById('ipcfgid').value = obj.ip_cfg;
-				document.getElementById('net_ip_id').value = obj.net_ip;
-				document.getElementById('net_mask_id').value = obj.net_mask;
-				document.getElementById('net_gw_id').value = obj.net_gw;
-				document.getElementById('net_dns_id').value = obj.net_dns;
-
-				if (!document.querySelector('#main-wifi-signal wifi_img')) {
-					var wifi_img = document.createElement('wifi_img');
-					wifi_img.width = 19;
-					wifi_img.height = 12;
-					wifi_img.src = getIconPath(obj.rssi);
-					document.getElementById('main-wifi-signal').appendChild(wifi_img);
-				}
-			}
-
-			if (val == "system") {
-				$("#uptime").text(obj.uptime);
-				$("#sw_ver").text(obj.sw_ver);
-				$("#sw_build").text(obj.sw_build);
-				$("#last_upload_status").text(obj.last_upload_status);
-				$("#wifi_mode").text(obj.wifi_mode);
-				$("#service_ap_ssid").text(obj.service_ap_ssid);
-				$("#sd_status").text(obj.sd_status);
-				$("#sd_total").text(obj.sd_total);
-				$("#sd_free_p").text(obj.sd_free_p);
-				$("#sd_used_p").text(obj.sd_used_p);
-				$("#mcu_temp").text(obj.mcu_temp);
-				$("#upload_interval").text(obj.upload_interval);
-				$("#health_status").text(obj.health_status);
-				$("#upload_ok").text(obj.upload_ok);
-				$("#upload_failed").text(obj.upload_failed);
-				$("#unplanned_restarts").text(obj.unplanned_restarts);
-				$("#last_restart").text(obj.last_restart);
-				$("#mcu_temp_max").text(obj.mcu_temp_max);
-				$("#mem_internal").text(obj.mem_internal);
-				$("#mem_psram").text(obj.mem_psram);
-
-				var sd_free_prog = document.getElementById("progress_bar_sd_free");
-				sd_free_prog.style.width = obj.sd_free_p + "%";
-				sd_free_prog.innerHTML = obj.sd_free_p + "%";
-
-				var sd_free_prog = document.getElementById("progress_bar_sd_used");
-				sd_free_prog.style.width = obj.sd_used_p + "%";
-				sd_free_prog.innerHTML = obj.sd_used_p + "%";
-
-				document.getElementById('mdnsid').value = obj.mdns;
-        		document.getElementById('loglevelid').value = obj.log_level;
-			}
-		},
-		error: function(html) {
-			console.log("json Timeout or error");
-			//alert("jquery timeout or comunication error");
+			document.getElementById('framesizeid').value = obj.framesize;
+			setText('camera_detected', obj.camera_detected);
+			setText('camera_autofocus', obj.camera_autofocus);
+			document.getElementById('brightnessid').value = obj.brightness;
+			document.getElementById('contrastid').value = obj.contrast;
+			document.getElementById('saturationid').value = obj.saturation;
+			document.getElementById('image_rotationid').value = obj.image_rotation;
+			document.getElementById('hmirrorid').checked = (obj.hmirror == "true");
+			document.getElementById('vflipid').checked = (obj.vflip == "true");
+			document.getElementById('lencid').checked = (obj.lensc == "true");
+			document.getElementById('exposure_ctrlid').checked = (obj.exposure_ctrl == "true");
+			document.getElementById('awbid').checked = (obj.awb == "true");
+			document.getElementById('awb_gainid').checked = (obj.awb_gain == "true");
+			document.getElementById('wb_modeid').value = obj.wb_mode;
+			document.getElementById('bpcid').checked = (obj.bpc == "true");
+			document.getElementById('wpcid').checked = (obj.wpc == "true");
+			document.getElementById('raw_gamaid').checked = (obj.raw_gama == "true");
+			document.getElementById('aec2id').checked = (obj.aec2 == "true");
+			document.getElementById('ae_levelid').value = obj.ae_level;
+			document.getElementById('aec_valueid').value = obj.aec_value;
+			document.getElementById('gain_ctrlid').checked = (obj.gain_ctrl == "true");
+			document.getElementById('agc_gainid').value = obj.agc_gain;
+			document.getElementById("aec_value_value").innerText = obj.aec_value;
+			document.getElementById('timelapsid').checked = (obj.timelaps == "true");
+			document.getElementById('prusalinkid').checked = (obj.prusalink_enable == "true");
+			document.getElementById('prusalink_hostid').value = obj.prusalink_host;
+			document.getElementById('prusalink_userid').value = obj.prusalink_user;
+			setText('status_prusalink', (obj.prusalink_enable == "true") ? "On" : "Off");
+			setText('prusalink_status', obj.prusalink_status);
+			setText('printer_state', obj.printer_state);
+			setText('job_progress', (obj.printer_state == "PRINTING") ? obj.job_progress + " %" : "");
+			setText('status_hmirror', (obj.hmirror == "true") ? "On" : "Off");
+			setText('status_vflip', (obj.vflip == "true") ? "On" : "Off");
+			setText('status_lensc', (obj.lensc == "true") ? "On" : "Off");
+			setText('status_exposure_ctrl', (obj.exposure_ctrl == "true") ? "On" : "Off");
+			setText('status_awb', (obj.awb == "true") ? "On" : "Off");
+			setText('status_awb_gain', (obj.awb_gain == "true") ? "On" : "Off");
+			setText('status_bpc', (obj.bpc == "true") ? "On" : "Off");
+			setText('status_wpc', (obj.wpc == "true") ? "On" : "Off");
+			setText('status_raw_gama', (obj.raw_gama == "true") ? "On" : "Off");
+			setText('status_aec2', (obj.aec2 == "true") ? "On" : "Off");
+			setText('status_gain_ctrl', (obj.gain_ctrl == "true") ? "On" : "Off");
+			setText('status_timelaps', (obj.timelaps == "true") ? "On" : "Off");
+			sliderCheck();
 		}
+
+		if (val == "auth") {
+			document.getElementById('authid').checked = (obj.auth == "true");
+			setText('status_auth', (obj.auth == "true") ? "On" : "Off");
+			document.getElementById('auth_username').value = obj.auth_username;
+		}
+
+		if (val == "wifi") {
+			document.getElementById('serviceapid').checked = (obj.serviceap == "true");
+			setText('status_serviceap', (obj.serviceap == "true") ? "On" : "Off");
+			setText('ssid', obj.ssid);
+			setText('rssi', obj.rssi);
+			setText('rssi_percentage', obj.rssi_percentage);
+			setText('ip', obj.ip);
+			setText('mdns', obj.mdns);
+			setText('wifi_network_status', obj.wifi_network_status);
+			document.getElementById('ipcfgid').value = obj.ip_cfg;
+			document.getElementById('net_ip_id').value = obj.net_ip;
+			document.getElementById('net_mask_id').value = obj.net_mask;
+			document.getElementById('net_gw_id').value = obj.net_gw;
+			document.getElementById('net_dns_id').value = obj.net_dns;
+
+			if (!document.querySelector('#main-wifi-signal wifi_img')) {
+				var wifi_img = document.createElement('wifi_img');
+				wifi_img.width = 19;
+				wifi_img.height = 12;
+				wifi_img.src = getIconPath(obj.rssi);
+				document.getElementById('main-wifi-signal').appendChild(wifi_img);
+			}
+		}
+
+		if (val == "system") {
+			setText('uptime', obj.uptime);
+			setText('sw_ver', obj.sw_ver);
+			setText('sw_build', obj.sw_build);
+			setText('last_upload_status', obj.last_upload_status);
+			setText('wifi_mode', obj.wifi_mode);
+			setText('service_ap_ssid', obj.service_ap_ssid);
+			setText('sd_status', obj.sd_status);
+			setText('sd_total', obj.sd_total);
+			setText('sd_free_p', obj.sd_free_p);
+			setText('sd_used_p', obj.sd_used_p);
+			setText('mcu_temp', obj.mcu_temp);
+			setText('upload_interval', obj.upload_interval);
+			setText('health_status', obj.health_status);
+			setText('upload_ok', obj.upload_ok);
+			setText('upload_failed', obj.upload_failed);
+			setText('unplanned_restarts', obj.unplanned_restarts);
+			setText('last_restart', obj.last_restart);
+			setText('mcu_temp_max', obj.mcu_temp_max);
+			setText('mem_internal', obj.mem_internal);
+			setText('mem_psram', obj.mem_psram);
+
+			var sd_free_prog = document.getElementById("progress_bar_sd_free");
+			sd_free_prog.style.width = obj.sd_free_p + "%";
+			sd_free_prog.innerHTML = obj.sd_free_p + "%";
+
+			var sd_free_prog = document.getElementById("progress_bar_sd_used");
+			sd_free_prog.style.width = obj.sd_used_p + "%";
+			sd_free_prog.innerHTML = obj.sd_used_p + "%";
+
+			document.getElementById('mdnsid').value = obj.mdns;
+			document.getElementById('loglevelid').value = obj.log_level;
+		}
+	}).catch(function(error) {
+		console.log("json timeout or error: " + error);
 	});
 }
 
@@ -1188,34 +1196,28 @@ function scanWifi() {
 }
 
 function GetDataAndPrintTableWiFi() {
-	$("#wifi_ntw").find("tr:gt(0)").remove();
-	$.ajax({
-		url: 'json_wifi',
-		type: 'GET',
-		timeout: 15000,
-		dataType: 'json',
-		data: {},
-
-		success: function(data) {
-			for (var i = 0; i < data.length; i++) {
-				const IconName = "wifi-icon-" + i;
-				var row = $('<tr><td>' + data[i].ssid + '</td><td><div id="' + IconName + '" style="display: flex; align-items: center;"></div></td><td>' + data[i].channel + '</td><td>' + data[i].encryption + '</td></tr>');
-				$('#wifi_ntw').append(row);
-
-				if (!document.querySelector('#' + IconName + ' img')) {
-					var img = document.createElement('img');
-					img.src = getIconPath(data[i].rssi);
-					document.getElementById(IconName).prepend(img);
-					document.getElementById(IconName).append(data[i].rssi_percentage);
-					document.getElementById(IconName).append("% / ");
-					document.getElementById(IconName).append(data[i].rssi);
-					document.getElementById(IconName).append("dBm");
-				}
-			}
-		},
-		error: function(jqXHR, textStatus, errorThrown) {
-			console.log('Error:' + textStatus + '-' + errorThrown);
+	var table = document.getElementById('wifi_ntw');
+	/* keep the header row */
+	while (table.rows.length > 1) {
+		table.deleteRow(1);
+	}
+	getText('json_wifi', 15000).then(function(text) {
+		var data = JSON.parse(text);
+		for (var i = 0; i < data.length; i++) {
+			var row = table.insertRow(-1);
+			var signal = document.createElement('div');
+			signal.style.display = 'flex';
+			signal.style.alignItems = 'center';
+			var img = document.createElement('img');
+			img.src = getIconPath(data[i].rssi);
+			signal.append(img, data[i].rssi_percentage + "% / " + data[i].rssi + "dBm");
+			row.insertCell(-1).textContent = data[i].ssid;
+			row.insertCell(-1).appendChild(signal);
+			row.insertCell(-1).textContent = data[i].channel;
+			row.insertCell(-1).textContent = data[i].encryption;
 		}
+	}).catch(function(error) {
+		console.log('Error: ' + error);
 	});
 }
 
@@ -1249,9 +1251,6 @@ function changeValue(val, url, reload, msg) {
 	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
 		xmlHttp.responseText.startsWith("ERROR")) {
 		alert(xmlHttp.responseText);
-	}
-	if (url == "set_flash_time?flash_time=") {
-		document.getElementById("flash_time_value").innerText = val;
 	}
 	get_data(reload);
 }
@@ -1338,73 +1337,34 @@ if ((document.getElementById("auth_password")) && (document.getElementById("auth
 	validatePasswords();
 }
 
+/* the section after the button opens and closes */
+function setupCollapsible(selector) {
+	document.querySelectorAll(selector).forEach(function(button) {
+		button.addEventListener('click', function() {
+			button.classList.toggle('active');
+			var content = button.parentElement.nextElementSibling;
+			content.style.display = (getComputedStyle(content).display === 'block') ? 'none' : 'block';
+		});
+	});
+}
+
 function setupCollapsibleButtons() {
-    $(".btn_collapsible").click(function(){
-        $(this).toggleClass("active");
-        var content = $(this).parent().next();
-        if (content.css("display") === "block") {
-            content.css("display", "none");
-        } else {
-            content.css("display", "block");
-        }
-    });
+	setupCollapsible('.btn_collapsible');
 }
 
 function setupCollapsibleButtonsWiFi() {
-    $(".btn_collapsible_wifi").click(function(){
-        $(this).toggleClass("active");
-        var content_wifi = $(this).parent().next();
-        if (content_wifi.css("display") === "block") {
-            content_wifi.css("display", "none");
-        } else {
-            content_wifi.css("display", "block");
-        }
-    });
+	setupCollapsible('.btn_collapsible_wifi');
 }
 )rawliteral";
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
+<style>@import url("styles.css?v=1.1.2-c10");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c9"></script>
+<script src="scripts.js?v=1.1.2-c10"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');
-</script>
-)rawliteral";
-
-/* ------------------------------------------------------------------------------------------------------------ */
-const char gtac_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
-<center><p>To read the General Terms and Conditions, please visit <a href="https://www.prusa3d.com/page/general-terms-and-conditions_231236/" id="gtac-link">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c9"></script>
-<script>
-    addClickListener('gtac-link');
-</script>
-)rawliteral";
-
-/* ------------------------------------------------------------------------------------------------------------ */
-const char privacypolicy_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
-<center><p>To read the Privacy Policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="privacy-link">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c9"></script>
-<script>
-    addClickListener('privacy-link');
-</script>
-)rawliteral";
-
-/* ------------------------------------------------------------------------------------------------------------ */
-const char cookies_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
-<center><p>To read the Cookie policy, please visit <a href="https://www.prusa3d.com/en/page/privacy-policy_231258/" id="cookies-link">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c9"></script>
-<script>
-    addClickListener('cookies-link');
 </script>
 )rawliteral";
 

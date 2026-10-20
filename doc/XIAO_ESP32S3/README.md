@@ -9,8 +9,6 @@ What we need for functionality
 - How to reset the configuration to factory settings [here](#factory_cfg)
 - Status LED [ here ](#status_led)
 - Schematic main board is [here](#schematic)
-- Issue with FLASH LED on the main board [here](#led_issue)
-- External WiFi antenna [here](#ext_wifi)
 - Power supply [here](#power_supply)
 - Potential issue [here](#issue)
 
@@ -18,7 +16,6 @@ What we need for functionality
 ##  XIAO ESP32S3 sense board 
 
 Basic information:
-- Option connecting external FLASH LED
 - Micro SD card slot
 - External WiFi antenna
 - 8MB FLASH and 8MB external PSRAM
@@ -134,9 +131,9 @@ To reset the settings to factory defaults, follow these instructions:
 - Connect PIN **GPIO2** to **ground**.
 - **Plug in** the power supply.
 - Wait for **10 seconds**.
-- After 10 seconds, the **FLASH LED will start flashing**.
+- After 10 seconds, the **status LED** (GPIO21) **will start blinking**.
 - **Disconnect** PIN **GPIO2** from **ground** (but don't disconnect the power supply).
-- After disconnecting **GPIO2** from **ground**, the **FLASH LED** will **stop flashing**, and the MCU will **automatically reboot**.
+- After disconnecting **GPIO2** from **ground**, the **status LED** will **stop blinking**, and the MCU will **automatically reboot**.
 - Now the MCU is in the factory settings.
 
 <a name="status_led"></a>
@@ -170,24 +167,6 @@ Pinout
 <img src="pinoutF.png" width=50% height=50%>
 
 <img src="pinoutB.png" width=50% height=50%>
-
-<a name="led_issue"></a>
-## FLASH LED issue
-
-This board version don't have **FLASH LED** on the board. Therefore, if a FLASH LED is needed, a GPIO 4 pin should be used to connect an external LED for FLASH. The FLASH LED can be connected, for example, as an LED strip using a relay. 
-
-<img src="led strip_bb.png" width=30% height=30%>
-
-For the external LED is in the SW used **GPIO pin 4**.
-
-<img src="ext_led_pins.png" width=30% height=30%>
-
-However, a 5mm LED can also be connected directly. **CAUTION**: The digital GPIO output from the XIAO ESP32-S3 board has a current limitation of a **maximum of 40mA**! Therefore, it is recommended to switch the LED using a **transistor** rather than directly through the GPIO pin. Improper use of the GPIO pin can lead to permanent damage.
-
-<a name="power_supply"></a>
-## Power Supply
-
-The device requires a 5V power supply, with a maximum current consumption of 2A. Power is supplied via a micro USB connector when using the original programmer.
 
 <a name="power_supply"></a>
 ## Power Supply

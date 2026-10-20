@@ -1,5 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c9");</style>
-<script src="jquery-3.7.0.min.js"></script>
+<style>@import url("styles.css?v=1.1.2-c10");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -54,10 +53,6 @@
 		<tr><td class="pc1">Horizontal mirror</td><td class="pc2"><label class="switch"><input type="checkbox" name="hmirror" id=hmirrorid  onchange="changeValue(this.checked, 'set_bool?hmirror=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_hmirror"></span></td></tr>
 		<tr><td class="pc1">Vertical flip</td><td class="pc2"><label class="switch"><input type="checkbox" name="vflip" id=vflipid onchange="changeValue(this.checked, 'set_bool?vflip=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_vflip"></span></td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
-		<tr><td class="pc1">LED light</td><td class="pc2"><label class="switch"><input type="checkbox" name="led" id=ledid onchange="changeValue(this.checked, 'action_led?/led=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_led"></span></td></tr>
-		<tr><td class="pc1">LED flash</td><td class="pc2"><label class="switch"><input type="checkbox" name="flash" id=flashid onchange="changeValue(this.checked, 'set_bool?flash=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_flash"></span></td></tr>
-		<tr><td class="pc1">Flash duration</td><td class="pc2">Low <input type="range" class="slider" name="flash_time" id=flash_timeid min="50" max="1500" step="50" onchange="changeValue(this.value, 'set_int?flash_time=', 'config')">High</td></tr>
-		<tr><td class="pc1">Flash duration</td><td class="pc2"><span id="flash_time_value"></span> ms</td></tr>
 		<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		<tr><td class="ps3">PrusaLink printer state</td><td></td></tr>
 		<tr><td class="pc1">Upload often only while printing</td><td class="pc2"><label class="switch"><input type="checkbox" name="prusalink" id=prusalinkid onchange="setPrusaLink()"><span class="checkbox_slider round"></span></label> <span id="status_prusalink"></span></td></tr>
@@ -105,7 +100,7 @@
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c9"></script>
+<script src="scripts.js?v=1.1.2-c10"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();

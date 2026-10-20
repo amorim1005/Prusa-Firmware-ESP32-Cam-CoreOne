@@ -25,11 +25,6 @@ ARDUINO_CLI=${ARDUINO_CLI:-arduino-cli}
 OUT=${1:-build/xiao-esp32-s3}
 mkdir -p "$OUT"
 
-if ! grep -q "^#define CAMERA_MODEL_XIAO_ESP32_S3_CAM  true" ESP32_PrusaConnectCam/mcu_cfg.h; then
-  echo "ERROR: CAMERA_MODEL_XIAO_ESP32_S3_CAM is not enabled (true) in ESP32_PrusaConnectCam/mcu_cfg.h"
-  exit 1
-fi
-
 $ARDUINO_CLI compile \
   -b esp32:esp32:XIAO_ESP32S3:USBMode=hwcdc,CDCOnBoot=default,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=160,FlashMode=qio,FlashSize=8M,PartitionScheme=default_8MB,DebugLevel=none,PSRAM=opi,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default \
   --libraries libraries \

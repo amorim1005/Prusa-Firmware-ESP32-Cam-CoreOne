@@ -29,7 +29,6 @@
 #include "var.h"
 #include "camera.h"
 #include "cfg.h"
-#include "jquery.h"
 #include "system.h"
 #include "connect.h"
 #include "wifi_mngt.h"

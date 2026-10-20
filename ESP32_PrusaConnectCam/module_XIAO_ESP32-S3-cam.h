@@ -39,8 +39,6 @@
 
 #include "mcu_cfg.h"
 
-#ifdef CAMERA_MODEL_XIAO_ESP32_S3_CAM
-
 /* --------------- CAMERA CFG -------------------*/
 #define PWDN_GPIO_NUM               -1      ///< Power down control pin
 #define RESET_GPIO_NUM              -1      ///< Reset control pin
@@ -64,19 +62,6 @@
 #define ENABLE_BROWN_OUT_DETECTION  false   ///< Enable brown out detection
 #define ENABLE_PSRAM                true    ///< Enable PSRAM   
 
-/* --------------- FLASH LED CFG  ---------------*/
-#define ENABLE_CAMERA_FLASH         true    ///< Enable camera flash function
-#define CAMERA_FLASH_DIGITAL_CTRL   true    ///< Enable camera flash digital control
-#define CAMERA_FLASH_PWM_CTRL       false   ///< Enable camera flash PWM control
-#define CAMERA_FLASH_NEOPIXEL       false   ///< Enable camera flash NeoPixel control
-#define FLASH_GPIO_NUM              4       ///< Flash control pin.
-#define FLASH_NEOPIXEL_LED_PIN      -1      ///< External flash control pin. RGB LED NeoPixel
-#define FLASH_OFF_STATUS            LOW     ///< value for flash OFF
-#define FLASH_ON_STATUS             HIGH    ///< value for flash ON
-//#define FLASH_PWM_FREQ              2000    ///< frequency of pwm [240MHz / (100 prescale * pwm cycles)] = frequency
-//#define FLASH_PWM_CHANNEL           0       ///< channel 0
-//#define FLASH_PWM_RESOLUTION        8       ///< range 1-20bit. 8bit = 0-255 range
-
 /* --------------- SD CARD CFG  ---------------*/
 #define ENABLE_SD_CARD              true    ///< Enable SD card function
 #define SD_PIN_CLK                  7       ///< GPIO pin for SD card clock
@@ -93,5 +78,4 @@
 #define STATUS_LED_GPIO_NUM         21      ///< GPIO pin for status LED
 #define STATUS_LED_OFF_PIN_LEVEL    LOW    ///< GPIO pin level for status LED ON
 
-#endif  // CAMERA_MODEL_XIAO_ESP32_S3_CAM
 /* EOF */

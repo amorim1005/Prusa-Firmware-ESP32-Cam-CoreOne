@@ -14,7 +14,7 @@
    - ArduinoUniqueID   - MIT      - 1.3.0   - https://github.com/ricaun/ArduinoUniqueID
    - arduino-esp32     - LGPL 2.1 - 3.1.0   - https://github.com/espressif/arduino-esp32
 
-   Arduino IDE configuration for the MCU are stored in the module_XXX.h file.
+   Arduino IDE configuration and the pins of the board are in the module_XIAO_ESP32-S3-cam.h file.
 
    When flashing the firmware to a new, empty ESP32-CAM device for the first time, it is necessary to use the 'Erase' function.
    This can be found under 'Tools' -> 'Erase all Flash Before Sketch Upload' -> 'Enable'.

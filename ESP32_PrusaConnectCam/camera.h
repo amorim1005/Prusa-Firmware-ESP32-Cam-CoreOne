@@ -23,7 +23,7 @@
 #include "cfg.h"
 #include "exif.h"
 #include "ESP32_OV5640_AF.h"
-#include "module_templates.h"
+#include "module_XIAO_ESP32-S3-cam.h"
 #include "mcu_cfg.h"
 #include "var.h"
 
@@ -57,9 +57,6 @@ private:
   bool vflip;                ///< vertical flip
   bool lensc;                ///< lens corection
   bool exposure_ctrl;        ///< exposure control
-  bool CameraFlashEnable;    ///< enable/disable camera flash function
-  uint16_t CameraFlashTime;  ///< camera fash duration time
-  int8_t CameraFlashPin;     ///< GPIO pin for LED
   framesize_t TFrameSize;    ///< framesize_t type for camera module
   uint8_t imageExifRotation; ///< image rotation. 0 degree: value 1, 90 degree: value 6, 180 degree: value 3, 270 degree: value 8
 
@@ -69,7 +66,6 @@ private:
   camera_config_t CameraConfig;             ///< camera configuration
   camera_fb_t *FrameBuffer;                 ///< frame buffer
   sensor_t* sensor;                         ///< sensor
-  String Photo;                             ///< photo in string format
   bool StreamOnOff;                         ///< stream on/off, true when at least one stream client is connected
 
   /* live stream: the capture task fills the buffers in turn, the WEB server sends the latest complete frame */
@@ -110,7 +106,7 @@ private:
   uint8_t TransformPidToCameraSensor(camera_pid_t);
 
 public:
-  Camera(Configuration*, Logs*, int8_t);
+  Camera(Configuration*, Logs*);
   ~Camera(){};
   void Init();
   void ApplyCameraCfg();
@@ -133,19 +129,9 @@ public:
   float StreamGetFrameAverageFps();
   void StreamClearFrameData();
   
-  void CopyPhoto(camera_fb_t *);
-  void CopyPhoto(String*);
-  void CopyPhoto(String*, int, int);
-  void CopyPhoto(char*, int, int);
-  int GetPhotoSize();
-  String GetPhoto();
-  camera_fb_t *GetPhotoFb();
-  PhotoExifData_t * GetPhotoExifData();
   bool GetPhotoCopy(uint8_t **, size_t *);
   framesize_t TransformFrameSizeDataType(uint8_t);
   
-  void SetFlashStatus(bool);
-  bool GetFlashStatus();
 
   void SetPhotoQuality(uint8_t);
   bool SetFrameSize(uint8_t);
@@ -171,8 +157,6 @@ public:
   void SetVFlip(bool);
   void SetLensC(bool);
   void SetExposureCtrl(bool);
-  void SetCameraFlashEnable(bool);
-  void SetCameraFlashTime(uint16_t);
   void SetCameraImageRotation(uint8_t);
 
   uint8_t GetPhotoQuality();
@@ -197,8 +181,6 @@ public:
   bool GetVFlip();
   bool GetLensC();
   bool GetExposureCtrl();
-  bool GetCameraFlashEnable();
-  uint16_t GetCameraFlashTime();
   uint8_t GetCameraImageRotation();
 };
 

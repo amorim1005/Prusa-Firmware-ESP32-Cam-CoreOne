@@ -48,21 +48,6 @@ echo "Generating license.html"
 html_content=$(cat license.html | awk '{printf "%s\\n", $0}')
 awk -v var="$html_content" '/^const char license_html\[\] PROGMEM = R"rawliteral\(/,/rawliteral";/ { if (/^const char license_html\[\] PROGMEM = R"rawliteral\(/) { print "const char license_html[] PROGMEM = R\"rawliteral(\n" var ")rawliteral\";"; next } { next } } 1' WebPage.h > temp && mv temp WebPage.h
 
-# Read the gtac.html file and generate the WebPage.h file
-echo "Generating gtac.html"
-html_content=$(cat gtac.html | awk '{printf "%s\\n", $0}')
-awk -v var="$html_content" '/^const char gtac_html\[\] PROGMEM = R"rawliteral\(/,/rawliteral";/ { if (/^const char gtac_html\[\] PROGMEM = R"rawliteral\(/) { print "const char gtac_html[] PROGMEM = R\"rawliteral(\n" var ")rawliteral\";"; next } { next } } 1' WebPage.h > temp && mv temp WebPage.h
-
-# Read the privacypolicy.html file and generate the WebPage.h file
-echo "Generating privacypolicy.html"
-html_content=$(cat privacypolicy.html | awk '{printf "%s\\n", $0}')
-awk -v var="$html_content" '/^const char privacypolicy_html\[\] PROGMEM = R"rawliteral\(/,/rawliteral";/ { if (/^const char privacypolicy_html\[\] PROGMEM = R"rawliteral\(/) { print "const char privacypolicy_html[] PROGMEM = R\"rawliteral(\n" var ")rawliteral\";"; next } { next } } 1' WebPage.h > temp && mv temp WebPage.h
-
-# Read the cookies.html file and generate the WebPage.h file
-echo "Generating cookies.html"
-html_content=$(cat cookies.html | awk '{printf "%s\\n", $0}')
-awk -v var="$html_content" '/^const char cookies_html\[\] PROGMEM = R"rawliteral\(/,/rawliteral";/ { if (/^const char cookies_html\[\] PROGMEM = R"rawliteral\(/) { print "const char cookies_html[] PROGMEM = R\"rawliteral(\n" var ")rawliteral\";"; next } { next } } 1' WebPage.h > temp && mv temp WebPage.h
-
 # Copy the generated WebPage.h file to the ESP32 project
 echo "WebPage.h generated successfully"
 echo "Copy the new WebPage.h file to the ESP32 project"

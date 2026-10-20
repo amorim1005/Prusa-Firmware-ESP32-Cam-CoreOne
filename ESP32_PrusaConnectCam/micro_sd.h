@@ -28,7 +28,7 @@
 #include <SD_MMC.h>
 
 #include "mcu_cfg.h"
-#include "module_templates.h"
+#include "module_XIAO_ESP32-S3-cam.h"
 #include "var.h"
 
 class MicroSd {

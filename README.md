@@ -9,8 +9,8 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c9** (see the [version history](#version-history)).
-The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/).
+Firmware version: **1.1.2-c10** (see the [version history](#version-history)).
+The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
 > The first tests on your printer are the final check. Read the
@@ -27,6 +27,8 @@ The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/)
 - health checks: automatic restart after low memory, camera problems shown in Prusa Connect;
 - no update from the internet: update from a `.bin` file on the System page, or over USB;
 - no external DHT temperature sensor: the Core One measures the chamber temperature itself;
+- only the XIAO ESP32-S3 Sense: the other boards, the LED flash, jQuery and the Prusa legal pages
+  were removed, the firmware is about 100 KB smaller than c9;
 - a reproducible build: exact libraries in `libraries/`, a build script, compiled binaries.
 
 ---
@@ -60,15 +62,14 @@ The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/)
 - [Changed files](#changed-files)
 - [Version history](#version-history)
 - [Pulling updates from the original project](#upstream)
-- [Other boards](#other-boards)
 
 ---
 
 <a name="quick-start"></a>
 ## Quick start
 
-1. Flash `firmware/xiao-esp32-s3/ESP32_PrusaConnectCam.ino.merged.bin` at address 0x0 from the
-   browser ([how to flash](#flash)).
+1. Download `ESP32_PrusaConnectCam.ino.merged.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest) and flash it
+   at address 0x0 from the browser ([how to flash](#flash)).
 2. Connect to the Wi-Fi network `ESP32_camera_...` (password `12345678`), open
    <http://192.168.0.1> and set up your Wi-Fi.
 3. Create the camera in Prusa Connect and paste its token on the **Camera** page
@@ -80,8 +81,8 @@ The compiled firmware is in [`firmware/xiao-esp32-s3/`](firmware/xiao-esp32-s3/)
 <a name="flash"></a>
 ## How to flash the firmware
 
-The compiled files are in **`firmware/xiao-esp32-s3/`**. You do not need to compile to use the
-camera.
+The compiled files are in the **[latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest)** on GitHub, with a `SHA256SUMS.txt` to
+check the download. You do not need to compile to use the camera.
 
 **Easiest way (browser, Chrome or Edge):**
 1. Open <https://espressif.github.io/esptool-js/>.
@@ -149,7 +150,7 @@ lens, which makes the image blurry.
 | Page | What you find there |
 |---|---|
 | Main page | Latest photo, live stream, current upload interval (it already includes the backoff, PrusaLink and the thermal guard) |
-| **Camera** | Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, flash, detected sensor, autofocus state, PrusaLink |
+| **Camera** | Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, detected sensor, autofocus state, PrusaLink |
 | **Wi-Fi** | Network, static IP, service AP on/off |
 | **Authentication** | Login for the web page and the stream |
 | **System** | Prusa Connect status, uptime, temperature, [Health](#health-checks) section, camera name (mDNS), log level and logs, micro SD card, [firmware update from file](#firmware-update) |
@@ -309,10 +310,6 @@ The camera needs about 15–20 s to start.
 
 The board's fingerprint for Prusa Connect is computed from the chip, so it survives a factory reset.
 
-**External flash LED.** The XIAO has no flash LED. An external LED (or an LED strip with a relay)
-can be connected to **GPIO4**. The Core One has its own chamber lighting, so the flash is off by
-default.
-
 More board details (pinout, schematics, photos): [doc/XIAO_ESP32S3](doc/XIAO_ESP32S3/README.md)
 (original documentation, it describes the original firmware).
 
@@ -344,8 +341,6 @@ the System page (Error, Warning, Info, Verbose). The token is never written to t
 | `getserviceapssid;` | Print the service AP name |
 | `resolution:INDEX;` | Set the photo resolution, index 0–6 (320×240 to 1600×1200). Higher resolutions: Camera page |
 | `photoquality:VALUE;` | Set the photo quality, 10–63 (lower = better) |
-| `setflash;` | Switch the flash on or off (toggle) |
-| `setlight;` | Switch the light on or off (toggle) |
 | `loglevel:LEVEL;` | Log level: 0=Error, 1=Warning, 2=Info, 3=Verbose |
 
 Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWORD;` →
@@ -359,8 +354,6 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 | `http://IP/saved-photo.jpg` | Latest photo |
 | `http://IP/action_capture` | Capture a photo |
 | `http://IP/action_send` | Capture a photo and send it to Prusa Connect |
-| `http://IP/light?on`, `http://IP/light?off` | Light on / off |
-| `http://IP/flash?on`, `http://IP/flash?off` | Flash on / off |
 | `http://IP/action_reboot` | Restart the camera |
 | `http://IP/get_logs` | Download the log from the micro SD card |
 | `http://IP/json_input` | All the status values (JSON), including the Health section |
@@ -400,7 +393,8 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 - **No firmware update from the internet.** Update from a `.bin` file on the System page, or over
   USB.
 - The only possible intervals are 10 s, 30 s, 60 s and 10 min (a Prusa rule).
-- Built and checked only for the XIAO ESP32-S3 Sense (see [other boards](#other-boards)).
+- Only for the XIAO ESP32-S3 Sense. For other boards use the
+  [original project](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam).
 
 ---
 
@@ -486,7 +480,7 @@ change everything later on the camera's web page.
 | JPEG quality | 10 | **12** | Slightly smaller files and faster uploads, with almost no visible difference (scale 10–63: lower = better) |
 | Server | `connect.prusa3d.com` | **`camera-service.prusa3d.com`** | The new API |
 | Interval | 30 s | 30 s | Same |
-| Flash LED | off | off | The Core One has its own LED lighting in the print chamber. The XIAO has no flash on the board anyway |
+| Flash LED | off | **removed** (c10) | The Core One has its own LED lighting in the print chamber. The XIAO has no flash on the board |
 | White balance | automatic | **automatic** | Without testing under the real light of your Core One, automatic is safer. You can change it in *Advanced settings* after seeing the images |
 
 ---
@@ -526,12 +520,10 @@ The upload interval is the **longest** of:
 
 Capturing a photo with the stream off:
 
-1. Turn on the flash, if enabled.
-2. Capture and discard a "training" frame: the first frame from the sensor is old.
-3. Capture the real photo and check that it is a valid JPEG. A bad frame goes back to the driver
+1. Capture and discard a "training" frame: the first frame from the sensor is old.
+2. Capture the real photo and check that it is a valid JPEG. A bad frame goes back to the driver
    and the capture is retried, up to 5 times.
-4. Add the EXIF header (rotation, sensor model).
-5. Always turn off the flash.
+3. Add the EXIF header (rotation, sensor model).
 
 The upload works on its own copy, so the camera is free again at once and the photo cannot change
 in the middle of an upload.
@@ -691,7 +683,7 @@ and the camera installs it over Wi-Fi. Any firmware works, from this repository 
 
 | Firmware | File |
 |---|---|
-| This repository | `firmware/xiao-esp32-s3/ESP32_PrusaConnectCam.ino.bin` |
+| This repository | `ESP32_PrusaConnectCam.ino.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest) |
 | Original Prusa firmware | `XIAO_ESP32S3.bin` from the [Prusa releases](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam/releases) |
 
 How it works:
@@ -737,12 +729,8 @@ The firmware compiles with the **ESP32 core 3.1.0** and the exact libraries in t
 > Use **these versions**. Newer versions of the ESP32 core or of ESPAsyncWebServer may not compile
 > or may behave differently.
 
-Before compiling, check in `ESP32_PrusaConnectCam/mcu_cfg.h` that only the XIAO is enabled (this
-repository already has it like that):
-
-```c
-#define CAMERA_MODEL_XIAO_ESP32_S3_CAM  true   // all the others: false
-```
+The firmware supports only the XIAO ESP32-S3 Sense, its pins are in
+`ESP32_PrusaConnectCam/module_XIAO_ESP32-S3-cam.h`. There is no board to select.
 
 ### Option A: Arduino IDE 2
 
@@ -823,7 +811,14 @@ cd webpage && bash webpage_h_generator.sh
 ```
 
 When you change `SW_VERSION` in `mcu_cfg.h`, also change the `?v=` version in the `webpage/*.html`
-files (browser cache), regenerate `WebPage.h`, and rebuild `firmware/` **after** the version change.
+files (browser cache), regenerate `WebPage.h`, and build **after** the version change. Publish the
+four `.bin` files and their `SHA256SUMS.txt` as a GitHub release, the binaries are not kept in git.
+
+### Tests
+
+| Test | What it checks | How to run |
+|---|---|---|
+| `test/web/` | All web pages in headless Chromium with fake camera data: values shown, switches, Wi-Fi table, tabs, collapsible sections, no JavaScript errors | Install Playwright (see `test/web/run.sh`), then `PYTHON=<venv>/bin/python test/web/run.sh` |
 
 ---
 
@@ -847,11 +842,13 @@ files (browser cache), regenerate `WebPage.h`, and rebuild `firmware/` **after**
 | `ESP32_PrusaConnectCam/var.cpp`, `var.h` | Thermal guard state. (c7) Health state, restart reason in RTC memory |
 | `ESP32_PrusaConnectCam/ESP32_PrusaConnectCam.ino` | Photo task on core 1, load the PrusaLink configuration |
 | `ESP32_PrusaConnectCam/Certificate_ota.h`, cloud update code | **Removed** (c7) |
+| `module_*.h` of the other boards, `module_templates.h`, `jquery.h`, LED flash and light code, unused photo copy functions, `gtac`/`privacypolicy`/`cookies` pages, `fw_build.sh`, `doc/` of the other boards | **Removed** (c10). The 3 EEPROM bytes of the flash stay reserved, the settings after them keep their address |
 | `ESP32_PrusaConnectCam/ExternalTemperatureSensor*`, `libraries/DHTNEW`, `module_*.h` DHT pins, DHT wiring images in `doc/` | **Removed** (c9). The EEPROM bytes of the sensor stay reserved, the settings after them keep their address |
 | `webpage/*`, `ESP32_PrusaConnectCam/WebPage.h` | Interval list, PrusaLink section, sensor and autofocus, Health section, firmware update from file, versioned CSS and JS. (c9) Temperature page removed |
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
-| `firmware/xiao-esp32-s3/` | **New**: compiled firmware |
+| `firmware/` | Compiled firmware of c1–c9. **Removed** (c10): the binaries are in the GitHub releases |
+| `test/web/` | **New** (c10): browser test of the web pages |
 
 To see every change line by line against the original:
 ```bash
@@ -873,6 +870,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c10 | Only the XIAO ESP32-S3 Sense: other boards, LED flash and light, jQuery (87 KB) and the Prusa legal pages removed. Fixed: the switches on the Camera, Wi-Fi and Authentication pages always showed "on" (bug of the original page). The Wi-Fi scan table shows network names as text. Binaries moved to GitHub releases, `doc/` reduced from 231 MB to 8 MB |
 | 1.1.2-c9 | External DHT22/DHT11 temperature sensor removed (code, Temperature page, `/get_temp`, `/get_hum`, DHTNEW library, wiring docs). The Core One has its own chamber temperature sensor |
 
 ---
@@ -890,30 +888,6 @@ git merge upstream/master
 
 If there are conflicts in the files changed by this fork, resolve them keeping the fixes described
 above.
-
----
-
-<a name="other-boards"></a>
-## Other boards
-
-The original project supports several ESP32 camera boards. Their configuration is still in the
-code (`module_*.h`, selected in `mcu_cfg.h`), and their original documentation is in `doc/`:
-
-| Board | Original documentation |
-|---|---|
-| Ai-Thinker ESP32-cam | [doc/AI_Thinker-ESP32-cam](doc/AI_Thinker-ESP32-cam/README.md) |
-| ESP32-S3-EYE 2.2 | [doc/ESP32-S3-EYE-22](doc/ESP32-S3-EYE-22/README.md) |
-| Freenove ESP32-Wrover cam | [doc/ESP32-Wrover-dev](doc/ESP32-Wrover-dev/README.md) |
-| Freenove ESP32-S3-Wroom | [doc/Freenove ESP32-S3-Wroom](doc/Freenove%20ESP32-S3-Wroom/README.md) |
-| ESP32-S3-DEV-CAM | [doc/ESP32-S3-DEV-CAM](doc/ESP32-S3-DEV-CAM/README.md) |
-| ESP32-S3-CAM | [doc/ESP32-S3-CAM](doc/ESP32-S3-CAM/README.md) |
-| Seeed Studio XIAO ESP32S3 | [doc/XIAO_ESP32S3](doc/XIAO_ESP32S3/README.md) |
-
-**This fork is built and checked only for the XIAO ESP32-S3 Sense.** The other boards may compile
-with their own `mcu_cfg.h` selection and Arduino settings, but they are not tested, and their
-documentation describes the original firmware (for example the cloud update, which no longer
-exists here). For those boards, the [original project](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam)
-is the better choice.
 
 ---
 
