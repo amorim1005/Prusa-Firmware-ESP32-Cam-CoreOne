@@ -501,3 +501,18 @@ input:checked+.checkbox_slider:before {
     background-color: #FA6831;
     color: white;
 }
+
+/* confirmation after a setting is saved */
+.save_status {
+	display: none;
+	position: fixed;
+	bottom: 24px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 8px 16px;
+	border-radius: 4px;
+	color: #ffffff;
+	font-size: 14px;
+	line-height: 18px;
+	z-index: 1000;
+}

@@ -62,7 +62,8 @@ void setup() {
   /* Init EEPROM */
   EEPROM.begin(EEPROM_SIZE);
 
-  /* init system led */
+  /* init system led, the mode is read before the log and the cfg module, like the log level */
+  system_led.setMode(EEPROM.read(EEPROM_ADDR_STATUS_LED_MODE_START));
   system_led.init();
 
   /* init micro SD card and logs */

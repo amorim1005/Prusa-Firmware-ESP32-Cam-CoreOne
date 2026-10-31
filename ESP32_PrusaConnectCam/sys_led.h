@@ -22,6 +22,7 @@ class sys_led {
     uint8_t pin;            ///< pin number for system LED
     uint32_t time;          ///< speed blinking time system LED
     uint32_t ledOnDuration; ///< duration of LED on
+    uint8_t mode;           ///< STATUS_LED_MODE_xxx
     Logs *log;              ///< pointer to log class
 
   public:
@@ -35,6 +36,9 @@ class sys_led {
     bool get();
     void setTimer(uint32_t);
     uint32_t getTimer();
+    void setMode(uint8_t);
+    uint8_t getMode();
+    bool blinkAllowed();
 };
 
 extern sys_led system_led;

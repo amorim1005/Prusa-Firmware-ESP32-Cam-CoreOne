@@ -15,7 +15,7 @@
 /* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c11"               ///< SW version
+#define SW_VERSION                  "1.1.2-c12"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -37,6 +37,7 @@
 #define CAMERA_XCLK_OV3660          20000000                ///< XCLK for the OV3660 [Hz], Espressif reference value
 #define CAMERA_XCLK_OV5640          20000000                ///< XCLK for the OV5640 [Hz], Espressif reference value
 #define CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE FRAMESIZE_UXGA  ///< maximum frame size on the WEB page when the sensor is not detected
+#define CAMERA_MIN_FRAMESIZE_INDEX  4                       ///< smallest frame size index offered, 4 = 1024x768. Smaller ones are too small for Prusa Connect
 #define CAMERA_SENSOR_UNKNOWN       0                       ///< saved sensor code: not detected yet
 #define CAMERA_SENSOR_OV2640        1                       ///< saved sensor code: OV2640
 #define CAMERA_SENSOR_OV3660        2                       ///< saved sensor code: OV3660
@@ -92,6 +93,9 @@
 #define STATUS_LED_STA_CONNECTING   800                     ///< time for blink status LED when is module connecting to the WiFi network [ms]
 #define STATUS_LED_STA_CONNECTED    4000                    ///< time for blink status LED when is module connected to the WiFi network [ms]
 #define STATUS_LED_ERROR            100                     ///< time for blink status LED when is module in the error state [ms]
+#define STATUS_LED_MODE_ON          0                       ///< status LED mode: always blinks
+#define STATUS_LED_MODE_ERRORS      1                       ///< status LED mode: dark while connected to the Wi-Fi network, blinks in the AP mode, while connecting and on an error
+#define STATUS_LED_MODE_OFF         2                       ///< status LED mode: always dark. The factory reset still blinks it
 
 /* ------------------- TASKS --------------------*/
 #define TASK_SYSTEM                 1000                    ///< system task interval [ms]
@@ -127,7 +131,6 @@
 #define STA_AP_MODE_TIMEOUT         300000                  ///< how long is AP enable after start, when is module in the STA mode [ms]
 #define SERVICE_WIFI_SSID_UID       true                    ///< enable/disable added UID to service SSID name
 #define SERVICE_WIFI_SSID           F("ESP32_camera")       ///< service WI-FI SSID name. Maximum length SERVICE_WIFI_SSID + UID = 32
-#define SERVICE_WIFI_PASS           F("12345678")           ///< service WI-FI password
 #define SERVICE_WIFI_CHANNEL        10                      ///< service WI-FI channel
 #define SERVICE_LOCAL_IP            F("192.168.0.1")        ///< service WI-FI module IP address
 #define SERVICE_LOCAL_GATEWAY       F("192.168.0.1")        ///< service WI-FI module gateway
@@ -161,7 +164,7 @@
 /* ---------------- FACTORY CFG  ----------------*/
 #define FACTORY_CFG_PHOTO_REFRESH_INTERVAL    30                ///< in the second
 #define FACTORY_CFG_PHOTO_QUALITY             12                ///< 10-63, lower is better
-#define FACTORY_CFG_FRAME_SIZE                4                 ///< 0 - FRAMESIZE_QVGA, ..., 4 - FRAMESIZE_XGA, 6 - FRAMESIZE_UXGA, 10 - FRAMESIZE_5MP. Look at Camera::TransformFrameSizeDataType
+#define FACTORY_CFG_FRAME_SIZE                4                 ///< 4 - FRAMESIZE_XGA, 6 - FRAMESIZE_UXGA, 10 - FRAMESIZE_5MP, at least CAMERA_MIN_FRAMESIZE_INDEX. Look at Camera::TransformFrameSizeDataType
 #define FACTORY_CFG_BRIGHTNESS                0                 ///< from -2 to 2
 #define FACTORY_CFG_CONTRAST                  0                 ///< from -2 to 2
 #define FACTORY_CFG_SATURATION                0                 ///< from -2 to 2
@@ -197,6 +200,7 @@
 #define FACTORY_CFG_PRUSALINK_HOST            F("")             ///< PrusaLink printer IP address or hostname
 #define FACTORY_CFG_PRUSALINK_USER            F(PRUSALINK_DEFAULT_USER) ///< PrusaLink user name
 #define FACTORY_CFG_PRUSALINK_PASSWORD        F("")             ///< PrusaLink password
+#define FACTORY_CFG_STATUS_LED_MODE           STATUS_LED_MODE_ON ///< STATUS_LED_MODE_xxx
 
 /* ---------------- CFG FLAGS  ------------------*/
 #define CFG_WIFI_SETTINGS_SAVED               0x0A              ///< flag saved config
@@ -355,6 +359,9 @@
 #define EEPROM_ADDR_UNPLANNED_RESTARTS_START      (EEPROM_ADDR_CAMERA_SENSOR_START + EEPROM_ADDR_CAMERA_SENSOR_LENGTH)
 #define EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH     2                                                                                       ///< count of unplanned restarts
 
+#define EEPROM_ADDR_STATUS_LED_MODE_START         (EEPROM_ADDR_UNPLANNED_RESTARTS_START + EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH)
+#define EEPROM_ADDR_STATUS_LED_MODE_LENGTH        1                                                                                       ///< status LED mode, STATUS_LED_MODE_xxx
+
 #define EEPROM_SIZE (EEPROM_ADDR_REFRESH_INTERVAL_LENGTH + EEPROM_ADDR_FINGERPRINT_LENGTH + EEPROM_ADDR_TOKEN_LENGTH + \
                      EEPROM_ADDR_FRAMESIZE_LENGTH + EEPROM_ADDR_BRIGHTNESS_LENGTH + EEPROM_ADDR_CONTRAST_LENGTH + \
                      EEPROM_ADDR_SATURATION_LENGTH + EEPROM_ADDR_HMIRROR_LENGTH + EEPROM_ADDR_VFLIP_LENGTH + \
@@ -373,7 +380,7 @@
                      EEPROM_ADDR_RESERVED_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH + EEPROM_ADDR_PRUSALINK_HOST_LENGTH + EEPROM_ADDR_PRUSALINK_USER_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH + EEPROM_ADDR_CAMERA_SENSOR_LENGTH + \
-                     EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH)    ///< how many bits do we need for eeprom memory
+                     EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH + EEPROM_ADDR_STATUS_LED_MODE_LENGTH)    ///< how many bits do we need for eeprom memory
 
 #endif
 

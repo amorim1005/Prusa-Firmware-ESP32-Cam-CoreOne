@@ -23,6 +23,7 @@ sys_led::sys_led(uint8_t i_pin, uint32_t i_on_duration) {
   pin = i_pin;
   time = 100;
   ledOnDuration = i_on_duration;
+  mode = STATUS_LED_MODE_ON;
 }
 
 /**
@@ -37,6 +38,7 @@ sys_led::sys_led(uint8_t i_pin, uint32_t i_on_duration, Logs *i_log) {
   time = 100;
   log = i_log;
   ledOnDuration = i_on_duration;
+  mode = STATUS_LED_MODE_ON;
 }
 
 /**
@@ -45,7 +47,8 @@ sys_led::sys_led(uint8_t i_pin, uint32_t i_on_duration, Logs *i_log) {
  */
 void sys_led::init() {
   pinMode(pin, OUTPUT);
-  digitalWrite(pin, STATUS_LED_OFF_PIN_LEVEL);
+  /* STATUS_LED_OFF_PIN_LEVEL lights the XIAO LED (active low), the inverted level keeps it dark */
+  digitalWrite(pin, (STATUS_LED_MODE_OFF == mode) ? !STATUS_LED_OFF_PIN_LEVEL : STATUS_LED_OFF_PIN_LEVEL);
 }
 
 /**
@@ -53,6 +56,10 @@ void sys_led::init() {
  * 
  */
 void sys_led::toggle() {
+  if (false == blinkAllowed()) {
+    digitalWrite(pin, !STATUS_LED_OFF_PIN_LEVEL);
+    return;
+  }
   digitalWrite(pin, !digitalRead(pin));
 }
 
@@ -98,6 +105,40 @@ uint32_t sys_led::getTimer() {
   }
 
   return tmp;
+}
+
+/**
+ * @brief Set the status LED mode
+ * 
+ * @param uint8_t - STATUS_LED_MODE_xxx, an unknown value means STATUS_LED_MODE_ON
+ */
+void sys_led::setMode(uint8_t i_mode) {
+  mode = (i_mode > STATUS_LED_MODE_OFF) ? STATUS_LED_MODE_ON : i_mode;
+}
+
+/**
+ * @brief Get the status LED mode
+ * 
+ * @return uint8_t - STATUS_LED_MODE_xxx
+ */
+uint8_t sys_led::getMode() {
+  return mode;
+}
+
+/**
+ * @brief Check if the LED may blink in the current mode and state
+ * 
+ * @return bool - true when the LED may blink
+ */
+bool sys_led::blinkAllowed() {
+  if (STATUS_LED_MODE_OFF == mode) {
+    return false;
+  }
+  if (STATUS_LED_MODE_ERRORS == mode) {
+    /* connected to the Wi-Fi network: nothing to report */
+    return (STATUS_LED_STA_CONNECTED != time);
+  }
+  return true;
 }
 
 /* EOF */

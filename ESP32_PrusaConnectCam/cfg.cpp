@@ -176,6 +176,7 @@ void Configuration::DefaultCfg() {
   SavePrusaLinkUser(FACTORY_CFG_PRUSALINK_USER);
   SavePrusaLinkPassword(FACTORY_CFG_PRUSALINK_PASSWORD);
   SaveUnplannedRestarts(0);
+  SaveStatusLedMode(FACTORY_CFG_STATUS_LED_MODE);
   Log->AddEvent(LogLevel_Warning, F("+++++++++++++++++++++++++++"));
 }
 
@@ -896,6 +897,16 @@ void Configuration::SaveUnplannedRestarts(uint16_t i_data) {
 }
 
 /**
+   @info save the status LED mode
+   @param uint8_t - STATUS_LED_MODE_xxx
+   @return none
+*/
+void Configuration::SaveStatusLedMode(uint8_t i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save status LED mode: "), String(i_data));
+  SaveUint8(EEPROM_ADDR_STATUS_LED_MODE_START, i_data);
+}
+
+/**
    @info load refresh interval from eeprom 
    @param none
    @return uint16_t - refresh interval [s]. Always one of the Camera Service trigger schemes 10 s, 30 s, 60 s, 10 min
@@ -1470,6 +1481,20 @@ uint16_t Configuration::LoadUnplannedRestarts() {
   uint16_t ret = LoadUint16(EEPROM_ADDR_UNPLANNED_RESTARTS_START);
   if (0xFFFF == ret) {
     ret = 0;
+  }
+
+  return ret;
+}
+
+/**
+ * @brief Load the status LED mode. After a firmware upgrade the EEPROM cell is 0xFF, it means STATUS_LED_MODE_ON
+ *
+ * @return uint8_t - STATUS_LED_MODE_xxx
+ */
+uint8_t Configuration::LoadStatusLedMode() {
+  uint8_t ret = EEPROM.read(EEPROM_ADDR_STATUS_LED_MODE_START);
+  if (ret > STATUS_LED_MODE_OFF) {
+    ret = STATUS_LED_MODE_ON;
   }
 
   return ret;

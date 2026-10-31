@@ -27,8 +27,8 @@ STATUS = {
     "wifi_mode": "STA", "service_ap_ssid": "ESP32_camera_X", "sd_status": "Card detected", "sd_total": 1000,
     "sd_free_p": 70, "sd_used_p": 30, "mcu_temp": "55 *C", "health_status": "OK", "upload_ok": 12,
     "upload_failed": 1, "unplanned_restarts": 0, "last_restart": "Power on", "mcu_temp_max": "60 *C",
-    "mem_internal": "100 KB", "mem_psram": "7000 KB", "log_level": 2,
-    "framesize_supported": "3,4,5,6,9,10", "last_photo_size": 150000, "last_photo_framesize": 4,
+    "mem_internal": "100 KB", "mem_psram": "7000 KB", "log_level": 2, "status_led": 1,
+    "framesize_supported": "4,5,6,9,10", "last_photo_size": 150000, "last_photo_framesize": 4,
     "last_photo_quality": 12, "photo_max_size": 1000000, "photoquality": 61,
 }
 WIFI = [{"ssid": "HomeNet", "rssi": -55, "rssi_percentage": 80, "channel": 6, "encryption": "WPA2"},
@@ -66,6 +66,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             STATUS['framesize'] = int(query['framesize'][0])
         if path == 'set_int' and 'photo_quality' in query:
             STATUS['photoquality'] = int(query['photo_quality'][0])
+        if path == 'set_int' and 'fail' in query:
+            return self.send('Save cfg NOT OK!')
         return self.send('OK')   # set_* routes
 
 
@@ -111,6 +113,9 @@ with sync_playwright() as p:
     check(page.is_checked('#vflipid') and not page.is_checked('#hmirrorid') and not page.is_checked('#bpcid'), 'switches follow "true"/"false" (bug of the original page)')
     hidden = page.eval_on_selector('#framesizeid', "s => Array.from(s.options).filter(o => o.hidden).length")
     check(hidden > 0, 'unsupported resolutions hidden')
+    smallest = page.eval_on_selector('#framesizeid', "s => Math.min.apply(null, Array.from(s.options).map(o => parseInt(o.value)))")
+    check(smallest == 4, 'smallest resolution is 1024x768 (index 4): %s' % smallest)
+    check('modified by' in page.inner_text('body') and 'amorim1005' in page.inner_text('body'), 'footer: modified by amorim1005')
     check(page.query_selector('#ledid') is None and page.query_selector('#flashid') is None, 'no LED / flash controls')
     check(page.query_selector('#light-icon') is None, 'no light button')
     check('active' in (page.get_attribute('a[href="page_config.html"]', 'class') or ''), 'Camera tab active')
@@ -155,6 +160,9 @@ with sync_playwright() as p:
     page.click('#hmirrorid + .checkbox_slider')
     page.wait_for_timeout(300)
     check(any(r.startswith('/set_bool?hmirror=true') for r in requests_seen), 'switch sends set_bool?hmirror=true')
+    check(page.is_visible('#save_status') and page.inner_text('#save_status') == 'Saved \u2714', 'saved confirmation: %s' % page.inner_text('#save_status'))
+    page.wait_for_function("document.getElementById('save_status').style.display == 'none'", timeout=4000)
+    check(True, 'saved confirmation hides itself')
 
     print('Wi-Fi page')
     page.click('a[href="page_wifi.html"]')
@@ -171,6 +179,9 @@ with sync_playwright() as p:
     page.click('a[href="page_auth.html"]')
     page.wait_for_function("document.getElementById('auth_username') && document.getElementById('auth_username').value == 'admin'")
     check(True, 'auth page filled')
+    page.fill('#auth_password', 'secret')
+    page.fill('#auth_password_confirm', 'secret')
+    check(page.inner_text('#pass_match').startswith('\u2714'), 'password match mark is a check mark, not broken characters: %r' % page.inner_text('#pass_match'))
 
     print('System page')
     page.click('a[href="page_system.html"]')
@@ -178,6 +189,13 @@ with sync_playwright() as p:
     check(page.inner_text('#health_status') == 'OK', 'health status')
     check(page.inner_text('#sw_ver') == '1.1.2-c10', 'version')
     check(page.eval_on_selector('#progress_bar_sd_used', 'e => e.style.width') == '30%', 'SD progress bar')
+    check(page.input_value('#status_ledid') == '1', 'status LED mode shown')
+    requests_seen.clear()
+    page.select_option('#status_ledid', '2')
+    page.wait_for_timeout(300)
+    check(any(r.startswith('/set_int?status_led=2') for r in requests_seen), 'status LED mode sends set_int?status_led=2')
+    page.evaluate("changeValue(1, 'set_int?fail=', 'system')")
+    check(page.inner_text('#save_status') == 'Not saved \u2716', 'not saved message: %s' % page.inner_text('#save_status'))
 
     print('licence page (footer)')
     page.click('a.page-link')

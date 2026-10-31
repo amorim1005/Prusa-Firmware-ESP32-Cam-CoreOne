@@ -130,7 +130,7 @@ void Server_InitWebServer_WebPages() {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get scripts.js"));
     if (Server_CheckBasicAuth(request) == false)
       return;
-    Server_handleCacheRequest(request, "application/javascript", scripts_js);
+    Server_handleCacheRequest(request, "application/javascript; charset=utf-8", scripts_js);
   });
 
 
@@ -465,6 +465,20 @@ void Server_InitWebServer_Sets() {
       SystemCamera.SetCameraImageRotation(request->getParam("image_rotation")->value().toInt());
       Connect.UpdateDeviceInformation();
       response_msg = MSG_SAVE_OK;
+      response = true;
+    }
+
+    /* set status LED mode /set_int?status_led=1 */
+    if (request->hasParam("status_led")) {
+      SystemLog.AddEvent(LogLevel_Verbose, F("Set status_led"));
+      uint8_t mode = request->getParam("status_led")->value().toInt();
+      if (mode <= STATUS_LED_MODE_OFF) {
+        SystemConfig.SaveStatusLedMode(mode);
+        system_led.setMode(mode);
+        response_msg = MSG_SAVE_OK;
+      } else {
+        response_msg = MSG_SAVE_NOTOK;
+      }
       response = true;
     }
 
@@ -1051,9 +1065,9 @@ String Server_GetJsonData() {
   doc_json["refreshInterval"] = String(Connect.GetRefreshInterval());
   doc_json["photoquality"] = String(73 - SystemCamera.GetPhotoQuality());
   doc_json["framesize"] = String(SystemCamera.GetFrameSize());
-  doc_json["last_photo_size"] = Connect.GetLastPhotoSize();
-  doc_json["last_photo_framesize"] = Connect.GetLastPhotoFrameSize();
-  doc_json["last_photo_quality"] = Connect.GetLastPhotoQuality();
+  doc_json["last_photo_size"] = SystemCamera.GetLastPhotoSize();
+  doc_json["last_photo_framesize"] = SystemCamera.GetLastPhotoFrameSize();
+  doc_json["last_photo_quality"] = SystemCamera.GetLastPhotoQuality();
   doc_json["photo_max_size"] = CAMERA_SERVICE_SNAPSHOT_MAX_SIZE;
   doc_json["framesize_supported"] = SystemCamera.GetSupportedFrameSizes();
   doc_json["camera_detected"] = SystemCamera.GetDetectedSensorName();
@@ -1091,6 +1105,7 @@ String Server_GetJsonData() {
   doc_json["last_upload_status"] = Connect.GetBackendReceivedStatus();
   doc_json["wifi_network_status"] = SystemWifiMngt.GetStaStatus();
   doc_json["log_level"] = String(SystemLog.GetLogLevel());
+  doc_json["status_led"] = String(system_led.getMode());
   doc_json["uptime"] = uptime;
   doc_json["user_name"] = WebBasicAuth.UserName;
   doc_json["hostname"] = Connect.GetPrusaConnectHostname();

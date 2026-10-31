@@ -78,6 +78,9 @@ private:
   uint32_t StreamLatestTime;                ///< time of the latest frame [ms]
   volatile uint32_t StreamFrameSeq;         ///< sequence number of the latest frame
   volatile uint8_t StreamClients;           ///< count of connected stream clients
+  uint32_t LastPhotoSize;                   ///< size of the last photo that left the camera [B], 0 = no photo yet. The WEB page estimates the photo size from it
+  uint8_t LastPhotoFrameSize;               ///< resolution of the last photo, index of the WEB page list
+  uint8_t LastPhotoQuality;                 ///< JPEG quality of the last photo, 10-63, lower is better
   SemaphoreHandle_t streamMutex;            ///< mutex for the stream buffer state (short operations only)
   TaskHandle_t StreamTask;                  ///< stream capture task
   SemaphoreHandle_t frameBufferSemaphore;   ///< semaphore for frame buffer
@@ -161,6 +164,9 @@ public:
 
   uint8_t GetPhotoQuality();
   uint8_t GetFrameSize();
+  uint32_t GetLastPhotoSize();
+  uint8_t GetLastPhotoFrameSize();
+  uint8_t GetLastPhotoQuality();
   uint16_t GetFrameSizeWidth();
   uint16_t GetFrameSizeHeight();
   int8_t GetBrightness();

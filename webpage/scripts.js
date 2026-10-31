@@ -146,6 +146,7 @@ function get_data(val) {
 
 			document.getElementById('mdnsid').value = obj.mdns;
 			document.getElementById('loglevelid').value = obj.log_level;
+			document.getElementById('status_ledid').value = obj.status_led;
 		}
 	}).catch(function(error) {
 		console.log("json timeout or error: " + error);
@@ -214,6 +215,13 @@ function updatePhotoSizeEstimate() {
 		estimateText.style.color = "#2e7d32";
 		warningText.style.color = "";
 		warningText.textContent = "";
+	}
+}
+
+/* the photo was read from the camera: its real size is the new base of the estimate, when the Camera page is open */
+function photoLoaded() {
+	if (document.getElementById('photo_size_estimate')) {
+		get_data("config");
 	}
 }
 
@@ -407,8 +415,29 @@ function changeValue(val, url, reload, msg) {
 	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
 		xmlHttp.responseText.startsWith("ERROR")) {
 		alert(xmlHttp.responseText);
+	} else if ((xmlHttp.status == 200) && (xmlHttp.responseText.indexOf("NOT OK") < 0)) {
+		showSaveStatus(true);
+	} else {
+		showSaveStatus(false);
 	}
 	get_data(reload);
+}
+
+/* short confirmation after a setting is saved, the settings are saved on every change without a Save button */
+var SaveStatusTimer = null;
+function showSaveStatus(ok) {
+	var toast = document.getElementById('save_status');
+	if (!toast) {
+		toast = document.createElement('div');
+		toast.id = 'save_status';
+		toast.className = 'save_status';
+		document.body.appendChild(toast);
+	}
+	toast.innerHTML = ok ? "Saved &#10004;" : "Not saved &#10006;";
+	toast.style.backgroundColor = ok ? "#2e7d32" : "#d32f2f";
+	toast.style.display = "block";
+	clearTimeout(SaveStatusTimer);
+	SaveStatusTimer = setTimeout(function() { toast.style.display = "none"; }, 2000);
 }
 
 function togglePasswordVisibility() {

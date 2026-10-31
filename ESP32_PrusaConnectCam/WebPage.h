@@ -24,10 +24,11 @@
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html lang="en">
 <head>
+	<meta charset="utf-8">
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c11">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c12">
 </head>
 <body>
     <nav>
@@ -45,7 +46,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<section class="container">
 		<div  class="container_left-half">
 			<article>
-				<img src="saved-photo.jpg" id="photo"  width="60%" onclick="openImage()"/>
+				<img src="saved-photo.jpg" id="photo"  width="60%" onclick="openImage()" onload="photoLoaded()"/>
 			</article>
 		</div>
 		<div class="container_right-half">
@@ -75,12 +76,12 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<br><br><br><br>
 	<table id=botton><tr>
 		<td><p class=p2>Prusa Connect ESP32 cam</p> </td>
-		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> </td>
+		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> <p class=p3>and modified by</p> <p class=p2>amorim1005</p> </td>
 		<td><a href="license.html" class="p3 page-link">Licence</a></td>
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c11"></script>
+	<script src="scripts.js?v=1.1.2-c12"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -127,7 +128,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c11");</style>
+<style>@import url("styles.css?v=1.1.2-c12");</style>
 <body>
 	<center>
 		<table>
@@ -140,7 +141,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c11"></script>
+<script src="scripts.js?v=1.1.2-c12"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -151,7 +152,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c11");</style>
+<style>@import url("styles.css?v=1.1.2-c12");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -220,7 +221,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c11"></script>
+<script src="scripts.js?v=1.1.2-c12"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -230,7 +231,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c11");</style>
+<style>@import url("styles.css?v=1.1.2-c12");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -253,10 +254,6 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
-					<option value="0">320x240</option>
-					<option value="1">400x296</option>
-					<option value="2">640x480</option>
-					<option value="3">800x600</option>
 					<option value="4">1024x768</option>
 					<option value="7">1280x720 (16:9)</option>
 					<option value="5">1280x1024</option>
@@ -334,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c11"></script>
+<script src="scripts.js?v=1.1.2-c12"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -344,7 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c11");</style>
+<style>@import url("styles.css?v=1.1.2-c12");</style>
 <body>
 	<center>
         <table id="data">
@@ -381,6 +378,15 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 				</select>
 			   </td>
 		   </tr>
+		   <tr>
+			    <td class="pc1">Status LED</td><td><label for="status_led"></label>
+				<select class="select" id="status_ledid" name="status_led" onchange="changeValue(this.value, 'set_int?status_led=', 'system')">
+					<option value="0">On</option>
+					<option value="1">Errors only</option>
+					<option value="2">Off</option>
+				</select>
+			   </td>
+		   </tr>
 		   <tr><td class="pc1">Get logs</td><td ><button class="btn_update" onclick="window.open('get_logs')">Get logs</button></td></tr>
 		   <tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 		   <tr><td class="ps3">Micro SD card</td><td></td></tr>
@@ -402,7 +408,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c11"></script>
+<script src="scripts.js?v=1.1.2-c12"></script>
 <script>
 	get_data("system");
 </script>
@@ -913,6 +919,21 @@ input:checked+.checkbox_slider:before {
     background-color: #FA6831;
     color: white;
 }
+
+/* confirmation after a setting is saved */
+.save_status {
+	display: none;
+	position: fixed;
+	bottom: 24px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 8px 16px;
+	border-radius: 4px;
+	color: #ffffff;
+	font-size: 14px;
+	line-height: 18px;
+	z-index: 1000;
+}
 )rawliteral";
 
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -1065,6 +1086,7 @@ function get_data(val) {
 
 			document.getElementById('mdnsid').value = obj.mdns;
 			document.getElementById('loglevelid').value = obj.log_level;
+			document.getElementById('status_ledid').value = obj.status_led;
 		}
 	}).catch(function(error) {
 		console.log("json timeout or error: " + error);
@@ -1133,6 +1155,13 @@ function updatePhotoSizeEstimate() {
 		estimateText.style.color = "#2e7d32";
 		warningText.style.color = "";
 		warningText.textContent = "";
+	}
+}
+
+/* the photo was read from the camera: its real size is the new base of the estimate, when the Camera page is open */
+function photoLoaded() {
+	if (document.getElementById('photo_size_estimate')) {
+		get_data("config");
 	}
 }
 
@@ -1326,8 +1355,29 @@ function changeValue(val, url, reload, msg) {
 	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
 		xmlHttp.responseText.startsWith("ERROR")) {
 		alert(xmlHttp.responseText);
+	} else if ((xmlHttp.status == 200) && (xmlHttp.responseText.indexOf("NOT OK") < 0)) {
+		showSaveStatus(true);
+	} else {
+		showSaveStatus(false);
 	}
 	get_data(reload);
+}
+
+/* short confirmation after a setting is saved, the settings are saved on every change without a Save button */
+var SaveStatusTimer = null;
+function showSaveStatus(ok) {
+	var toast = document.getElementById('save_status');
+	if (!toast) {
+		toast = document.createElement('div');
+		toast.id = 'save_status';
+		toast.className = 'save_status';
+		document.body.appendChild(toast);
+	}
+	toast.innerHTML = ok ? "Saved &#10004;" : "Not saved &#10006;";
+	toast.style.backgroundColor = ok ? "#2e7d32" : "#d32f2f";
+	toast.style.display = "block";
+	clearTimeout(SaveStatusTimer);
+	SaveStatusTimer = setTimeout(function() { toast.style.display = "none"; }, 2000);
 }
 
 function togglePasswordVisibility() {
@@ -1434,9 +1484,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c11");</style>
+<style>@import url("styles.css?v=1.1.2-c12");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c11"></script>
+<script src="scripts.js?v=1.1.2-c12"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');

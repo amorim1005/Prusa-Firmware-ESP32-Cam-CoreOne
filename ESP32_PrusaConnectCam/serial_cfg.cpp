@@ -113,9 +113,8 @@ String lastTwoChars = command.substring(command.length() - 2);
   } else if (command.startsWith("resolution:") && command.endsWith(";")) {
     uint8_t resolution = command.substring(11, command.length() -1).toInt();
     log->AddEvent(LogLevel_Info, F("--> Console set photo resolution: "), String(resolution));
-    if ((resolution >= 0) && (resolution <= 6)) {
-      cam->SetFrameSize(resolution);
-    } else {
+    /* SetFrameSize checks the index against the offered frame sizes and the sensor maximum */
+    if (false == cam->SetFrameSize(resolution)) {
       log->AddEvent(LogLevel_Warning, F("--> Bad resolution size!"));
     }
   } else if (command.startsWith("photoquality:") && command.endsWith(";")) {
@@ -169,13 +168,13 @@ void SerialCfg::PrintAvailableCommands() {
   Serial.println(F("getserviceapssid;       - get service WiFi AP SSID"));
   Serial.println(F("resolution:INDEX;       - set photo resolution"));
   Serial.println(F(" |   Index - Resolution"));
-  Serial.println(F(" |->   0   - 320x240"));
-  Serial.println(F(" |->   1   - 352x288"));
-  Serial.println(F(" |->   2   - 640x480"));
-  Serial.println(F(" |->   3   - 800x600"));
   Serial.println(F(" |->   4   - 1024x768"));
   Serial.println(F(" |->   5   - 1280x1024"));
   Serial.println(F(" |->   6   - 1600x1200"));
+  Serial.println(F(" |->   7   - 1280x720"));
+  Serial.println(F(" |->   8   - 1920x1080"));
+  Serial.println(F(" |->   9   - 2048x1536 (OV3660, OV5640)"));
+  Serial.println(F(" |->  10   - 2592x1944 (OV5640)"));
   Serial.println(F("photoquality:QUALITY;   - set photo quality. 10-63 lower number means higher quality "));
   Serial.println(F("loglevel:LEVEL;         - set log level. 0=Error, 1=Warning, 2=Info, 3=Verbose"));
   Serial.println(F("mcureboot;              - reboot MCU"));

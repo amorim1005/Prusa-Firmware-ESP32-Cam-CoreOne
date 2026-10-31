@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c11** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c12** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
@@ -71,7 +71,7 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 
 1. Download `ESP32_PrusaConnectCam.ino.merged.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest) and flash it
    at address 0x0 from the browser ([how to flash](#flash)).
-2. Connect to the Wi-Fi network `ESP32_camera_...` (password `12345678`), open
+2. Connect to the Wi-Fi network `ESP32_camera_...` (open network, no password), open
    <http://192.168.0.1> and set up your Wi-Fi.
 3. Create the camera in Prusa Connect and paste its token on the **Camera** page
    **within 15 minutes** ([first setup](#first-setup)).
@@ -177,7 +177,7 @@ button.
 > Connect. This way you do not risk missing the token's 15-minute window.
 
 1. After flashing, the camera creates a Wi-Fi network **`ESP32_camera_` followed by numbers**
-   (the first numbers of the chip ID), password `12345678`. Your computer may complain about
+   (the first numbers of the chip ID). It is an open network, without a password. Your computer may complain about
    "No Internet" on that network: that is normal.
 2. Connect to that network and open <http://192.168.0.1> (or `http://prusa-esp32cam.local`).
 3. **Wi-Fi** page: choose your network, enter the password and press **Save & Connect**. The
@@ -205,10 +205,10 @@ lens, which makes the image blurry.
 | Page | What you find there |
 |---|---|
 | Main page | Latest photo, live stream, current upload interval (it already includes the backoff, PrusaLink and the thermal guard) |
-| **Camera** | Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, detected sensor, autofocus state, PrusaLink |
+| **Camera** | Every change is saved at once (a short *Saved ✔* confirms it); only the text fields have a Save button. Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, detected sensor, autofocus state, PrusaLink |
 | **Wi-Fi** | Network, static IP, service AP on/off |
 | **Authentication** | Login for the web page and the stream |
-| **System** | Prusa Connect status, uptime, temperature, [Health](#health-checks) section, camera name (mDNS), log level and logs, micro SD card, [firmware update from file](#firmware-update) |
+| **System** | Prusa Connect status, uptime, temperature, [Health](#health-checks) section, camera name (mDNS), log level and logs, status LED, micro SD card, [firmware update from file](#firmware-update) |
 
 Error messages explain what to do, for example a 403 from Prusa Connect explains the
 15-minute window.
@@ -301,7 +301,9 @@ module, the new sensor is detected and saved.
 
 **What the firmware does for each sensor:**
 - **Resolutions:** the Camera page shows only the resolutions the detected sensor supports. New
-  resolutions: 1280×720, 1920×1080, 2048×1536 and 2592×1944.
+  resolutions: 1280×720, 1920×1080, 2048×1536 and 2592×1944. The smallest resolution is
+  1024×768 (c12): 320×240 to 800×600 are too small to see the part in Prusa Connect. A camera
+  that had one of them saved switches to 1024×768.
 - **Safe start:** a saved resolution above the sensor maximum is lowered to the sensor maximum
   by the camera driver.
 - **Settings:** every sensor setting is applied only if the sensor driver implements it.
@@ -322,7 +324,9 @@ module, the new sensor is detected and saved.
   | Red | Over 1 MB, with the warning *this firmware only supports photos up to 1 MB*. Lower the resolution or the quality |
 
   After the first photo, the estimate scales the real size of the last photo (pixels × JPEG
-  quality factor), so it already includes your scene and light. Before the first photo it uses a
+  quality factor), so it already includes your scene and light. Every photo counts: upload,
+  **Refresh Snapshot**, SD card and stream (c12). A dark or plain scene gives small photos; the
+  same settings with the lit, detailed print chamber give larger ones. Before the first photo it uses a
   typical scene and a larger safety margin. Brightness, contrast and the other settings change the
   size only a little and are not part of the estimate.
 - Very high JPEG quality at high resolutions can make a photo larger than the frame buffer (the
@@ -354,9 +358,11 @@ hold the camera, put the wrench on the lens and turn it a few degrees at a time.
 ## Service AP, status LED and factory reset
 
 **Service AP.** After every start the camera opens its own Wi-Fi network **`ESP32_camera_UID`**
-(password `12345678`, IP **192.168.0.1**, or `http://prusa-esp32cam.local`), for the first setup.
+(open network without a password, IP **192.168.0.1**, or `http://prusa-esp32cam.local`), for the first setup.
 When a Wi-Fi network is configured, the camera also connects to it, and the service AP switches
 itself off **5 minutes** after the start if no device is connected to it (and no stream is open).
+Because the network is open, anyone near the camera can join it while it is on: enable the login
+(Authentication page) if that matters to you.
 You can switch the service AP off completely on the Wi-Fi page. If the service AP does not work for
 you, use the [serial console](#serial-console).
 
@@ -369,6 +375,11 @@ on, then blinks:
 | 800 ms | Connecting to Wi-Fi |
 | 4000 ms | Connected to Wi-Fi |
 | 100 ms | A problem |
+
+**System → Status LED** (c12) chooses when it blinks: **On** (as above), **Errors only** (dark while
+connected to Wi-Fi, it blinks only in the other states) or **Off** (always dark). The factory reset
+still blinks it. The red charge LED is controlled by the battery charger chip, not by the firmware:
+only tape or removing it makes it dark.
 
 The camera needs about 15–20 s to start.
 
@@ -413,7 +424,7 @@ the System page (Error, Warning, Info, Verbose). The token is never written to t
 | `getwifistastatus;` | Print the Wi-Fi status |
 | `getwifistaip;` | Print the IP address |
 | `getserviceapssid;` | Print the service AP name |
-| `resolution:INDEX;` | Set the photo resolution, index 0–6 (320×240 to 1600×1200). Higher resolutions: Camera page |
+| `resolution:INDEX;` | Set the photo resolution: 4 = 1024×768, 5 = 1280×1024, 6 = 1600×1200, 7 = 1280×720, 8 = 1920×1080, 9 = 2048×1536, 10 = 2592×1944 (only up to the sensor maximum) |
 | `photoquality:VALUE;` | Set the photo quality, 10–63 (lower = better) |
 | `loglevel:LEVEL;` | Log level: 0=Error, 1=Warning, 2=Info, 3=Verbose |
 
@@ -922,7 +933,7 @@ four `.bin` files and their `SHA256SUMS.txt` as a GitHub release, the binaries a
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
 | `firmware/` | Compiled firmware of c1–c9. **Removed** (c10): the binaries are in the GitHub releases |
-| `test/web/` | **New** (c10): browser test of the web pages. (c11) Photo size estimate |
+| `test/web/` | **New** (c10): browser test of the web pages. (c11) Photo size estimate. (c12) Smallest resolution, Saved confirmation, status LED, UTF-8 check mark, footer |
 
 To see every change line by line against the original:
 ```bash
@@ -944,6 +955,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c12 | The service AP is an open network, without a password. Resolutions from 1024×768 (320×240 to 800×600 removed). Status LED mode on the System page (On / Errors only / Off). *Saved ✔* confirmation after each change. The photo size estimate uses every photo, not only the uploads. Fixed: broken characters next to Confirm Password (the page did not declare UTF-8). Footer: modified by amorim1005 |
 | 1.1.2-c11 | Estimated photo size on the Camera page, with a warning above 1 MB |
 | 1.1.2-c10 | Only the XIAO ESP32-S3 Sense: other boards, LED flash and light, jQuery (87 KB) and the Prusa legal pages removed. Fixed: the switches on the Camera, Wi-Fi and Authentication pages always showed "on" (bug of the original page). The Wi-Fi scan table shows network names as text. Binaries moved to GitHub releases, `doc/` reduced from 231 MB to 8 MB |
 | 1.1.2-c9 | External DHT22/DHT11 temperature sensor removed (code, Temperature page, `/get_temp`, `/get_hum`, DHTNEW library, wiring docs). The Core One has its own chamber temperature sensor |

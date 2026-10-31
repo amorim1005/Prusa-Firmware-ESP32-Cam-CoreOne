@@ -42,6 +42,9 @@ Camera::Camera(Configuration* i_conf, Logs* i_log) {
   StreamFrameSeq = 0;
   StreamClients = 0;
   StreamTask = NULL;
+  LastPhotoSize = 0;
+  LastPhotoFrameSize = 0;
+  LastPhotoQuality = 0;
   FrameBuffer = NULL;
   CameraCaptureSuccess = false;
   sensor = NULL;
@@ -354,22 +357,22 @@ framesize_t Camera::TransformFrameSizeDataType(uint8_t i_data) {
   }
 
   log->AddEvent(LogLevel_Warning, F("Bad frame size. Set default value. "), String(i_data));
-  return FRAMESIZE_QVGA;
+  return FrameSizeTable[CAMERA_MIN_FRAMESIZE_INDEX];
 }
 
 /**
-   @brief Check if the detected sensor supports the frame size
+   @brief Check if the frame size is offered and the detected sensor supports it
    @param uint8_t - frame size index from web
    @return bool - true if supported
 */
 bool Camera::CheckFrameSizeSupported(uint8_t i_data) {
-  return ((i_data < FrameSizeTableCount) && (FrameSizeTable[i_data] <= SensorMaxFrameSize));
+  return ((i_data >= CAMERA_MIN_FRAMESIZE_INDEX) && (i_data < FrameSizeTableCount) && (FrameSizeTable[i_data] <= SensorMaxFrameSize));
 }
 
 /**
    @brief List of frame size indexes supported by the detected sensor, for the WEB page
    @param none
-   @return String - comma separated indexes, for example "0,1,2,3,4,5,6,7"
+   @return String - comma separated indexes, for example "4,5,6,7,8"
 */
 String Camera::GetSupportedFrameSizes() {
   String ret = "";
@@ -386,7 +389,8 @@ String Camera::GetSupportedFrameSizes() {
 }
 
 /**
-   @brief Limit the saved frame size to the maximum of the detected sensor, for example after a camera module change
+   @brief Limit the saved frame size to the maximum of the detected sensor, for example after a camera module change.
+          A frame size below the smallest offered one (saved by an older version) becomes the smallest offered one
    @param none
    @return none
 */
@@ -395,11 +399,13 @@ void Camera::CheckFrameSizeLimit() {
     return;
   }
 
-  /* use the largest supported frame size */
-  uint8_t best = 0;
-  for (uint8_t i = 0; i < FrameSizeTableCount; i++) {
-    if (CheckFrameSizeSupported(i) && (FrameSizeTable[i] > FrameSizeTable[best])) {
-      best = i;
+  /* too small: use the smallest offered frame size, otherwise the largest supported one */
+  uint8_t best = CAMERA_MIN_FRAMESIZE_INDEX;
+  if (FrameSize >= CAMERA_MIN_FRAMESIZE_INDEX) {
+    for (uint8_t i = CAMERA_MIN_FRAMESIZE_INDEX; i < FrameSizeTableCount; i++) {
+      if (CheckFrameSizeSupported(i) && (FrameSizeTable[i] > FrameSizeTable[best])) {
+        best = i;
+      }
     }
   }
 
@@ -951,6 +957,10 @@ bool Camera::GetPhotoCopy(uint8_t** o_buf, size_t* o_len) {
       memcpy(Buf, Frame, FrameLen);
       *o_buf = Buf;
       *o_len = FrameLen;
+      /* real size of a photo with these settings, for the photo size estimate on the WEB page */
+      LastPhotoSize = FrameLen;
+      LastPhotoFrameSize = FrameSize;
+      LastPhotoQuality = PhotoQuality;
     } else {
       log->AddEvent(LogLevel_Error, F("Photo copy: failed to allocate memory: "), String(FrameLen));
     }
@@ -996,6 +1006,9 @@ bool Camera::GetPhotoCopy(uint8_t** o_buf, size_t* o_len) {
       *o_buf = Buf;
       *o_len = TotalLen;
       ret = true;
+      LastPhotoSize = TotalLen;
+      LastPhotoFrameSize = FrameSize;
+      LastPhotoQuality = PhotoQuality;
     } else {
       log->AddEvent(LogLevel_Error, F("Photo copy: failed to allocate memory: "), String(TotalLen));
     }
@@ -1312,6 +1325,33 @@ uint8_t Camera::GetPhotoQuality() {
 */
 uint8_t Camera::GetFrameSize() {
   return FrameSize;
+}
+
+/**
+   @brief Get the size of the last photo that left the camera (upload, SD card, WEB page, stream)
+   @param none
+   @return uint32_t - size [B], 0 = no photo yet
+*/
+uint32_t Camera::GetLastPhotoSize() {
+  return LastPhotoSize;
+}
+
+/**
+   @brief Get the resolution of the last photo
+   @param none
+   @return uint8_t - frame size index
+*/
+uint8_t Camera::GetLastPhotoFrameSize() {
+  return LastPhotoFrameSize;
+}
+
+/**
+   @brief Get the JPEG quality of the last photo
+   @param none
+   @return uint8_t - 10-63, lower is better
+*/
+uint8_t Camera::GetLastPhotoQuality() {
+  return LastPhotoQuality;
 }
 
 /**
