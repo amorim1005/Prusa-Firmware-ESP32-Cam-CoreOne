@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c12** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c13** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
@@ -251,21 +251,27 @@ never sent to the web page.
 With Wi-Fi and the video stream running, the chip can overheat: noisy images, unstable Wi-Fi,
 reboots or long-term damage.
 
-**The solution:** the camera reads the chip's internal temperature every second and:
+**The solution:** the camera reads the chip's internal temperature every second (an average of the
+readings, so one noisy reading does not switch anything) and:
 
 | Chip temperature | What happens |
 |---|---|
-| **≥ 75 °C** | Protection on: the **stream is stopped** (new streams get a 503 answer), and photos to Prusa Connect are limited to **at most 1 per minute**. Prusa Connect shows the camera as `[HOT]` |
-| **≤ 68 °C** | Back to normal |
+| below 80 °C | Normal. The stream sends **at most about 5 frames/s**: more frames only heat the chip |
+| **≥ 80 °C** | The stream slows down to **1 frame/s** (back to normal at 75 °C) |
+| **≥ 88 °C** | Protection on: the **stream is stopped** (new streams get a 503 answer), and photos to Prusa Connect are limited to **at most 1 per minute**. Prusa Connect shows the camera as `[HOT]` (back to normal at 80 °C) |
 
-The gap between 75 and 68 (*hysteresis*) prevents the protection from switching on and off every
-second near the limit. On the **System** page, the temperature shows a "TOO HOT" warning while
-the protection is active, and the Health section shows the highest temperature since the start.
+The gaps between the on and off values (*hysteresis*) prevent the protection from switching on and
+off every second near a limit. **Start stream** opens a page that shows why the stream is slow or
+stopped, and starts it again when the camera cools down. On the **System** page, the temperature
+shows a "TOO HOT" warning while the protection is active, and the Health section shows the highest
+temperature since the start.
 
-The limits are in `mcu_cfg.h` (`THERMAL_THROTTLE_TEMP`, `THERMAL_RESUME_TEMP`,
-`THERMAL_THROTTLE_INTERVAL`). This is the chip's **internal** temperature, which is always higher
-than the air temperature. The sensor is accurate up to 80 °C. If the protection switches on too
-early or too late in your tests, adjust these values.
+This is the chip's **internal** temperature, which is much higher than the air temperature: in the
+first test (c11, no heatsink, room temperature) the stream heated it above 75 °C within seconds.
+The firmware reads the sensor in its 20–100 °C range (error below 2 °C); `temperatureRead()` of the
+Arduino core uses the -10–80 °C range, below the limits. The limits are in `mcu_cfg.h`
+(`THERMAL_STREAM_SLOW_TEMP`, `THERMAL_STREAM_NORMAL_TEMP`, `THERMAL_THROTTLE_TEMP`,
+`THERMAL_RESUME_TEMP`, `THERMAL_THROTTLE_INTERVAL`, `CAMERA_STREAM_FRAME_INTERVAL`).
 
 **Mounting:**
 - If possible, mount the camera **outside the heated chamber** (looking through the door or the
@@ -360,7 +366,9 @@ hold the camera, put the wrench on the lens and turn it a few degrees at a time.
 **Service AP.** After every start the camera opens its own Wi-Fi network **`ESP32_camera_UID`**
 (open network without a password, IP **192.168.0.1**, or `http://prusa-esp32cam.local`), for the first setup.
 When a Wi-Fi network is configured, the camera also connects to it, and the service AP switches
-itself off **5 minutes** after the start if no device is connected to it (and no stream is open).
+itself off about **1 minute** after the camera is connected to your network, when no device is
+connected to the service AP (c13; a stream goes over your network and does not keep it on). If the
+camera cannot connect to your network, the service AP stays on.
 Because the network is open, anyone near the camera can join it while it is on: enable the login
 (Authentication page) if that matters to you.
 You can switch the service AP off completely on the Wi-Fi page. If the service AP does not work for
@@ -472,8 +480,8 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 - **PrusaLink on the Core One:** the PrusaLink specification defines `/api/v1/status` and *digest*
   authentication. It is not confirmed that the Core One firmware answers exactly like that. If
   *PrusaLink status* does not show `OK`, open an issue with the message shown.
-- **Thermal limits (75 / 68 °C)** are an estimate for the chip's internal temperature. Adjust them
-  after seeing real values on the System page.
+- **Thermal limits (80 / 88 °C)** are an estimate for the chip's internal temperature, set after the
+  first test without a heatsink. Adjust them after seeing real values on the System page.
 - **At most 2 stream clients** at a time.
 - **No firmware update from the internet.** Update from a `.bin` file on the System page, or over
   USB.
@@ -933,7 +941,7 @@ four `.bin` files and their `SHA256SUMS.txt` as a GitHub release, the binaries a
 | `libraries/` | **New**: libraries with the exact versions |
 | `build_xiao.sh` | **New**: build script |
 | `firmware/` | Compiled firmware of c1–c9. **Removed** (c10): the binaries are in the GitHub releases |
-| `test/web/` | **New** (c10): browser test of the web pages. (c11) Photo size estimate. (c12) Smallest resolution, Saved confirmation, status LED, UTF-8 check mark, footer |
+| `test/web/` | **New** (c10): browser test of the web pages. (c11) Photo size estimate. (c12) Smallest resolution, Saved confirmation, status LED, UTF-8 check mark, footer. (c13) Stream page messages when the camera is hot |
 
 To see every change line by line against the original:
 ```bash
@@ -955,6 +963,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c13 | Thermal guard in two steps: stream at 1 frame/s from 80 °C, stopped from 88 °C (was stopped from 75 °C, reached within seconds of streaming). Average temperature, sensor read in its 20–100 °C range. Stream limited to about 5 frames/s. Start stream opens a page that shows why the stream is slow or stopped. The service AP switches off about 1 minute after the connection to your Wi-Fi network (was 5 minutes or more, and never while a stream was open), without reconnecting. Footer links to the GitHub profile |
 | 1.1.2-c12 | The service AP is an open network, without a password. Resolutions from 1024×768 (320×240 to 800×600 removed). Status LED mode on the System page (On / Errors only / Off). *Saved ✔* confirmation after each change. The photo size estimate uses every photo, not only the uploads. Fixed: broken characters next to Confirm Password (the page did not declare UTF-8). Footer: modified by amorim1005 |
 | 1.1.2-c11 | Estimated photo size on the Camera page, with a warning above 1 MB |
 | 1.1.2-c10 | Only the XIAO ESP32-S3 Sense: other boards, LED flash and light, jQuery (87 KB) and the Prusa legal pages removed. Fixed: the switches on the Camera, Wi-Fi and Authentication pages always showed "on" (bug of the original page). The Wi-Fi scan table shows network names as text. Binaries moved to GitHub releases, `doc/` reduced from 231 MB to 8 MB |

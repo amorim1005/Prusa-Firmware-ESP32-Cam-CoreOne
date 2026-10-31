@@ -179,6 +179,15 @@ void Server_InitWebServer_WebPages() {
     Server_handleCacheRequest(request, "text/html", license_html);
   });
 
+  /* route to the stream page: the stream with a message when the camera is too hot */
+  server.on("/stream.html", HTTP_GET, [](AsyncWebServerRequest* request) {
+    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get stream.html"));
+    if (Server_CheckBasicAuth(request) == false)
+      return;
+
+    Server_handleCacheRequest(request, "text/html", stream_html);
+  });
+
   /* route to logs page */
   server.on("/get_logs", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: Get get_logs.html"));
@@ -1122,6 +1131,7 @@ String Server_GetJsonData() {
   doc_json["sd_used_p"] = SystemLog.GetUsedSpacePercent();
   doc_json["mcu_temp"] = String(McuTemperature.TemperatureCelsius) + " *C" + ((true == McuTemperature.ThermalThrottling) ? " - TOO HOT, stream disabled, uploads slowed down" : "");
   doc_json["thermal_throttling"] = Server_TranslateBoolToString(McuTemperature.ThermalThrottling);
+  doc_json["thermal_slow"] = Server_TranslateBoolToString(McuTemperature.StreamSlow);
   doc_json["upload_interval"] = String(System_GetUploadInterval());
   doc_json["health_status"] = (Connect.GetHealthStatus().length() > 0) ? Connect.GetHealthStatus() : String(F("OK"));
   doc_json["upload_ok"] = Connect.GetUploadOkCount();

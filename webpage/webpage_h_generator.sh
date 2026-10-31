@@ -48,6 +48,11 @@ echo "Generating license.html"
 html_content=$(cat license.html | awk '{printf "%s\\n", $0}')
 awk -v var="$html_content" '/^const char license_html\[\] PROGMEM = R"rawliteral\(/,/rawliteral";/ { if (/^const char license_html\[\] PROGMEM = R"rawliteral\(/) { print "const char license_html[] PROGMEM = R\"rawliteral(\n" var ")rawliteral\";"; next } { next } } 1' WebPage.h > temp && mv temp WebPage.h
 
+# Read the stream.html file and generate the WebPage.h file
+echo "Generating stream.html"
+html_content=$(cat stream.html | awk '{printf "%s\\n", $0}')
+awk -v var="$html_content" '/^const char stream_html\[\] PROGMEM = R"rawliteral\(/,/rawliteral";/ { if (/^const char stream_html\[\] PROGMEM = R"rawliteral\(/) { print "const char stream_html[] PROGMEM = R\"rawliteral(\n" var ")rawliteral\";"; next } { next } } 1' WebPage.h > temp && mv temp WebPage.h
+
 # Copy the generated WebPage.h file to the ESP32 project
 echo "WebPage.h generated successfully"
 echo "Copy the new WebPage.h file to the ESP32 project"

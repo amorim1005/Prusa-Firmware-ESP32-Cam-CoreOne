@@ -20,6 +20,7 @@
 #include <esp_task_wdt.h>
 
 #include "esp32s3/rom/rtc.h"
+#include "driver/temperature_sensor.h"
 
 #include "mcu_cfg.h"
 #include "var.h"
@@ -47,6 +48,7 @@ void System_TaskWifiManagement(void *);
 void System_TaskMain(void *);
 void System_TaskCaptureAndSendPhoto(void *);
 void System_CheckThermalState();
+float System_ReadMcuTemperature();
 uint16_t System_GetUploadInterval();
 void System_TaskSdCardCheck(void *);
 void System_TaskSerialCfg(void *);

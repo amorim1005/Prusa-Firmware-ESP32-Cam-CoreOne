@@ -14,7 +14,7 @@
 WebBasicAuth_struct WebBasicAuth = { false, "", "" };
 struct SystemHealth_struct SystemHealth = { false, 0, 0, "N/A" };
 struct FirmwareUpload_struct FirmwareUpload = { false, 0, false, "" };
-struct McuTemperature_struct McuTemperature = {0.0, false, 0.0};
+struct McuTemperature_struct McuTemperature = {0.0, false, 0.0, false};
 
 TaskHandle_t Task_CapturePhotoAndSend;
 TaskHandle_t Task_WiFiManagement;

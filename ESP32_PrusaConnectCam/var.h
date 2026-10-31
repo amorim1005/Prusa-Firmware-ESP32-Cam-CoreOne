@@ -46,6 +46,7 @@ struct McuTemperature_struct {
   float TemperatureCelsius;               ///< MCU temperature
   volatile bool ThermalThrottling;        ///< MCU is too hot: stream is stopped and uploads are slowed down
   float TemperatureMax;                   ///< highest MCU temperature since the start
+  volatile bool StreamSlow;               ///< MCU is hot: the stream sends at most 1 frame per second
 };
 
 extern struct WebBasicAuth_struct WebBasicAuth;      ///< structure with configuration for basic auth

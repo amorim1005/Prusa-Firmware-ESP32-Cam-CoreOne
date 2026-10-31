@@ -15,7 +15,7 @@
 /* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c12"               ///< SW version
+#define SW_VERSION                  "1.1.2-c13"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
@@ -29,6 +29,8 @@
 #define CAMERA_STREAM_MAX_CLIENTS   2                       ///< maximum count of stream clients at the same time
 #define CAMERA_STREAM_FRAME_TIMEOUT 3000                    ///< maximum waiting time for a new stream frame [ms]. Then the stream ends
 #define CAMERA_STREAM_MAX_FRAME_AGE 300                     ///< capture a new frame when the latest one was not sent yet but is older than this [ms]
+#define CAMERA_STREAM_FRAME_INTERVAL 200                    ///< minimum time between stream frames, about 5 frames/s. More frames heat the chip with little benefit [ms]
+#define CAMERA_STREAM_HOT_FRAME_INTERVAL 1000               ///< minimum time between stream frames while the MCU is hot (THERMAL_STREAM_SLOW_TEMP), 1 frame/s [ms]
 #define CAMERA_STREAM_TASK_STACK    4096                    ///< stream capture task stack size [bytes]
 
 /* --------------- CAMERA SENSORS  --------------*/
@@ -69,8 +71,14 @@
 #define CAMERA_SERVICE_FINGERPRINT_MAX_LEN 64               ///< maximum fingerprint length
 
 /* ------------- THERMAL PROTECTION  ------------*/
-#define THERMAL_THROTTLE_TEMP       75.0                    ///< MCU temperature for throttling: stream is stopped, uploads are slowed down [°C]
-#define THERMAL_RESUME_TEMP         68.0                    ///< MCU temperature for normal operation after throttling [°C]
+/* the internal sensor measures the chip, which is much hotter than the air: the stream heats it above 75 °C within seconds */
+#define THERMAL_SENSOR_RANGE_MIN    20                      ///< measuring range of the internal sensor, the driver chooses 20-100 °C (error < 2 °C) [°C]
+#define THERMAL_SENSOR_RANGE_MAX    100                     ///< measuring range of the internal sensor [°C]
+#define THERMAL_FILTER_FACTOR       0.2                     ///< weight of a new reading in the average temperature, a single noisy reading does not switch the protection
+#define THERMAL_STREAM_SLOW_TEMP    80.0                    ///< MCU temperature for a slower stream: CAMERA_STREAM_HOT_FRAME_INTERVAL [°C]
+#define THERMAL_STREAM_NORMAL_TEMP  75.0                    ///< MCU temperature for the normal stream speed again [°C]
+#define THERMAL_THROTTLE_TEMP       88.0                    ///< MCU temperature for throttling: stream is stopped, uploads are slowed down [°C]
+#define THERMAL_RESUME_TEMP         80.0                    ///< MCU temperature for normal operation after throttling [°C]
 #define THERMAL_THROTTLE_INTERVAL   REFRESH_INTERVAL_SIXTY_SEC ///< minimum upload interval during throttling [s]
 
 /* ----------------- HEALTH CHECK  --------------*/
@@ -128,7 +136,7 @@
 #define FILE_REMOVE_MAX_COUNT       5                       ///< maximum count for remove files from sd card
 
 /* ---------------- AP MODE CFG  ----------------*/
-#define STA_AP_MODE_TIMEOUT         300000                  ///< how long is AP enable after start, when is module in the STA mode [ms]
+#define SERVICE_AP_OFF_DELAY        60000                   ///< the service AP is switched off when the camera has been connected to the Wi-Fi network this long and no device uses the service AP. Checked every TASK_WIFI [ms]
 #define SERVICE_WIFI_SSID_UID       true                    ///< enable/disable added UID to service SSID name
 #define SERVICE_WIFI_SSID           F("ESP32_camera")       ///< service WI-FI SSID name. Maximum length SERVICE_WIFI_SSID + UID = 32
 #define SERVICE_WIFI_CHANNEL        10                      ///< service WI-FI channel

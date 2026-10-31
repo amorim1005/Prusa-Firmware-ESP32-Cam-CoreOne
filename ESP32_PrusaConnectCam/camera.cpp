@@ -713,7 +713,10 @@ bool Camera::StreamCaptureFrame() {
   /* find a free buffer: not the latest frame and not being sent */
   int8_t w = -1;
   xSemaphoreTake(streamMutex, portMAX_DELAY);
-  bool wait = (StreamLatest >= 0) && (false == StreamLatestConsumed) && ((millis() - StreamLatestTime) < CAMERA_STREAM_MAX_FRAME_AGE);
+  /* at most CAMERA_STREAM_FRAME_INTERVAL between the frames, slower when the MCU is hot */
+  uint32_t age = millis() - StreamLatestTime;
+  uint32_t interval = (true == McuTemperature.StreamSlow) ? CAMERA_STREAM_HOT_FRAME_INTERVAL : CAMERA_STREAM_FRAME_INTERVAL;
+  bool wait = (StreamLatest >= 0) && ((age < interval) || ((false == StreamLatestConsumed) && (age < CAMERA_STREAM_MAX_FRAME_AGE)));
   if (false == wait) {
     for (uint8_t i = 0; i < CAMERA_STREAM_BUFFERS; i++) {
       if ((i != StreamLatest) && (0 == StreamBufReaders[i])) {
@@ -725,7 +728,7 @@ bool Camera::StreamCaptureFrame() {
   xSemaphoreGive(streamMutex);
 
   if (w < 0) {
-    vTaskDelay(pdMS_TO_TICKS(2));
+    vTaskDelay(pdMS_TO_TICKS(10));
     return true;
   }
 

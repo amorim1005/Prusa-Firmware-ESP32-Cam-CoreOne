@@ -30,7 +30,7 @@ void System_Init() {
   SystemLog.AddEvent(LogLevel_Warning, "CPU0 reset reason: " + reason_core0);
   SystemLog.AddEvent(LogLevel_Warning, "CPU1 reset reason: " + reason_core1);
 
-  SystemLog.AddEvent(LogLevel_Info, "MCU Temperature: " + String(temperatureRead()) + " *C");
+  SystemLog.AddEvent(LogLevel_Info, "MCU Temperature: " + String(System_ReadMcuTemperature()) + " *C");
   SystemLog.AddEvent(LogLevel_Info, "Internal Total heap: " + String(ESP.getHeapSize()) + " B, Internal Free Heap: " + String(ESP.getFreeHeap()));
   SystemLog.AddEvent(LogLevel_Info, "PSRAM Total heap: " + String(ESP.getPsramSize()) + " B, PSRAM Free Heap: " + String(ESP.getFreePsram()));
   SystemLog.AddEvent(LogLevel_Info, "Chip model: " + String(ESP.getChipModel()) + ", ChipRevision: " + String(ESP.getChipRevision()) + ", Cpu Freq: " + String(ESP.getCpuFreqMHz()));
@@ -347,7 +347,6 @@ void System_TaskWifiManagement(void *pvParameters) {
   while (1) {
     /* wifi management. Enable/disable AP_STA mode and STA mode*/
     SystemWifiMngt.WifiManagement();
-    McuTemperature.TemperatureCelsius = temperatureRead();
 
     /* wifi reconnect after signal lost */
     SystemWifiMngt.WiFiReconnect();
@@ -399,11 +398,28 @@ void System_TaskMain(void *pvParameters) {
  * @return none
  */
 void System_CheckThermalState() {
-  float temp = temperatureRead();
+  float raw = System_ReadMcuTemperature();
+  if (isnan(raw)) {
+    return;
+  }
+
+  /* average of the readings: the first reading starts it */
+  float temp = (0.0 == McuTemperature.TemperatureCelsius) ? raw : (McuTemperature.TemperatureCelsius + THERMAL_FILTER_FACTOR * (raw - McuTemperature.TemperatureCelsius));
   McuTemperature.TemperatureCelsius = temp;
   if (temp > McuTemperature.TemperatureMax) {
     McuTemperature.TemperatureMax = temp;
   }
+
+  /* first level: slower stream */
+  if ((false == McuTemperature.StreamSlow) && (temp >= THERMAL_STREAM_SLOW_TEMP)) {
+    McuTemperature.StreamSlow = true;
+    SystemLog.AddEvent(LogLevel_Warning, "MCU temperature is high: " + String(temp) + " *C. Stream slowed down");
+  } else if ((true == McuTemperature.StreamSlow) && (temp <= THERMAL_STREAM_NORMAL_TEMP)) {
+    McuTemperature.StreamSlow = false;
+    SystemLog.AddEvent(LogLevel_Info, "MCU temperature: " + String(temp) + " *C. Normal stream speed");
+  }
+
+  /* second level: stream stopped, uploads slowed down */
 
   if ((false == McuTemperature.ThermalThrottling) && (temp >= THERMAL_THROTTLE_TEMP)) {
     McuTemperature.ThermalThrottling = true;
@@ -412,6 +428,34 @@ void System_CheckThermalState() {
     McuTemperature.ThermalThrottling = false;
     SystemLog.AddEvent(LogLevel_Info, "MCU temperature is OK: " + String(temp) + " *C. Normal operation");
   }
+}
+
+/**
+ * @brief Read the MCU temperature from the internal sensor. The sensor is installed on the first call with the range
+ *        THERMAL_SENSOR_RANGE_MIN - MAX. temperatureRead() of the Arduino core uses the range -10 - 80 °C, the throttling
+ *        limits are above it, so it must not be used (only one sensor installation is possible)
+ *
+ * @param none
+ * @return float - temperature [°C], NAN when the sensor does not work
+ */
+float System_ReadMcuTemperature() {
+  static temperature_sensor_handle_t sensor = NULL;
+  static bool failed = false;
+
+  if ((NULL == sensor) && (false == failed)) {
+    temperature_sensor_config_t config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(THERMAL_SENSOR_RANGE_MIN, THERMAL_SENSOR_RANGE_MAX);
+    if ((ESP_OK != temperature_sensor_install(&config, &sensor)) || (ESP_OK != temperature_sensor_enable(sensor))) {
+      failed = true;
+      SystemLog.AddEvent(LogLevel_Error, F("MCU temperature sensor failed"));
+    }
+  }
+
+  float temp = NAN;
+  if ((false == failed) && (ESP_OK != temperature_sensor_get_celsius(sensor, &temp))) {
+    temp = NAN;
+  }
+
+  return temp;
 }
 
 /**

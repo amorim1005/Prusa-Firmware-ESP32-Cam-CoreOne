@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c12">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c13">
 </head>
 <body>
     <nav>
@@ -55,7 +55,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 				<button class="btn" onclick="actionButton('/action_capture',true,'')">Refresh Snapshot</button> <br><br>
 				<button class="btn" onclick="actionButton('/action_send',false,'Sending snapshot...')">Send snapshot</button><br><br><br>
 				<button class="btn" onclick="window.open('saved-photo.jpg')">Download snapshot</button><br><br>
-				<button class="btn" onclick="window.open('stream.mjpg')">Start stream</button><br><br>
+				<button class="btn" onclick="window.open('stream.html')">Start stream</button><br><br>
 			</article>
 		</div>
 	</section>
@@ -76,12 +76,12 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<br><br><br><br>
 	<table id=botton><tr>
 		<td><p class=p2>Prusa Connect ESP32 cam</p> </td>
-		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> <p class=p3>and modified by</p> <p class=p2>amorim1005</p> </td>
+		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> <p class=p3>and modified by</p> <a href="https://github.com/amorim1005" class="p2" id="author-link" target="_blank" rel="noopener">amorim1005</a> </td>
 		<td><a href="license.html" class="p3 page-link">Licence</a></td>
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c12"></script>
+	<script src="scripts.js?v=1.1.2-c13"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -128,7 +128,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c12");</style>
+<style>@import url("styles.css?v=1.1.2-c13");</style>
 <body>
 	<center>
 		<table>
@@ -141,7 +141,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c12"></script>
+<script src="scripts.js?v=1.1.2-c13"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -152,7 +152,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c12");</style>
+<style>@import url("styles.css?v=1.1.2-c13");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -221,7 +221,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c12"></script>
+<script src="scripts.js?v=1.1.2-c13"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -231,7 +231,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c12");</style>
+<style>@import url("styles.css?v=1.1.2-c13");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -331,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c12"></script>
+<script src="scripts.js?v=1.1.2-c13"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -341,7 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c12");</style>
+<style>@import url("styles.css?v=1.1.2-c13");</style>
 <body>
 	<center>
         <table id="data">
@@ -408,7 +408,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c12"></script>
+<script src="scripts.js?v=1.1.2-c13"></script>
 <script>
 	get_data("system");
 </script>
@@ -1484,13 +1484,82 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c12");</style>
+<style>@import url("styles.css?v=1.1.2-c13");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c12"></script>
+<script src="scripts.js?v=1.1.2-c13"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');
 </script>
+)rawliteral";
+
+/* ------------------------------------------------------------------------------------------------------------ */
+const char stream_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Stream</title>
+	<style>
+		body { margin: 0; background-color: #000000; font-family: sans-serif; }
+		img { display: block; max-width: 100%; margin: 0 auto; }
+		#stream_msg { display: none; position: fixed; top: 0; left: 0; right: 0; padding: 8px; text-align: center; color: #ffffff; font-size: 14px; line-height: 18px; }
+	</style>
+</head>
+<body>
+	<div id="stream_msg"></div>
+	<img id="stream" src="stream.mjpg" alt="Stream" onerror="streamError()">
+<script>
+/* the stream stops or slows down when the camera is too hot, this page tells why and starts it again when it cools down */
+var StreamStopped = false;
+var StreamFailed = false;
+
+function streamMessage(text, color) {
+	var msg = document.getElementById('stream_msg');
+	msg.textContent = text;
+	msg.style.backgroundColor = color;
+	msg.style.display = (text == "") ? "none" : "block";
+}
+
+function streamError() {
+	if (!StreamStopped) {
+		StreamFailed = true;
+		streamMessage("Stream not available: it is open in too many windows, or the camera is too hot", "#d32f2f");
+	}
+}
+
+function streamCheck() {
+	fetch('json_input', { cache: 'no-store' }).then(function(response) {
+		return response.json();
+	}).then(function(obj) {
+		var temp = String(obj.mcu_temp).split(' - ')[0];
+		var img = document.getElementById('stream');
+		if (obj.thermal_throttling == "true") {
+			StreamStopped = true;
+			img.removeAttribute('src');
+			streamMessage("Stream stopped: the camera is too hot (" + temp + "). It starts again when the camera cools down", "#d32f2f");
+		} else {
+			if (StreamStopped) {
+				StreamStopped = false;
+				StreamFailed = false;
+				img.src = "stream.mjpg?t=" + Date.now();
+			}
+			if (obj.thermal_slow == "true") {
+				streamMessage("The camera is hot (" + temp + "): the stream is slowed down to 1 frame per second", "#e08a00");
+			} else if (!StreamFailed) {
+				streamMessage("", "");
+			}
+		}
+	}).catch(function(error) {
+		console.log("json timeout or error: " + error);
+	});
+}
+
+streamCheck();
+setInterval(streamCheck, 3000);
+</script>
+</body>
+</html>
 )rawliteral";
 
 /* EOF  */

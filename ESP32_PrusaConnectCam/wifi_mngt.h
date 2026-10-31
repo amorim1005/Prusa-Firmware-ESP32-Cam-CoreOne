@@ -53,7 +53,7 @@ class WiFiMngt {
 private:
   String WifiSsid;                    ///< WI-FI SSID
   String WifiPassword;                ///< WI-FI password
-  bool ServiceMode;                   ///< flag for enable service AP mode after MCU start during STA_AP_MODE_TIMEOUT ms
+  bool ServiceMode;                   ///< flag for enable service AP mode after MCU start, until SERVICE_AP_OFF_DELAY after the connection to the Wi-Fi network
   String WiFiMode;                    ///< Wi-Fi mode (AP, STA, STA_AP)
   String SericeApSsid;                ///< Service AP SSID
   bool FirstConnected;                ///< flag about first connecting to WiFi network status
@@ -76,7 +76,7 @@ private:
   IPAddress Service_Subnet;           ///< Service mask when si module in the AP mode
   IPAddress Service_Dns;              ///< Service DNS when is module in the AP mode
 
-  unsigned long TaskAp_previousMillis;  ///< previous time for task AP
+  unsigned long StaConnectedSince;      ///< time of the connection to the Wi-Fi network [ms], 0 = not connected
   unsigned long TaskWdg_previousMillis; ///< previous time for task STA watchdog
 
   String mDNS_record;                 ///< mDNS record

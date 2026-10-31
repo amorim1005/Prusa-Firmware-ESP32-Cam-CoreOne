@@ -120,7 +120,7 @@ void WiFiMngt::Init() {
   } else {
     ScanWiFiNetwork();
   }
-  TaskAp_previousMillis = millis();
+  StaConnectedSince = 0;
 
   /* Init MDNS record */
   log->AddEvent(LogLevel_Info, "Starting mDNS record: http://" + mDNS_record + ".local");
@@ -138,32 +138,37 @@ void WiFiMngt::Init() {
    @return none
 */
 void WiFiMngt::WifiManagement() {
-  /* check disable service AP */
-  unsigned long currentMillis = millis();
-  if (currentMillis - TaskAp_previousMillis >= STA_AP_MODE_TIMEOUT) {
-    TaskAp_previousMillis = currentMillis;
-    if ((true == config->CheckActifeWifiCfgFlag()) && (true == ServiceMode) && (WL_CONNECTED == WiFi.status())
-        && (false == cam->GetStreamStatus())) {
-      if (WiFi.softAPgetStationNum() == 0) {
-        log->AddEvent(LogLevel_Info, F("Disable service AP mode"));
-        WiFi.mode(WIFI_STA);
-        esp_wifi_set_ps(WIFI_PS_NONE);
+  /* the service AP (an open network) is switched off when the camera has been connected to the Wi-Fi network for
+     SERVICE_AP_OFF_DELAY and no device uses the service AP. A stream goes over the Wi-Fi network, it does not keep the AP */
+  if (WL_CONNECTED != WiFi.status()) {
+    StaConnectedSince = 0;
+  } else if (0 == StaConnectedSince) {
+    StaConnectedSince = millis();
+  }
+
+  if ((true == config->CheckActifeWifiCfgFlag()) && (true == ServiceMode) && (0 != StaConnectedSince)
+      && ((millis() - StaConnectedSince) >= SERVICE_AP_OFF_DELAY)) {
+    if (WiFi.softAPgetStationNum() == 0) {
+      log->AddEvent(LogLevel_Info, F("Disable service AP mode"));
+      WiFi.mode(WIFI_STA);
+      esp_wifi_set_ps(WIFI_PS_NONE);
+      /* the connection to the Wi-Fi network stays, connect again only when it was lost (WiFi.begin drops a stream) */
+      if (WL_CONNECTED != WiFi.status()) {
         WiFiStaConnect();
-        //WiFi.begin(WifiSsid, WifiPassword);
-        WiFiMode = F("Client");
+      }
+      WiFiMode = F("Client");
 
 #if (WIFI_CLIENT_WAIT_CON == true)
-        while (WiFi.status() != WL_CONNECTED) {
-          delay(1000);
-          log->AddEvent(LogLevel_Verbose, ".");
-        }
-        log->AddEvent(LogLevel_Verbose, "Connected to WiFi");
-#endif
-        ServiceMode = false;
-        WiFi.softAPdisconnect(true);
-      } else {
-        log->AddEvent(LogLevel_Info, "Client [" + String(WiFi.softAPgetStationNum()) + "] still is connected to Wi-Fi AP!");
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        log->AddEvent(LogLevel_Verbose, ".");
       }
+      log->AddEvent(LogLevel_Verbose, "Connected to WiFi");
+#endif
+      ServiceMode = false;
+      WiFi.softAPdisconnect(true);
+    } else {
+      log->AddEvent(LogLevel_Info, "Client [" + String(WiFi.softAPgetStationNum()) + "] still is connected to Wi-Fi AP!");
     }
   }
 
