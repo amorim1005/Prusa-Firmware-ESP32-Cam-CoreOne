@@ -336,7 +336,7 @@ function setWifi(val_ssid, val_pass) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "wifi_cfg?wifi_ssid=" +  encodeURIComponent(val_ssid) + "&wifi_pass=" + encodeURIComponent(val_pass), false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
@@ -344,7 +344,7 @@ function setWifiNet(val_ip, val_mask, val_gw, val_dns) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
@@ -352,7 +352,7 @@ function scanWifi() {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "wifi_scan?", false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 	setTimeout(function() {
 		GetDataAndPrintTableWiFi();
@@ -394,7 +394,7 @@ function setPrusaLink() {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", url, false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	document.getElementById('prusalink_passwordid').value = "";
 	get_data("config");
 }
@@ -404,7 +404,7 @@ function setAuth(val_name, val_pass) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "basicauth_cfg?" + "auth_username=" + encodeURIComponent(val_name) + "&auth_password=" + encodeURIComponent(val_pass), false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("auth");
 }
 
@@ -412,20 +412,16 @@ function changeValue(val, url, reload, msg) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", url + val, false);
 	xmlHttp.send(null);
-	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
-		xmlHttp.responseText.startsWith("ERROR")) {
-		alert(xmlHttp.responseText);
-	} else if ((xmlHttp.status == 200) && (xmlHttp.responseText.indexOf("NOT OK") < 0)) {
-		showSaveStatus(true);
-	} else {
-		showSaveStatus(false);
-	}
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data(reload);
 }
 
-/* short confirmation after a setting is saved, the settings are saved on every change without a Save button */
+/* result of a save as a short message at the bottom instead of a popup. The settings are saved on every change without
+   a Save button. "Save cfg OK" is shown as "Saved" for 2 s, other messages (reboot needed, registration, errors) longer with their text */
 var SaveStatusTimer = null;
-function showSaveStatus(ok) {
+function showSaveResult(text, status) {
+	var ok = (status == 200) && !text.startsWith("ERROR") && (text.indexOf("NOT OK") < 0);
+	var plain = (text == "Save cfg OK") || (text == "Save cfg NOT OK!") || (text == "");
 	var toast = document.getElementById('save_status');
 	if (!toast) {
 		toast = document.createElement('div');
@@ -433,11 +429,15 @@ function showSaveStatus(ok) {
 		toast.className = 'save_status';
 		document.body.appendChild(toast);
 	}
-	toast.innerHTML = ok ? "Saved &#10004;" : "Not saved &#10006;";
+	if (plain) {
+		toast.innerHTML = ok ? "Saved &#10004;" : "Not saved &#10006;";
+	} else {
+		toast.textContent = text;
+	}
 	toast.style.backgroundColor = ok ? "#2e7d32" : "#d32f2f";
 	toast.style.display = "block";
 	clearTimeout(SaveStatusTimer);
-	SaveStatusTimer = setTimeout(function() { toast.style.display = "none"; }, 2000);
+	SaveStatusTimer = setTimeout(function() { toast.style.display = "none"; }, (plain && ok) ? 2000 : 6000);
 }
 
 function togglePasswordVisibility() {

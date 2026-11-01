@@ -70,7 +70,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             STATUS['photoquality'] = int(query['photo_quality'][0])
         if path == 'set_int' and 'fail' in query:
             return self.send('Save cfg NOT OK!')
-        return self.send('OK')   # set_* routes
+        if path == 'set_token':
+            return self.send('Save OK. Camera registration starts now, it must be done within 15 minutes after adding the camera in Prusa Connect')
+        return self.send('Save cfg OK')   # set_* routes
 
 
 server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -98,7 +100,8 @@ with sync_playwright() as p:
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
-    page.on('dialog', lambda d: d.accept())
+    dialogs = []
+    page.on('dialog', lambda d: (dialogs.append(d.message), d.accept()))
 
     print('index + Camera page')
     page.goto(base)
@@ -165,6 +168,10 @@ with sync_playwright() as p:
     check(page.is_visible('#save_status') and page.inner_text('#save_status') == 'Saved \u2714', 'saved confirmation: %s' % page.inner_text('#save_status'))
     page.wait_for_function("document.getElementById('save_status').style.display == 'none'", timeout=4000)
     check(True, 'saved confirmation hides itself')
+    page.evaluate("changeValue('abcdefghijklmnopqrst', 'set_token?token=', 'config')")
+    check(page.inner_text('#save_status').startswith('Save OK. Camera registration starts now'), 'token: message with its text instead of a popup')
+    page.evaluate("changeValue(5, 'set_int?fail=', 'config')")
+    check(page.eval_on_selector('#save_status', 'e => e.style.backgroundColor') == 'rgb(211, 47, 47)', 'not saved: red message')
 
     print('Wi-Fi page')
     page.click('a[href="page_wifi.html"]')
@@ -232,6 +239,7 @@ with sync_playwright() as p:
     print('no jQuery requested, no JavaScript errors')
     check(not any('jquery' in r for r in requests_seen), 'jquery never requested')
     check(not errors, 'no errors: %s' % errors)
+    check(not dialogs, 'no popups after saving: %s' % dialogs)
     browser.close()
 
 print('\n%s: %d failure(s)' % ('FAILED' if failures else 'ALL PASSED', len(failures)))

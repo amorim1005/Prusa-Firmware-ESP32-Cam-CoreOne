@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c13">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c14">
 </head>
 <body>
     <nav>
@@ -81,7 +81,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c13"></script>
+	<script src="scripts.js?v=1.1.2-c14"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -128,7 +128,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c13");</style>
+<style>@import url("styles.css?v=1.1.2-c14");</style>
 <body>
 	<center>
 		<table>
@@ -141,7 +141,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c13"></script>
+<script src="scripts.js?v=1.1.2-c14"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -152,7 +152,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c13");</style>
+<style>@import url("styles.css?v=1.1.2-c14");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -221,7 +221,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c13"></script>
+<script src="scripts.js?v=1.1.2-c14"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -231,7 +231,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c13");</style>
+<style>@import url("styles.css?v=1.1.2-c14");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -331,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c13"></script>
+<script src="scripts.js?v=1.1.2-c14"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -341,7 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c13");</style>
+<style>@import url("styles.css?v=1.1.2-c14");</style>
 <body>
 	<center>
         <table id="data">
@@ -408,7 +408,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c13"></script>
+<script src="scripts.js?v=1.1.2-c14"></script>
 <script>
 	get_data("system");
 </script>
@@ -927,8 +927,10 @@ input:checked+.checkbox_slider:before {
 	bottom: 24px;
 	left: 50%;
 	transform: translateX(-50%);
+	max-width: 90%;
 	padding: 8px 16px;
 	border-radius: 4px;
+	text-align: center;
 	color: #ffffff;
 	font-size: 14px;
 	line-height: 18px;
@@ -1276,7 +1278,7 @@ function setWifi(val_ssid, val_pass) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "wifi_cfg?wifi_ssid=" +  encodeURIComponent(val_ssid) + "&wifi_pass=" + encodeURIComponent(val_pass), false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
@@ -1284,7 +1286,7 @@ function setWifiNet(val_ip, val_mask, val_gw, val_dns) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
@@ -1292,7 +1294,7 @@ function scanWifi() {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "wifi_scan?", false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 	setTimeout(function() {
 		GetDataAndPrintTableWiFi();
@@ -1334,7 +1336,7 @@ function setPrusaLink() {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", url, false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	document.getElementById('prusalink_passwordid').value = "";
 	get_data("config");
 }
@@ -1344,7 +1346,7 @@ function setAuth(val_name, val_pass) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", "basicauth_cfg?" + "auth_username=" + encodeURIComponent(val_name) + "&auth_password=" + encodeURIComponent(val_pass), false);
 	xmlHttp.send(null);
-	alert(xmlHttp.responseText);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("auth");
 }
 
@@ -1352,20 +1354,16 @@ function changeValue(val, url, reload, msg) {
 	var xmlHttp = new XMLHttpRequest();
 	xmlHttp.open("GET", url + val, false);
 	xmlHttp.send(null);
-	if ((url == "set_int?refresh=") || (url == "set_token?token=") || (url == "set_mdns?mdns=") || (url == "set_int?ipcfg=") ||
-		xmlHttp.responseText.startsWith("ERROR")) {
-		alert(xmlHttp.responseText);
-	} else if ((xmlHttp.status == 200) && (xmlHttp.responseText.indexOf("NOT OK") < 0)) {
-		showSaveStatus(true);
-	} else {
-		showSaveStatus(false);
-	}
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data(reload);
 }
 
-/* short confirmation after a setting is saved, the settings are saved on every change without a Save button */
+/* result of a save as a short message at the bottom instead of a popup. The settings are saved on every change without
+   a Save button. "Save cfg OK" is shown as "Saved" for 2 s, other messages (reboot needed, registration, errors) longer with their text */
 var SaveStatusTimer = null;
-function showSaveStatus(ok) {
+function showSaveResult(text, status) {
+	var ok = (status == 200) && !text.startsWith("ERROR") && (text.indexOf("NOT OK") < 0);
+	var plain = (text == "Save cfg OK") || (text == "Save cfg NOT OK!") || (text == "");
 	var toast = document.getElementById('save_status');
 	if (!toast) {
 		toast = document.createElement('div');
@@ -1373,11 +1371,15 @@ function showSaveStatus(ok) {
 		toast.className = 'save_status';
 		document.body.appendChild(toast);
 	}
-	toast.innerHTML = ok ? "Saved &#10004;" : "Not saved &#10006;";
+	if (plain) {
+		toast.innerHTML = ok ? "Saved &#10004;" : "Not saved &#10006;";
+	} else {
+		toast.textContent = text;
+	}
 	toast.style.backgroundColor = ok ? "#2e7d32" : "#d32f2f";
 	toast.style.display = "block";
 	clearTimeout(SaveStatusTimer);
-	SaveStatusTimer = setTimeout(function() { toast.style.display = "none"; }, 2000);
+	SaveStatusTimer = setTimeout(function() { toast.style.display = "none"; }, (plain && ok) ? 2000 : 6000);
 }
 
 function togglePasswordVisibility() {
@@ -1484,9 +1486,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c13");</style>
+<style>@import url("styles.css?v=1.1.2-c14");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c13"></script>
+<script src="scripts.js?v=1.1.2-c14"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');

@@ -9,11 +9,12 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c13** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c14** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
-> **Important:** this firmware **compiles**, but it has **not been tested on a real board yet**.
-> The first tests on your printer are the final check. Read the
+> **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c13): web pages,
+> photos, Prusa Connect, stream and thermal guard work. The OV2640 and OV5640 sensors and the
+> PrusaLink integration have not been tested on a real board yet. Read the
 > [known limitations](#known-limitations).
 
 **Main differences from the original firmware:**
@@ -205,7 +206,7 @@ lens, which makes the image blurry.
 | Page | What you find there |
 |---|---|
 | Main page | Latest photo, live stream, current upload interval (it already includes the backoff, PrusaLink and the thermal guard) |
-| **Camera** | Every change is saved at once (a short *Saved ✔* confirms it); only the text fields have a Save button. Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, detected sensor, autofocus state, PrusaLink |
+| **Camera** | Every change is saved at once (a short *Saved ✔* at the bottom of the page confirms it, without a popup); only the text fields have a Save button. Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, detected sensor, autofocus state, PrusaLink |
 | **Wi-Fi** | Network, static IP, service AP on/off |
 | **Authentication** | Login for the web page and the stream |
 | **System** | Prusa Connect status, uptime, temperature, [Health](#health-checks) section, camera name (mDNS), log level and logs, status LED, micro SD card, [firmware update from file](#firmware-update) |
@@ -475,8 +476,8 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 <a name="known-limitations"></a>
 ## Known limitations
 
-- **Not tested on a real board.** It compiles without errors, but the real behavior (camera,
-  Wi-Fi, temperature, PrusaLink) can only be confirmed on your Core One.
+- **Tested with the OV3660 sensor only.** The OV2640 and OV5640 sensors (and the OV5640 autofocus)
+  and PrusaLink have not been tested on a real board yet.
 - **PrusaLink on the Core One:** the PrusaLink specification defines `/api/v1/status` and *digest*
   authentication. It is not confirmed that the Core One firmware answers exactly like that. If
   *PrusaLink status* does not show `OK`, open an issue with the message shown.
@@ -963,6 +964,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c14 | The results of saving (settings, token, Wi-Fi, PrusaLink, login) are shown as a short message at the bottom of the page instead of a popup. README: tested on a XIAO ESP32S3 Sense with the OV3660 sensor |
 | 1.1.2-c13 | Thermal guard in two steps: stream at 1 frame/s from 80 °C, stopped from 88 °C (was stopped from 75 °C, reached within seconds of streaming). Average temperature, sensor read in its 20–100 °C range. Stream limited to about 5 frames/s. Start stream opens a page that shows why the stream is slow or stopped. The service AP switches off about 1 minute after the connection to your Wi-Fi network (was 5 minutes or more, and never while a stream was open), without reconnecting. Footer links to the GitHub profile |
 | 1.1.2-c12 | The service AP is an open network, without a password. Resolutions from 1024×768 (320×240 to 800×600 removed). Status LED mode on the System page (On / Errors only / Off). *Saved ✔* confirmation after each change. The photo size estimate uses every photo, not only the uploads. Fixed: broken characters next to Confirm Password (the page did not declare UTF-8). Footer: modified by amorim1005 |
 | 1.1.2-c11 | Estimated photo size on the Camera page, with a warning above 1 MB |
