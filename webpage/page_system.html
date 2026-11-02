@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c14");</style>
+<style>@import url("styles.css?v=1.1.2-c15");</style>
 <body>
 	<center>
         <table id="data">
@@ -20,7 +20,9 @@
 			<tr><td class="ps1">PSRAM</td><td class="ps2" id="mem_psram"></td></tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Firmware</td><td></td></tr>
-            <tr><td class="ps1">Version</td><td class="ps2" id="sw_ver"></td></tr>
+            <tr><td class="ps1">Installed version</td><td class="ps2" id="sw_ver"></td></tr>
+			<tr id="latest_release_row" style="display: none;"><td class="ps1">Latest release</td><td class="ps2" id="latest_release" style="line-height: 16px; color: #e08a00;"></td></tr>
+			<tr><td class="ps1">Based on</td><td class="ps2"><a href="https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam/releases/tag/v1.1.2" target="_blank" rel="noopener">Prusa ESP32 cam v1.1.2</a> by Miroslav Pivovarsky</td></tr>
 			<tr><td class="ps1">Build</td><td class="ps2" id="sw_build"></td></tr>
             <tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Configuration</td><td></td></tr>
@@ -65,7 +67,7 @@
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c14"></script>
+<script src="scripts.js?v=1.1.2-c15"></script>
 <script>
 	get_data("system");
 </script>

@@ -117,6 +117,7 @@ function get_data(val) {
 		if (val == "system") {
 			setText('uptime', obj.uptime);
 			setText('sw_ver', obj.sw_ver);
+			checkLatestRelease(obj.sw_ver);
 			setText('sw_build', obj.sw_build);
 			setText('last_upload_status', obj.last_upload_status);
 			setText('wifi_mode', obj.wifi_mode);
@@ -216,6 +217,65 @@ function updatePhotoSizeEstimate() {
 		warningText.style.color = "";
 		warningText.textContent = "";
 	}
+}
+
+/* a newer release on GitHub. The browser asks GitHub, not the camera. The row is shown only when a newer version exists,
+   nothing is shown without a release, without internet in the browser (for example on the service AP) or when up to date.
+   Asked once per page load */
+var LatestRelease = null;
+
+/* numbers of a version, "v1.1.2-c14" -> [1, 1, 2, 14] */
+function versionNumbers(version) {
+	return (String(version).match(/[0-9]+/g) || []).map(function(n) { return parseInt(n); });
+}
+
+/* > 0 when version a is newer than version b */
+function compareVersions(a, b) {
+	var x = versionNumbers(a);
+	var y = versionNumbers(b);
+	for (var i = 0; i < Math.max(x.length, y.length); i++) {
+		var d = (x[i] || 0) - (y[i] || 0);
+		if (d != 0) {
+			return d;
+		}
+	}
+	return 0;
+}
+
+function showLatestRelease(installed) {
+	var row = document.getElementById('latest_release_row');
+	var cell = document.getElementById('latest_release');
+	if (!row || !cell || !LatestRelease || !LatestRelease.version || (compareVersions(LatestRelease.version, installed) <= 0)) {
+		return;
+	}
+	var link = document.createElement('a');
+	link.href = LatestRelease.url;
+	link.target = "_blank";
+	link.rel = "noopener";
+	link.textContent = LatestRelease.version;
+	cell.textContent = "";
+	cell.append("There is a new version. Latest release: ", link);
+	row.style.display = "";
+}
+
+function checkLatestRelease(installed) {
+	if (LatestRelease) {
+		showLatestRelease(installed);
+		return;
+	}
+	fetch('https://api.github.com/repos/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest', { cache: 'no-store' }).then(function(response) {
+		if (!response.ok) {
+			return {};
+		}
+		return response.json().then(function(release) {
+			return { version: String(release.tag_name).replace(/^v/, ""), url: release.html_url };
+		});
+	}).catch(function(error) {
+		return {};
+	}).then(function(release) {
+		LatestRelease = release;
+		showLatestRelease(installed);
+	});
 }
 
 /* the photo was read from the camera: its real size is the new base of the estimate, when the Camera page is open */

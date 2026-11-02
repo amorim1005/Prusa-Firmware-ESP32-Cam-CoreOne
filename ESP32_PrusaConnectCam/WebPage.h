@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c14">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c15">
 </head>
 <body>
     <nav>
@@ -76,12 +76,12 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<br><br><br><br>
 	<table id=botton><tr>
 		<td><p class=p2>Prusa Connect ESP32 cam</p> </td>
-		<td><p class=p3>Author</p> <p class=p2>Miroslav Pivovarsky</p> <p class=p3>and modified by</p> <a href="https://github.com/amorim1005" class="p2" id="author-link" target="_blank" rel="noopener">amorim1005</a> </td>
+		<td><p class=p3>Author</p> <a href="https://github.com/johnyHV" class="p2" id="original-author-link" target="_blank" rel="noopener">Miroslav Pivovarsky</a> <p class=p3>and modified by</p> <a href="https://github.com/amorim1005" class="p2" id="author-link" target="_blank" rel="noopener">amorim1005</a> </td>
 		<td><a href="license.html" class="p3 page-link">Licence</a></td>
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c14"></script>
+	<script src="scripts.js?v=1.1.2-c15"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -128,7 +128,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c14");</style>
+<style>@import url("styles.css?v=1.1.2-c15");</style>
 <body>
 	<center>
 		<table>
@@ -141,7 +141,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c14"></script>
+<script src="scripts.js?v=1.1.2-c15"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -152,7 +152,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c14");</style>
+<style>@import url("styles.css?v=1.1.2-c15");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -221,7 +221,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c14"></script>
+<script src="scripts.js?v=1.1.2-c15"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -231,7 +231,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c14");</style>
+<style>@import url("styles.css?v=1.1.2-c15");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -331,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c14"></script>
+<script src="scripts.js?v=1.1.2-c15"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -341,7 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c14");</style>
+<style>@import url("styles.css?v=1.1.2-c15");</style>
 <body>
 	<center>
         <table id="data">
@@ -363,7 +363,9 @@ const char page_system_html[] PROGMEM = R"rawliteral(
 			<tr><td class="ps1">PSRAM</td><td class="ps2" id="mem_psram"></td></tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Firmware</td><td></td></tr>
-            <tr><td class="ps1">Version</td><td class="ps2" id="sw_ver"></td></tr>
+            <tr><td class="ps1">Installed version</td><td class="ps2" id="sw_ver"></td></tr>
+			<tr id="latest_release_row" style="display: none;"><td class="ps1">Latest release</td><td class="ps2" id="latest_release" style="line-height: 16px; color: #e08a00;"></td></tr>
+			<tr><td class="ps1">Based on</td><td class="ps2"><a href="https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam/releases/tag/v1.1.2" target="_blank" rel="noopener">Prusa ESP32 cam v1.1.2</a> by Miroslav Pivovarsky</td></tr>
 			<tr><td class="ps1">Build</td><td class="ps2" id="sw_build"></td></tr>
             <tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
 			<tr><td class="ps3">Configuration</td><td></td></tr>
@@ -408,7 +410,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c14"></script>
+<script src="scripts.js?v=1.1.2-c15"></script>
 <script>
 	get_data("system");
 </script>
@@ -1059,6 +1061,7 @@ function get_data(val) {
 		if (val == "system") {
 			setText('uptime', obj.uptime);
 			setText('sw_ver', obj.sw_ver);
+			checkLatestRelease(obj.sw_ver);
 			setText('sw_build', obj.sw_build);
 			setText('last_upload_status', obj.last_upload_status);
 			setText('wifi_mode', obj.wifi_mode);
@@ -1158,6 +1161,65 @@ function updatePhotoSizeEstimate() {
 		warningText.style.color = "";
 		warningText.textContent = "";
 	}
+}
+
+/* a newer release on GitHub. The browser asks GitHub, not the camera. The row is shown only when a newer version exists,
+   nothing is shown without a release, without internet in the browser (for example on the service AP) or when up to date.
+   Asked once per page load */
+var LatestRelease = null;
+
+/* numbers of a version, "v1.1.2-c14" -> [1, 1, 2, 14] */
+function versionNumbers(version) {
+	return (String(version).match(/[0-9]+/g) || []).map(function(n) { return parseInt(n); });
+}
+
+/* > 0 when version a is newer than version b */
+function compareVersions(a, b) {
+	var x = versionNumbers(a);
+	var y = versionNumbers(b);
+	for (var i = 0; i < Math.max(x.length, y.length); i++) {
+		var d = (x[i] || 0) - (y[i] || 0);
+		if (d != 0) {
+			return d;
+		}
+	}
+	return 0;
+}
+
+function showLatestRelease(installed) {
+	var row = document.getElementById('latest_release_row');
+	var cell = document.getElementById('latest_release');
+	if (!row || !cell || !LatestRelease || !LatestRelease.version || (compareVersions(LatestRelease.version, installed) <= 0)) {
+		return;
+	}
+	var link = document.createElement('a');
+	link.href = LatestRelease.url;
+	link.target = "_blank";
+	link.rel = "noopener";
+	link.textContent = LatestRelease.version;
+	cell.textContent = "";
+	cell.append("There is a new version. Latest release: ", link);
+	row.style.display = "";
+}
+
+function checkLatestRelease(installed) {
+	if (LatestRelease) {
+		showLatestRelease(installed);
+		return;
+	}
+	fetch('https://api.github.com/repos/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest', { cache: 'no-store' }).then(function(response) {
+		if (!response.ok) {
+			return {};
+		}
+		return response.json().then(function(release) {
+			return { version: String(release.tag_name).replace(/^v/, ""), url: release.html_url };
+		});
+	}).catch(function(error) {
+		return {};
+	}).then(function(release) {
+		LatestRelease = release;
+		showLatestRelease(installed);
+	});
 }
 
 /* the photo was read from the camera: its real size is the new base of the estimate, when the Camera page is open */
@@ -1486,9 +1548,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c14");</style>
+<style>@import url("styles.css?v=1.1.2-c15");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c14"></script>
+<script src="scripts.js?v=1.1.2-c15"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');

@@ -99,8 +99,11 @@ with sync_playwright() as p:
     page = browser.new_page()
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
+    # the browser logs the 404 of GitHub without a release, that is expected
+    page.on('console', lambda m: errors.append(m.text) if (m.type == 'error' and not m.location.get('url', '').startswith('https://api.github.com')) else None)
     dialogs = []
+    GITHUB = {'status': 404, 'body': '{"message": "Not Found"}'}
+    page.route('https://api.github.com/**', lambda route: route.fulfill(status=GITHUB['status'], content_type='application/json', body=GITHUB['body'], headers={'Access-Control-Allow-Origin': '*'}))
     page.on('dialog', lambda d: (dialogs.append(d.message), d.accept()))
 
     print('index + Camera page')
@@ -121,6 +124,7 @@ with sync_playwright() as p:
     smallest = page.eval_on_selector('#framesizeid', "s => Math.min.apply(null, Array.from(s.options).map(o => parseInt(o.value)))")
     check(smallest == 4, 'smallest resolution is 1024x768 (index 4): %s' % smallest)
     check('modified by' in page.inner_text('body') and page.get_attribute('#author-link', 'href') == 'https://github.com/amorim1005', 'footer: modified by amorim1005, linked to the GitHub profile')
+    check(page.get_attribute('#original-author-link', 'href') == 'https://github.com/johnyHV', 'footer: original author linked to his GitHub profile')
     check(page.query_selector('#ledid') is None and page.query_selector('#flashid') is None, 'no LED / flash controls')
     check(page.query_selector('#light-icon') is None, 'no light button')
     check('active' in (page.get_attribute('a[href="page_config.html"]', 'class') or ''), 'Camera tab active')
@@ -196,7 +200,21 @@ with sync_playwright() as p:
     page.click('a[href="page_system.html"]')
     page.wait_for_function("document.getElementById('upload_ok') && document.getElementById('upload_ok').textContent == '12'")
     check(page.inner_text('#health_status') == 'OK', 'health status')
-    check(page.inner_text('#sw_ver') == '1.1.2-c10', 'version')
+    check(page.inner_text('#sw_ver') == '1.1.2-c10', 'installed version')
+    check('v1.1.2' in page.inner_text('#content') and 'Based on' in page.inner_text('#content'), 'based on the original v1.1.2')
+    page.wait_for_timeout(500)
+    check(not page.is_visible('#latest_release_row'), 'no release on GitHub (404): nothing shown')
+    for body, what in (('{"tag_name": "v1.1.2-c10", "html_url": "https://github.com/x"}', 'same version: nothing shown'),
+                       ('{"tag_name": "v1.1.2-c9", "html_url": "https://github.com/x"}', 'older release: nothing shown')):
+        GITHUB.update({'status': 200, 'body': body})
+        page.evaluate("LatestRelease = null; checkLatestRelease('1.1.2-c10')")
+        page.wait_for_timeout(500)
+        check(not page.is_visible('#latest_release_row'), what)
+    GITHUB.update({'status': 200, 'body': '{"tag_name": "v1.1.2-c15", "html_url": "https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/tag/v1.1.2-c15"}'})
+    page.evaluate("LatestRelease = null; checkLatestRelease('1.1.2-c10')")
+    page.wait_for_function("document.getElementById('latest_release_row').style.display == ''")
+    check(page.inner_text('#latest_release') == 'There is a new version. Latest release: 1.1.2-c15', 'newer release shown: %s' % page.inner_text('#latest_release'))
+    check(page.get_attribute('#latest_release a', 'href').endswith('/v1.1.2-c15'), 'newer release linked')
     check(page.eval_on_selector('#progress_bar_sd_used', 'e => e.style.width') == '30%', 'SD progress bar')
     check(page.input_value('#status_ledid') == '1', 'status LED mode shown')
     requests_seen.clear()

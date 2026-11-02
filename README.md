@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c14** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c15** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c13): web pages,
@@ -71,7 +71,7 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 ## Quick start
 
 1. Download `ESP32_PrusaConnectCam.ino.merged.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest) and flash it
-   at address 0x0 from the browser ([how to flash](#flash)).
+   at address 0x0 from the browser, Chrome or Edge ([how to flash](#flash)).
 2. Connect to the Wi-Fi network `ESP32_camera_...` (open network, no password), open
    <http://192.168.0.1> and set up your Wi-Fi.
 3. Create the camera in Prusa Connect and paste its token on the **Camera** page
@@ -130,14 +130,44 @@ OV2640 [datasheet](doc/XIAO_ESP32S3/OV2640-datasheet.pdf).
 <a name="flash"></a>
 ## How to flash the firmware
 
-The compiled files are in the **[latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest)** on GitHub, with a `SHA256SUMS.txt` to
-check the download. You do not need to compile to use the camera.
+The easiest way needs only a **browser**: nothing to install and nothing to compile.
 
-**Easiest way (browser, Chrome or Edge):**
-1. Open <https://espressif.github.io/esptool-js/>.
-2. Baud rate 921600, press **Connect** and choose the XIAO's port.
-3. The first time, press **Erase Flash**.
-4. Add **a single file**: `ESP32_PrusaConnectCam.ino.merged.bin` at address **0x0**. Press **Program**.
+1. **Download** `ESP32_PrusaConnectCam.ino.merged.bin` from the
+   **[latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest)**
+   (the release also has a `SHA256SUMS.txt` to check the download).
+2. **Recommended: install the USB-serial drivers** before you connect the board (Windows; on
+   macOS and Linux they are usually not needed):
+   - CH340 / CH341: [CH341SER](https://www.wch-ic.com/downloads/CH341SER_EXE.html) (WCH)
+   - CH9102 / CH343: [CH343SER](https://www.wch-ic.com/downloads/CH343SER_EXE.html) (WCH)
+   - CP210x: [CP210x VCP drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) (Silicon Labs)
+   - FTDI: [VCP drivers](https://ftdichip.com/drivers/vcp-drivers/) (FTDI)
+
+   The XIAO ESP32-S3 itself uses the USB of the chip (Windows 10/11 shows it as *USB Serial
+   Device* or *USB JTAG/serial debug unit* without a driver), but with these drivers installed,
+   other ESP32 boards and USB-serial adapters work too.
+3. **Connect** the XIAO to the computer with a USB-C **data** cable (some cables only charge).
+   **No port appears?** Try another cable, or hold the **B** (boot) button, plug in the cable and
+   release the button.
+4. Open <https://espressif.github.io/esptool-js/> in **Chrome or Edge** (Firefox and Safari cannot
+   access USB ports).
+5. Leave **WebUSB (CH340)** off, **Baudrate** 921600, press **Connect** and choose the XIAO's port.
+6. In the file table, change **Flash Address** from `0x1000` (the default, for the older ESP32) to
+   **`0x0`**: with `0x1000` the camera does not start. Choose the `merged.bin` file next to it.
+7. Leave *Flash Mode*, *Flash Frequency* and *Flash Size* as they are and *Erase all* unticked,
+   press **Program** and wait for 100 %.
+8. The camera restarts by itself after the programming (only if it does not: press the **R**
+   button, or unplug and plug in the cable).
+9. On your phone or computer, connect to the camera's Wi-Fi network **`ESP32_camera_...`** (open
+   network, no password) and open <http://192.168.0.1>. Do the whole setup there: your Wi-Fi, the
+   Prusa Connect token and the other settings (see [first setup](#first-setup)).
+
+The `merged.bin` file writes the whole flash, so the settings go back to the factory settings (no
+**Erase Flash** needed). **Later versions** are easier: install `ESP32_PrusaConnectCam.ino.bin` from
+the System page over Wi-Fi, without a cable, and the settings stay (see
+[firmware update from file](#firmware-update)).
+
+<details>
+<summary>Other ways to flash (esptool, Espressif Flash Download Tool) and the files</summary>
 
 **With esptool** (Linux/macOS/Windows), first flash (erases everything):
 ```bash
@@ -156,18 +186,14 @@ time, press **ERASE** before **START**.
 
 <img src="doc/XIAO_ESP32S3/chip_select.jpg" width=25%> <img src="doc/XIAO_ESP32S3/flash.jpg" width=30%>
 
-**Over Wi-Fi:** once the camera runs, later versions can be installed from the System page with
-the file `ESP32_PrusaConnectCam.ino.bin` (see [firmware update from file](#firmware-update)).
-
-If the board is not detected: hold the **B** (boot) button, plug in the USB cable and release the
-button.
-
 | File | Address | Use |
 |---|---|---|
 | `ESP32_PrusaConnectCam.ino.merged.bin` | 0x0 | USB, everything in one file |
 | `ESP32_PrusaConnectCam.ino.bootloader.bin` | 0x0 | USB |
 | `ESP32_PrusaConnectCam.ino.partitions.bin` | 0x8000 | USB |
 | `ESP32_PrusaConnectCam.ino.bin` | 0x10000 | USB, or the System page over Wi-Fi |
+
+</details>
 
 ---
 
@@ -209,7 +235,7 @@ lens, which makes the image blurry.
 | **Camera** | Every change is saved at once (a short *Saved ✔* at the bottom of the page confirms it, without a popup); only the text fields have a Save button. Token, upload interval (10 s, 30 s, 60 s or 10 min), resolution (only the ones your sensor supports), quality, image settings, detected sensor, autofocus state, PrusaLink |
 | **Wi-Fi** | Network, static IP, service AP on/off |
 | **Authentication** | Login for the web page and the stream |
-| **System** | Prusa Connect status, uptime, temperature, [Health](#health-checks) section, camera name (mDNS), log level and logs, status LED, micro SD card, [firmware update from file](#firmware-update) |
+| **System** | Prusa Connect status, uptime, temperature, [Health](#health-checks) section, installed version (with a notice when a newer release exists on GitHub) and the original version it is based on, camera name (mDNS), log level and logs, status LED, micro SD card, [firmware update from file](#firmware-update) |
 
 Error messages explain what to do, for example a 403 from Prusa Connect explains the
 15-minute window.
@@ -964,6 +990,7 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 | 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
 | 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
 | 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
+| 1.1.2-c15 | System page: installed version, the original version it is based on (v1.1.2), and a notice with a link when a newer release exists on GitHub (the browser asks GitHub; nothing is shown when up to date or offline). Footer links to the original author. README: flashing from the browser first, step by step (USB-serial drivers recommended), the other ways below |
 | 1.1.2-c14 | The results of saving (settings, token, Wi-Fi, PrusaLink, login) are shown as a short message at the bottom of the page instead of a popup. README: tested on a XIAO ESP32S3 Sense with the OV3660 sensor |
 | 1.1.2-c13 | Thermal guard in two steps: stream at 1 frame/s from 80 °C, stopped from 88 °C (was stopped from 75 °C, reached within seconds of streaming). Average temperature, sensor read in its 20–100 °C range. Stream limited to about 5 frames/s. Start stream opens a page that shows why the stream is slow or stopped. The service AP switches off about 1 minute after the connection to your Wi-Fi network (was 5 minutes or more, and never while a stream was open), without reconnecting. Footer links to the GitHub profile |
 | 1.1.2-c12 | The service AP is an open network, without a password. Resolutions from 1024×768 (320×240 to 800×600 removed). Status LED mode on the System page (On / Errors only / Off). *Saved ✔* confirmation after each change. The photo size estimate uses every photo, not only the uploads. Fixed: broken characters next to Confirm Password (the page did not declare UTF-8). Footer: modified by amorim1005 |
