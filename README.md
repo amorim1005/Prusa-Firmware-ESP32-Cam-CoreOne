@@ -980,23 +980,10 @@ git diff 136c91c -- ESP32_PrusaConnectCam webpage
 <a name="version-history"></a>
 ## Version history
 
-| Version | Changes |
-|---|---|
-| 1.1.2-c1 | 11 bugs fixed, Prusa Camera Service, Core One defaults, thermal guard, PrusaLink |
-| 1.1.2-c2 | TLS timeout, browser cache, page sending, rejected camera info, PrusaLink with the printer switched off, 16 KB TLS chunks, batched SD log writes, debug messages |
-| 1.1.2-c3 | OV2640, OV3660 and OV5640 detected automatically, resolutions per sensor up to 2592×1944, safe camera start, EXIF model, correct resolution sent to Prusa Connect |
-| 1.1.2-c4 | Camera sensor detected once and saved: later starts initialize the camera only once |
-| 1.1.2-c5 | OV5640 continuous autofocus, autofocus state on the Camera page |
-| 1.1.2-c6 | Stream capture task with rotating buffers (faster stream, responsive web page, 2 clients), HTTPS keep-alive for uploads, `scripts.js` from flash and cached |
-| 1.1.2-c7 | Automatic restart after low memory, camera health shown in Prusa Connect, Health section on the System page, update from the internet removed |
-| 1.1.2-c8 | Firmware update from a `.bin` file on the System page (this or the original firmware), the file is checked before writing |
-| 1.1.2-c15 | System page: installed version, the original version it is based on (v1.1.2), and a notice with a link when a newer release exists on GitHub (the browser asks GitHub; nothing is shown when up to date or offline). Footer links to the original author. README: flashing from the browser first, step by step (USB-serial drivers recommended), the other ways below |
-| 1.1.2-c14 | The results of saving (settings, token, Wi-Fi, PrusaLink, login) are shown as a short message at the bottom of the page instead of a popup. README: tested on a XIAO ESP32S3 Sense with the OV3660 sensor |
-| 1.1.2-c13 | Thermal guard in two steps: stream at 1 frame/s from 80 °C, stopped from 88 °C (was stopped from 75 °C, reached within seconds of streaming). Average temperature, sensor read in its 20–100 °C range. Stream limited to about 5 frames/s. Start stream opens a page that shows why the stream is slow or stopped. The service AP switches off about 1 minute after the connection to your Wi-Fi network (was 5 minutes or more, and never while a stream was open), without reconnecting. Footer links to the GitHub profile |
-| 1.1.2-c12 | The service AP is an open network, without a password. Resolutions from 1024×768 (320×240 to 800×600 removed). Status LED mode on the System page (On / Errors only / Off). *Saved ✔* confirmation after each change. The photo size estimate uses every photo, not only the uploads. Fixed: broken characters next to Confirm Password (the page did not declare UTF-8). Footer: modified by amorim1005 |
-| 1.1.2-c11 | Estimated photo size on the Camera page, with a warning above 1 MB |
-| 1.1.2-c10 | Only the XIAO ESP32-S3 Sense: other boards, LED flash and light, jQuery (87 KB) and the Prusa legal pages removed. Fixed: the switches on the Camera, Wi-Fi and Authentication pages always showed "on" (bug of the original page). The Wi-Fi scan table shows network names as text. Binaries moved to GitHub releases, `doc/` reduced from 231 MB to 8 MB |
-| 1.1.2-c9 | External DHT22/DHT11 temperature sensor removed (code, Temperature page, `/get_temp`, `/get_hum`, DHTNEW library, wiring docs). The Core One has its own chamber temperature sensor |
+**1.1.2-c15**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
+XIAO ESP32-S3 Sense (OV2640, OV3660 and OV5640 detected automatically, OV5640 autofocus), faster
+stream, thermal guard in two steps, PrusaLink, health checks, firmware update from file, open
+service AP for the setup and a simpler web page.
 
 ---
 
