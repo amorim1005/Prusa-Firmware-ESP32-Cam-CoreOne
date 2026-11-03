@@ -214,6 +214,7 @@ with sync_playwright() as p:
     page.click('a[href="page_auth.html"]')
     page.wait_for_function("document.getElementById('auth_username') && document.getElementById('auth_username').value == 'admin'")
     check(True, 'auth page filled')
+    check(page.get_attribute('#auth_password', 'placeholder') == 'unchanged' and page.get_attribute('#auth_password_confirm', 'placeholder') == 'unchanged', 'empty password fields keep the password')
     posts_seen.clear()
     page.evaluate("setAuth('admin', 'se cret&1')")
     check(posts_seen and posts_seen[-1][0] == '/basicauth_cfg' and 'auth_password=se%20cret%261' in posts_seen[-1][1], 'login saved with POST, the password in the body: %s' % posts_seen)

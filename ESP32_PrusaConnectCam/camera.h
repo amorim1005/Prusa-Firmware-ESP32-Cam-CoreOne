@@ -136,7 +136,7 @@ public:
   framesize_t TransformFrameSizeDataType(uint8_t);
   
 
-  void SetPhotoQuality(uint8_t);
+  bool SetPhotoQuality(uint8_t);
   bool SetFrameSize(uint8_t);
   bool CheckFrameSizeSupported(uint8_t);
   String GetSupportedFrameSizes();

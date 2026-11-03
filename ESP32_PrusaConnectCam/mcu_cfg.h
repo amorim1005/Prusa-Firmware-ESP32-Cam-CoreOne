@@ -15,7 +15,7 @@
 /* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c16"               ///< SW version
+#define SW_VERSION                  "1.1.2-c17"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< DHCP host name when the camera name has no valid character. Normally the DHCP host name is the camera name (mDNS record)
@@ -41,6 +41,8 @@
 #define CAMERA_XCLK_OV5640          20000000                ///< XCLK for the OV5640 [Hz], Espressif reference value
 #define CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE FRAMESIZE_UXGA  ///< maximum frame size on the WEB page when the sensor is not detected
 #define CAMERA_MIN_FRAMESIZE_INDEX  4                       ///< smallest frame size index offered, 4 = 1024x768. Smaller ones are too small for Prusa Connect
+#define CAMERA_JPEG_QUALITY_MIN     10                      ///< best JPEG quality offered (lower value = better). Lower values make frames larger than the frame buffer
+#define CAMERA_JPEG_QUALITY_MAX     63                      ///< lowest JPEG quality. The WEB page slider sends 73 - quality
 #define CAMERA_SENSOR_UNKNOWN       0                       ///< saved sensor code: not detected yet
 #define CAMERA_SENSOR_OV2640        1                       ///< saved sensor code: OV2640
 #define CAMERA_SENSOR_OV3660        2                       ///< saved sensor code: OV3660

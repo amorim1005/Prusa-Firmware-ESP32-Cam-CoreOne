@@ -34,6 +34,7 @@ PrusaConnect::PrusaConnect(Configuration *i_conf, Logs *i_log, Camera *i_camera,
   UploadFailedCount = 0;
   CaptureFailed = false;
   HealthStatus = "";
+  CfgMutex = xSemaphoreCreateMutex();
 }
 
 /**
@@ -44,7 +45,7 @@ PrusaConnect::PrusaConnect(Configuration *i_conf, Logs *i_log, Camera *i_camera,
  */
 void PrusaConnect::Init() {
   log->AddEvent(LogLevel_Info, F("Init PrusaConnect lib"));
-  BackendReceivedStatus = F("Wait for first connection");
+  SetBackendReceivedStatus(F("Wait for first connection"));
 }
 
 /**
@@ -79,6 +80,7 @@ void PrusaConnect::LoadCfgFromEeprom() {
  * @return false - connection failed, BackendReceivedStatus contains the error
  */
 bool PrusaConnect::BackendConnect() {
+  String hostname = GetPrusaConnectHostname();
   BackendClose();
   BackendClient.setCACert(root_CAs);
   BackendClient.setTimeout(BACKEND_SOCKET_TIMEOUT);
@@ -88,7 +90,7 @@ bool PrusaConnect::BackendConnect() {
   log->AddEvent(LogLevel_Verbose, F("Connecting to server..."));
   esp_task_wdt_reset();
 
-  if (!BackendClient.connect(PrusaConnectHostname.c_str(), 443)) {
+  if (!BackendClient.connect(hostname.c_str(), 443)) {
     char err_buf[200];
     int last_error = BackendClient.lastError(err_buf, sizeof(err_buf));
     if (BackendAvailability != WaitForFirstConnection) {
@@ -97,13 +99,14 @@ bool PrusaConnect::BackendConnect() {
     ConnectFailCounter++;
     BackendClose();
 
-    BackendReceivedStatus = "Connection failed to domain! Error: " + String(last_error) + " - " + String(err_buf);
-    log->AddEvent(LogLevel_Info, BackendReceivedStatus + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
+    String status = "Connection failed to domain! Error: " + String(last_error) + " - " + String(err_buf);
+    SetBackendReceivedStatus(status);
+    log->AddEvent(LogLevel_Info, status + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
     return false;
   }
 
   ConnectFailCounter = 0;
-  BackendClientHost = PrusaConnectHostname;
+  BackendClientHost = hostname;
   log->AddEvent(LogLevel_Verbose, F("Connected to server!"));
   return true;
 }
@@ -133,12 +136,12 @@ int PrusaConnect::BackendRequest(const uint8_t *i_data, size_t i_data_length, St
 
   /* send the request header in one write, every write is one TLS record */
   String header = "PUT " + i_url_path + " HTTP/1.1\r\n";
-  header += "Host: " + PrusaConnectHostname + "\r\n";
+  header += "Host: " + GetPrusaConnectHostname() + "\r\n";
   header += "User-Agent: " BACKEND_USER_AGENT "\r\n";
   header += (true == i_keepAlive) ? "Connection: keep-alive\r\n" : "Connection: close\r\n";
   header += "Content-Type: " + i_content_type + "\r\n";
   header += "Fingerprint: " + Fingerprint + "\r\n";
-  header += "Token: " + Token + "\r\n";
+  header += "Token: " + GetToken() + "\r\n";
   header += "Content-Length: " + String(i_data_length) + "\r\n\r\n";
   if (BackendClient.print(header) != header.length()) {
     return 0;
@@ -214,7 +217,10 @@ int PrusaConnect::BackendRequest(const uint8_t *i_data, size_t i_data_length, St
   /* read the body completely, otherwise the next request on this connection reads the rest of this one.
      Keep the beginning for the log, the error body is a short JSON */
   bool bodyDone = false;
-  if (contentLength >= 0) {
+  if ((204 == httpCode) || (304 == httpCode)) {
+    /* these responses never have a body (RFC 9110), also without a Content-Length header */
+    bodyDone = true;
+  } else if (contentLength >= 0) {
     long received = 0;
     uint8_t buf[256];
     while ((received < contentLength) && ((millis() - start) < BACKEND_RESPONSE_TIMEOUT)) {
@@ -234,7 +240,7 @@ int PrusaConnect::BackendRequest(const uint8_t *i_data, size_t i_data_length, St
     bodyDone = (received == contentLength);
   }
 
-  /* the connection is reusable only after a complete response with Content-Length */
+  /* the connection is reusable only after a complete response: Content-Length, or a response without a body */
   *o_close = (false == i_keepAlive) || serverClose || (false == bodyDone);
   return httpCode;
 }
@@ -254,9 +260,9 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
   log->AddEvent(LogLevel_Verbose, "Sending " + i_type + " to PrusaConnect, " + String(i_data_length) + " bytes");
 
   /* check fingerprint and token length */
-  if ((Fingerprint.length() == 0) || (Token.length() == 0)) {
+  if ((Fingerprint.length() == 0) || (GetToken().length() == 0)) {
     log->AddEvent(LogLevel_Verbose, F("ERROR SEND DATA TO SERVER! INVALID DATA!"));
-    BackendReceivedStatus = (Fingerprint.length() == 0) ? F("Missing fingerprint") : F("Missing token");
+    SetBackendReceivedStatus((Fingerprint.length() == 0) ? F("Missing fingerprint") : F("Missing token"));
     return -1;
   }
 
@@ -266,7 +272,7 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
 
   /* second attempt only when a reused connection was closed by the server in the meantime */
   for (uint8_t attempt = 0; attempt < 2; attempt++) {
-    bool reused = BackendClient.connected() && (BackendClientHost == PrusaConnectHostname);
+    bool reused = BackendClient.connected() && (BackendClientHost == GetPrusaConnectHostname());
     if (reused) {
       log->AddEvent(LogLevel_Verbose, F("Reusing connection to server"));
     } else if (false == BackendConnect()) {
@@ -289,17 +295,24 @@ int PrusaConnect::SendDataToBackend(const uint8_t *i_data, size_t i_data_length,
 
   log->AddEvent(LogLevel_Verbose, "Full response: " + fullResponse);
 
+  String status = "";
   if (0 == httpCode) {
-    BackendReceivedStatus = i_type + F(": no response from server");
+    status = i_type + F(": no response from server");
+    /* the connection was opened, but the server did not answer */
+    if (BackendAvailability != WaitForFirstConnection) {
+      BackendAvailability = BackendUnavailable;
+    }
   } else {
-    BackendReceivedStatus = i_type + ": " + ProcessHttpResponseCode(httpCode);
+    status = i_type + ": " + ProcessHttpResponseCode(httpCode);
     if (BackendResultOk != ProcessHttpResponseCodeClass(httpCode)) {
       log->AddEvent(LogLevel_Warning, "Backend error response: " + fullResponse);
     }
+    BackendAvailability = BackendAvailable;
   }
-  BackendAvailability = BackendAvailable;
 
-  log->AddEvent(LogLevel_Info, "Upload done: " + String(i_data_length) + " bytes. Response code: " + BackendReceivedStatus + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
+  SetBackendReceivedStatus(status);
+
+  log->AddEvent(LogLevel_Info, "Upload done: " + String(i_data_length) + " bytes. Response code: " + status + " ,BA:" + CovertBackendAvailabilitStatusToString(BackendAvailability));
   return httpCode;
 }
 
@@ -365,8 +378,9 @@ bool PrusaConnect::SendPhotoToBackend(const uint8_t *i_data, size_t i_len) {
   log->AddEvent(LogLevel_Verbose, F("Start sending photo to prusaconnect"));
 
   if (i_len > CAMERA_SERVICE_SNAPSHOT_MAX_SIZE) {
-    BackendReceivedStatus = "Photo: too large " + String(i_len) + " B, maximum is 1 MB. Lower the resolution or quality";
-    log->AddEvent(LogLevel_Error, BackendReceivedStatus);
+    String status = "Photo: too large " + String(i_len) + " B, maximum is 1 MB. Lower the resolution or quality";
+    SetBackendReceivedStatus(status);
+    log->AddEvent(LogLevel_Error, status);
     return false;
   }
 
@@ -398,7 +412,8 @@ bool PrusaConnect::SendInfoToBackend() {
   }
 
   /* the Camera Service has no status field: a camera problem is shown as a part of the name, for example "camera [HOT]" */
-  String suffix = (HealthStatus.length() > 0) ? (" [" + HealthStatus + "]") : "";
+  String health = GetHealthStatus();
+  String suffix = (health.length() > 0) ? (" [" + health + "]") : "";
 
   JsonObject config = json_data["config"].to<JsonObject>();
   config["name"] = name.substring(0, CAMERA_SERVICE_NAME_MAX_LEN - suffix.length()) + suffix;
@@ -444,7 +459,7 @@ void PrusaConnect::TakePictureAndSendToBackend() {
   CaptureFailed = (camera->GetCameraCaptureSuccess() == false);
   if (true == CaptureFailed) {
     log->AddEvent(LogLevel_Error, F("Error capturing photo. Stop sending to backend!"));
-    BackendReceivedStatus = F("Photo: camera capture failed");
+    SetBackendReceivedStatus(F("Photo: camera capture failed"));
     UploadFailedCount++;
     return;
   }
@@ -633,8 +648,10 @@ void PrusaConnect::SetRefreshInterval(uint16_t i_data) {
  * @return none
  */
 void PrusaConnect::SetToken(String i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   Token = i_data;
-  config->SaveToken(Token);
+  xSemaphoreGive(CfgMutex);
+  config->SaveToken(i_data);
 
   /* new token: register the camera immediately, the first call must arrive within 15 minutes */
   BackoffInterval = 0;
@@ -658,8 +675,10 @@ void PrusaConnect::SetBackendAvailabilitStatus(BackendAvailabilitStatus i_data) 
  * @param String i_data - hostname
  */
 void PrusaConnect::SetPrusaConnectHostname(String i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   PrusaConnectHostname = i_data;
-  config->SavePrusaConnectHostname(PrusaConnectHostname);
+  xSemaphoreGive(CfgMutex);
+  config->SavePrusaConnectHostname(i_data);
   BackoffInterval = 0;
   UpdateDeviceInformation();
 }
@@ -765,7 +784,22 @@ void PrusaConnect::ClearConnectFailCounter() {
  * @return String - backend received status
  */
 String PrusaConnect::GetBackendReceivedStatus() {
-  return BackendReceivedStatus;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = BackendReceivedStatus;
+  xSemaphoreGive(CfgMutex);
+  return ret;
+}
+
+/**
+ * @brief set backend received status. The WEB server task reads it, the photo task writes it
+ *
+ * @param String - status
+ * @return none
+ */
+void PrusaConnect::SetBackendReceivedStatus(String i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  BackendReceivedStatus = i_data;
+  xSemaphoreGive(CfgMutex);
 }
 
 /**
@@ -775,7 +809,10 @@ String PrusaConnect::GetBackendReceivedStatus() {
  * @return String - token
  */
 String PrusaConnect::GetToken() {
-  return Token;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = Token;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 /**
@@ -794,7 +831,10 @@ String PrusaConnect::GetFingerprint() {
  * @return String - hostanme
  */
 String PrusaConnect::GetPrusaConnectHostname() {
-  return PrusaConnectHostname;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = PrusaConnectHostname;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 /** 
@@ -835,7 +875,9 @@ bool PrusaConnect::GetTimeLapsPhotoSaveStatus() {
 void PrusaConnect::SetHealthStatus(String i_data) {
   if (i_data != HealthStatus) {
     log->AddEvent(LogLevel_Warning, F("Camera health for Prusa Connect: "), (i_data.length() > 0) ? i_data : String(F("OK")));
+    xSemaphoreTake(CfgMutex, portMAX_DELAY);
     HealthStatus = i_data;
+    xSemaphoreGive(CfgMutex);
     SendDeviceInformationToBackend = true;
   }
 }
@@ -853,7 +895,10 @@ bool PrusaConnect::GetCaptureFailed() {
 }
 
 String PrusaConnect::GetHealthStatus() {
-  return HealthStatus;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = HealthStatus;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 /**

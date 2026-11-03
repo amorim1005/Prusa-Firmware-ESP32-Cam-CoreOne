@@ -118,11 +118,10 @@ String lastTwoChars = command.substring(command.length() - 2);
       log->AddEvent(LogLevel_Warning, F("--> Bad resolution size!"));
     }
   } else if (command.startsWith("photoquality:") && command.endsWith(";")) {
-    uint8_t quality = command.substring(13, command.length() -1).toInt();
+    long quality = command.substring(13, command.length() -1).toInt();
     log->AddEvent(LogLevel_Info, F("--> Console set photo quality: "), String(quality));
-    if ((quality >= 10) && (quality <= 63)) {
-      cam->SetPhotoQuality(quality);
-    } else {
+    /* SetPhotoQuality checks the range, a long value must not wrap into it */
+    if ((quality < 0) || (quality > 255) || (false == cam->SetPhotoQuality(quality))) {
       log->AddEvent(LogLevel_Warning, F("--> Bad photo quality!"));
     }
 

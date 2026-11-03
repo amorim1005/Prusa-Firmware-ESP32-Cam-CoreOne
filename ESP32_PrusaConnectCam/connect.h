@@ -48,6 +48,7 @@ private:
   String Token;                                   ///< token for backend communication
   String Fingerprint;                             ///< fingerprint for backend communication 
   String PrusaConnectHostname;                    ///< hostname of prusa connect backend          
+  SemaphoreHandle_t CfgMutex;                     ///< mutex for the strings shared with the WEB server task: token, hostname, status, health
 
   WiFiClientSecure BackendClient;                 ///< HTTPS connection to the backend, kept open between uploads
   String BackendClientHost;                       ///< hostname of the open connection
@@ -62,6 +63,7 @@ private:
   void BackendClose();
   int BackendRequest(const uint8_t *, size_t, String, String, bool, String *, bool *);
   void ProcessBackendResult(int, SendDataToBackendType);
+  void SetBackendReceivedStatus(String);
   String TranslateRefreshIntervalToTriggerScheme(uint16_t);
   int TranslateExifRotationToDegree(uint8_t);
 

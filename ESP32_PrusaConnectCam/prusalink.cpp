@@ -27,6 +27,8 @@ PrusaLink::PrusaLink(Configuration *i_conf, Logs *i_log) {
   PollInterval = PRUSALINK_POLL_INTERVAL;
   DigestQop = false;
   DigestNonceCount = 0;
+  ResetDigest = false;
+  CfgMutex = xSemaphoreCreateMutex();
   ClearState();
 }
 
@@ -51,13 +53,37 @@ void PrusaLink::LoadCfgFromEeprom() {
  * @return none
  */
 void PrusaLink::ClearState() {
-  PrinterState = F("N/A");
+  SetPrinterState(F("N/A"));
   JobProgress = 0.0;
   Reachable = false;
   LoginError = false;
   Printing = false;
   StateChanged = false;
-  Status = Enable ? F("Waiting for the first request") : F("Disabled");
+  SetStatus(Enable ? F("Waiting for the first request") : F("Disabled"));
+}
+
+/**
+ * @brief Set the status message. The WEB server task reads it, both tasks write it
+ *
+ * @param String - status
+ * @return none
+ */
+void PrusaLink::SetStatus(String i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  Status = i_data;
+  xSemaphoreGive(CfgMutex);
+}
+
+/**
+ * @brief Set the printer state. The WEB server task reads it, both tasks write it
+ *
+ * @param String - printer state
+ * @return none
+ */
+void PrusaLink::SetPrinterState(String i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  PrinterState = i_data;
+  xSemaphoreGive(CfgMutex);
 }
 
 /**
@@ -67,8 +93,21 @@ void PrusaLink::ClearState() {
  * @return none
  */
 void PrusaLink::Loop() {
-  if ((false == Enable) || (Host.length() == 0)) {
+  /* copy of the settings, the WEB server task can change them during the request */
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String host = Host;
+  String user = User;
+  String password = Password;
+  xSemaphoreGive(CfgMutex);
+
+  if ((false == Enable) || (host.length() == 0)) {
     return;
+  }
+
+  /* new credentials: the old digest nonce is not valid for them */
+  if (true == ResetDigest) {
+    ResetDigest = false;
+    DigestNonce = "";
   }
 
   PollCounter++;
@@ -82,7 +121,7 @@ void PrusaLink::Loop() {
   }
 
   String body = "";
-  int code = RequestStatus(&body);
+  int code = RequestStatus(host, user, password, &body);
 
   /* a printer that is switched off would block the photo task for the connect timeout on every request */
   PollInterval = (200 == code) ? PRUSALINK_POLL_INTERVAL : PRUSALINK_RETRY_INTERVAL;
@@ -96,13 +135,13 @@ void PrusaLink::Loop() {
     }
     Reachable = false;
     Printing = false;
-    PrinterState = F("N/A");
+    SetPrinterState(F("N/A"));
     if (401 == code) {
-      Status = F("Wrong PrusaLink user name or password");
+      SetStatus(F("Wrong PrusaLink user name or password"));
     } else if (code <= 0) {
-      Status = F("Printer is not reachable");
+      SetStatus(F("Printer is not reachable"));
     } else {
-      Status = "PrusaLink error: " + String(code);
+      SetStatus("PrusaLink error: " + String(code));
     }
   }
 }
@@ -110,10 +149,13 @@ void PrusaLink::Loop() {
 /**
  * @brief Send GET /api/v1/status, with digest authentication
  *
+ * @param String - printer hostname or IP address
+ * @param String - user name
+ * @param String - password
  * @param String * - output, response body
  * @return int - HTTP code. Value <= 0 is a connection error
  */
-int PrusaLink::RequestStatus(String *o_body) {
+int PrusaLink::RequestStatus(String i_host, String i_user, String i_password, String *o_body) {
   const char *uri = "/api/v1/status";
   const char *headerKeys[] = { "WWW-Authenticate" };
   int code = 0;
@@ -127,12 +169,12 @@ int PrusaLink::RequestStatus(String *o_body) {
     http.setReuse(false);
     http.collectHeaders(headerKeys, 1);
 
-    if (!http.begin(client, Host, 80, uri)) {
+    if (!http.begin(client, i_host, 80, uri)) {
       return -1;
     }
     http.addHeader(F("Accept"), F("application/json"));
     if (DigestNonce.length() > 0) {
-      http.addHeader(F("Authorization"), GetDigestAuthorization(F("GET"), uri));
+      http.addHeader(F("Authorization"), GetDigestAuthorization(F("GET"), uri, i_user, i_password));
     }
 
     code = http.GET();
@@ -209,12 +251,14 @@ String PrusaLink::GetDigestParam(String i_header, String i_name) {
  *
  * @param String - HTTP method
  * @param String - request uri
+ * @param String - user name
+ * @param String - password
  * @return String - Authorization header value
  */
-String PrusaLink::GetDigestAuthorization(String i_method, String i_uri) {
-  String ha1 = Md5(User + ":" + DigestRealm + ":" + Password);
+String PrusaLink::GetDigestAuthorization(String i_method, String i_uri, String i_user, String i_password) {
+  String ha1 = Md5(i_user + ":" + DigestRealm + ":" + i_password);
   String ha2 = Md5(i_method + ":" + i_uri);
-  String auth = "Digest username=\"" + User + "\", realm=\"" + DigestRealm + "\", nonce=\"" + DigestNonce + "\", uri=\"" + i_uri + "\"";
+  String auth = "Digest username=\"" + i_user + "\", realm=\"" + DigestRealm + "\", nonce=\"" + DigestNonce + "\", uri=\"" + i_uri + "\"";
 
   if (DigestQop) {
     char nc[9];
@@ -264,8 +308,9 @@ void PrusaLink::ProcessStatus(String i_body) {
   DeserializationError error = deserializeJson(doc, i_body, DeserializationOption::Filter(filter));
   if (error) {
     Reachable = false;
-    Status = "Invalid response from PrusaLink: " + String(error.c_str());
-    log->AddEvent(LogLevel_Warning, Status);
+    String status = "Invalid response from PrusaLink: " + String(error.c_str());
+    SetStatus(status);
+    log->AddEvent(LogLevel_Warning, status);
     return;
   }
 
@@ -279,14 +324,14 @@ void PrusaLink::ProcessStatus(String i_body) {
   if ((Reachable) && (printing != Printing)) {
     StateChanged = true;
   }
-  if (state != PrinterState) {
+  if (state != GetPrinterState()) {
     log->AddEvent(LogLevel_Info, F("PrusaLink: printer state: "), state);
   }
 
-  PrinterState = state;
+  SetPrinterState(state);
   Printing = printing;
   Reachable = true;
-  Status = F("OK");
+  SetStatus(F("OK"));
 }
 
 /**
@@ -318,9 +363,11 @@ void PrusaLink::SetHost(String i_data) {
   while (i_data.endsWith(F("/"))) {
     i_data.remove(i_data.length() - 1);
   }
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   Host = i_data;
-  config->SavePrusaLinkHost(Host);
-  DigestNonce = "";
+  xSemaphoreGive(CfgMutex);
+  config->SavePrusaLinkHost(i_data);
+  ResetDigest = true;
   ClearState();
   PollCounter = PRUSALINK_POLL_INTERVAL;
   PollInterval = PRUSALINK_POLL_INTERVAL;
@@ -333,9 +380,12 @@ void PrusaLink::SetHost(String i_data) {
  * @return none
  */
 void PrusaLink::SetUser(String i_data) {
-  User = (i_data.length() > 0) ? i_data : String(PRUSALINK_DEFAULT_USER);
-  config->SavePrusaLinkUser(User);
-  DigestNonce = "";
+  String user = (i_data.length() > 0) ? i_data : String(PRUSALINK_DEFAULT_USER);
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  User = user;
+  xSemaphoreGive(CfgMutex);
+  config->SavePrusaLinkUser(user);
+  ResetDigest = true;
   PollCounter = PRUSALINK_POLL_INTERVAL;
   PollInterval = PRUSALINK_POLL_INTERVAL;
 }
@@ -347,9 +397,11 @@ void PrusaLink::SetUser(String i_data) {
  * @return none
  */
 void PrusaLink::SetPassword(String i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   Password = i_data;
-  config->SavePrusaLinkPassword(Password);
-  DigestNonce = "";
+  xSemaphoreGive(CfgMutex);
+  config->SavePrusaLinkPassword(i_data);
+  ResetDigest = true;
   PollCounter = PRUSALINK_POLL_INTERVAL;
   PollInterval = PRUSALINK_POLL_INTERVAL;
 }
@@ -359,11 +411,17 @@ bool PrusaLink::GetEnable() {
 }
 
 String PrusaLink::GetHost() {
-  return Host;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = Host;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 String PrusaLink::GetUser() {
-  return User;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = User;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 bool PrusaLink::GetReachable() {
@@ -386,7 +444,10 @@ bool PrusaLink::ConsumeStateChange() {
 }
 
 String PrusaLink::GetPrinterState() {
-  return PrinterState;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = PrinterState;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 float PrusaLink::GetJobProgress() {
@@ -394,7 +455,10 @@ float PrusaLink::GetJobProgress() {
 }
 
 String PrusaLink::GetStatus() {
-  return Status;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = Status;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 bool PrusaLink::GetLoginError() {

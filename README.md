@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c16** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c17** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c16): web pages,
@@ -217,7 +217,7 @@ and its camera name (`prusa-esp32cam` by default, alone or with `.local`, `.lan`
 `.home.arpa`, `.localdomain`, `.internal` or `.fritz.box`); any other host name gets "Forbidden".
 
 **Several cameras.** Give every camera its own name on the **System** page (*Camera name & mDNS
-record*), for example `core-one-left`. After the restart the camera uses it as its mDNS name
+record*), for example `core-one-left` (letters, digits and `-`). After the restart the camera uses it as its mDNS name
 (`core-one-left.local`) and as its DHCP name in the router (`core-one-left.lan` on many routers),
 and Prusa Connect shows it as the camera name. Until you rename them, cameras share the default
 name `prusa-esp32cam.local`: open them by IP address. The service AP names (`ESP32_camera_...`)
@@ -568,11 +568,12 @@ Service hostname and the 10 min interval), and the original firmware cannot read
 <a name="version-history"></a>
 ## Version history
 
-**1.1.2-c16**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
+**1.1.2-c17**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
 XIAO ESP32-S3 Sense (OV2640, OV3660 and OV5640 detected automatically, OV5640 autofocus), faster
 stream, thermal guard in two steps, PrusaLink, health checks, firmware update from file, open
 service AP for the setup, a simpler web page, protection against other web sites (CSRF, DNS
-rebinding) and ESP32 core 3.3.12 with current libraries.
+rebinding), ESP32 core 3.3.12 with current libraries, and the fixes of a code review (login
+settings, settings shared between tasks, checked input values).
 
 ---
 

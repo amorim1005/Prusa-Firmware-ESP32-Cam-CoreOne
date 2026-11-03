@@ -83,6 +83,7 @@ private:
   String StartMdns;                   ///< mDNS record used since the start
   String DhcpHostname;                ///< DHCP host name used since the start, made from the mDNS record
   String WifiScanJson;                ///< global variable with wifi networks
+  SemaphoreHandle_t CfgMutex;         ///< mutex for the strings shared between tasks: SSID, password, Wi-Fi mode, mDNS record
 
   Configuration *config;              ///< pointer to configuration class
   Logs *log;                          ///< pointer to log class
@@ -136,7 +137,7 @@ public:
   void SetStaPassword(String);
   void SetEnableServiceAp(bool);
   void ConnectToSta();
-  void SetMdns(String);
+  bool SetMdns(String);
   void SetFirstConnection(bool);
   void SetNetworkConfig(String, String, String, String);
   void SetNetIpMethod(uint8_t);

@@ -45,17 +45,21 @@ private:
   String DigestOpaque;            ///< digest auth opaque
   bool DigestQop;                 ///< digest auth with qop=auth
   uint32_t DigestNonceCount;      ///< digest auth nonce count
+  volatile bool ResetDigest;      ///< new credentials from the WEB page: the photo task clears the digest nonce
+  SemaphoreHandle_t CfgMutex;     ///< mutex for the strings shared with the WEB server task: host, user, password, status
 
   Configuration *config;          ///< pointer to configuration object
   Logs *log;                      ///< pointer to logs object
 
-  int RequestStatus(String *);
-  String GetDigestAuthorization(String, String);
+  int RequestStatus(String, String, String, String *);
+  String GetDigestAuthorization(String, String, String, String);
   bool ParseDigestChallenge(String);
   String GetDigestParam(String, String);
   String Md5(String);
   void ProcessStatus(String);
   void ClearState();
+  void SetStatus(String);
+  void SetPrinterState(String);
 
 public:
   PrusaLink(Configuration *, Logs *);

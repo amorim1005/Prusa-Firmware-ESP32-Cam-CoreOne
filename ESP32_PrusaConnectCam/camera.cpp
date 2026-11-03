@@ -606,7 +606,15 @@ void Camera::CapturePhoto() {
       sprintf(buf, "The picture has been saved. Size: %d bytes, Photo resolution: %zu x %zu", FrameBuffer->len, FrameBuffer->width, FrameBuffer->height);
       log->AddEvent(LogLevel_Verbose, buf);
 
-      if ((ControlFlag != 0x00) || (FrameBuffer->len <= 100)) {
+      /* esp_camera_fb_get() returns only JPEG frames with the start and end markers, the start is checked again here.
+         The check of byte 15 (0 in the JFIF header) comes from the original firmware for the OV2640, other sensors
+         write other values there, so it is used only for the OV2640 */
+      bool BadFrame = (FrameBuffer->len <= 100) || (FrameBuffer->buf[0] != 0xFF) || (FrameBuffer->buf[1] != 0xD8);
+      if ((OV2640_PID == CameraType) && (ControlFlag != 0x00)) {
+        BadFrame = true;
+      }
+
+      if (true == BadFrame) {
         log->AddEvent(LogLevel_Error, "Camera capture failed! flag: " + String(ControlFlag, HEX));
         /* return the bad frame, otherwise the next esp_camera_fb_get() waits for a free buffer and times out */
         esp_camera_fb_return(FrameBuffer);
@@ -1083,13 +1091,19 @@ void Camera::StreamClearFrameData() {
 
 /**
    @brief Set Photo Quality
-   @param uint8_t - photo quality
-   @return none
+   @param uint8_t - photo quality, CAMERA_JPEG_QUALITY_MIN - CAMERA_JPEG_QUALITY_MAX, lower is better
+   @return bool - false when the value is out of range, nothing is changed then
 */
-void Camera::SetPhotoQuality(uint8_t i_data) {
+bool Camera::SetPhotoQuality(uint8_t i_data) {
+  if ((i_data < CAMERA_JPEG_QUALITY_MIN) || (i_data > CAMERA_JPEG_QUALITY_MAX)) {
+    log->AddEvent(LogLevel_Warning, F("Photo quality out of range: "), String(i_data));
+    return false;
+  }
+
   config->SavePhotoQuality(i_data);
   PhotoQuality = i_data;
   ReinitCameraModule();
+  return true;
 }
 
 /**

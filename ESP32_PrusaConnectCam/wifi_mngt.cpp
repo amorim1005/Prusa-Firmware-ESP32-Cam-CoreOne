@@ -32,6 +32,7 @@ WiFiMngt::WiFiMngt(Configuration *i_conf, Logs *i_log, Camera *i_cam) {
 
   NtpFirstSync = false;
   StartStaWdg = false;
+  CfgMutex = xSemaphoreCreateMutex();
 }
 
 /**
@@ -162,7 +163,9 @@ void WiFiMngt::WifiManagement() {
       if (WL_CONNECTED != WiFi.status()) {
         WiFiStaConnect();
       }
+      xSemaphoreTake(CfgMutex, portMAX_DELAY);
       WiFiMode = F("Client");
+      xSemaphoreGive(CfgMutex);
 
 #if (WIFI_CLIENT_WAIT_CON == true)
       while (WiFi.status() != WL_CONNECTED) {
@@ -241,24 +244,30 @@ void WiFiMngt::SetWifiEvents() {
    @note https://espressif-docs.readthedocs-hosted.com/projects/arduino-esp32/en/latest/api/wifi.html#sta-connection
 */
 void WiFiMngt::WiFiStaConnect() {
+  /* copy of the credentials: the WEB server, the serial console and the Wi-Fi task call this function */
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ssid = WifiSsid;
+  String password = WifiPassword;
+  xSemaphoreGive(CfgMutex);
+
   if (config->CheckActifeWifiCfgFlag() == true) {
     system_led.setTimer(STATUS_LED_STA_CONNECTING);
     if (false == WiFiStaMultipleNetwork) {
 
 #if (WIFI_DISABLE_UNENCRYPTED_STA_PASS_CHECK == true)      
-      if (WifiPassword == "") {
-        WiFi.begin(WifiSsid);
+      if (password == "") {
+        WiFi.begin(ssid);
         log->AddEvent(LogLevel_Info, F("Connecting to STA SSID without password"));
       } else {
-        WiFi.begin(WifiSsid, WifiPassword);
+        WiFi.begin(ssid, password);
       }
 #else
-      WiFi.begin(WifiSsid, WifiPassword);
+      WiFi.begin(ssid, password);
 #endif
 
       log->AddEvent(LogLevel_Info, F("Connecting to STA SSID"));
     } else if (true == WiFiStaMultipleNetwork) {
-      WiFi.begin(WifiSsid, WifiPassword, 0, WiFiStaNetworkBssid);
+      WiFi.begin(ssid, password, 0, WiFiStaNetworkBssid);
       log->AddEvent(LogLevel_Info, F("Connecting to STA BSSID"));
     }
     WiFi.setSleep(false);
@@ -439,7 +448,7 @@ void WiFiMngt::WiFiWatchdog() {
     log->AddEvent(LogLevel_Verbose, "Time: " + String(currentMillis - TaskWdg_previousMillis) + "/" + String(WIFI_STA_WDG_TIMEOUT));
     
     if (false == StartStaWdg) {
-      if (ScanWifiNetwork(WifiSsid) >= 1) {
+      if (ScanWifiNetwork(GetStaSsid()) >= 1) {
         log->AddEvent(LogLevel_Warning, F("WiFi STA connection lost. Start watchdog timer!"));
       } else {
         log->AddEvent(LogLevel_Warning, F("WiFi STA connection lost. No available network!"));
@@ -638,7 +647,10 @@ String WiFiMngt::GetServiceApSsid() {
    @return String - value
 */
 String WiFiMngt::GetStaSsid() {
-  return WifiSsid;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = WifiSsid;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 /**
@@ -683,7 +695,10 @@ String WiFiMngt::GetAvailableWifiNetworks() {
    @return String - value
 */  
 String WiFiMngt::GetWiFiMode() {
-  return WiFiMode;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = WiFiMode;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 /**
@@ -701,7 +716,10 @@ String WiFiMngt::GetWifiMac() {
    @return String - value
 */
 String WiFiMngt::GetMdns() {
-  return mDNS_record;
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = mDNS_record;
+  xSemaphoreGive(CfgMutex);
+  return ret;
 }
 
 /**
@@ -830,11 +848,13 @@ String WiFiMngt::GetNetStaticDns() {
    @return none
 */
 void WiFiMngt::SetStaCredentials(String i_ssid, String i_pass) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   WifiSsid = i_ssid;
-  config->SaveWifiSsid(WifiSsid);
-
   WifiPassword = i_pass;
-  config->SaveWifiPassword(WifiPassword);
+  xSemaphoreGive(CfgMutex);
+
+  config->SaveWifiSsid(i_ssid);
+  config->SaveWifiPassword(i_pass);
 
   config->SaveWifiCfgFlag(CFG_WIFI_SETTINGS_SAVED);
 }
@@ -845,8 +865,10 @@ void WiFiMngt::SetStaCredentials(String i_ssid, String i_pass) {
    @return none
 */
 void WiFiMngt::SetStaSsid(String i_ssid) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   WifiSsid = i_ssid;
-  config->SaveWifiSsid(WifiSsid);
+  xSemaphoreGive(CfgMutex);
+  config->SaveWifiSsid(i_ssid);
 }
 
 /**
@@ -855,8 +877,10 @@ void WiFiMngt::SetStaSsid(String i_ssid) {
    @return none
 */
 void WiFiMngt::SetStaPassword(String i_pass) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   WifiPassword = i_pass;
-  config->SaveWifiPassword(WifiPassword);
+  xSemaphoreGive(CfgMutex);
+  config->SaveWifiPassword(i_pass);
 }
 
 /**
@@ -880,13 +904,27 @@ void WiFiMngt::ConnectToSta() {
 }
 
 /**
-   @brief function for set mDNS record
-   @param String - mDNS record
-   @return none
+   @brief function for set mDNS record, also the camera name and the DHCP host name. Used after the next start
+   @param String - mDNS record: 1 to EEPROM_ADDR_MDNS_RECORD_LENGTH - 1 letters, digits and '-', no '-' at the start
+                   or the end. Other characters do not work as a mDNS or DHCP name
+   @return bool - false when the name is not valid, nothing is changed then
 */
-void WiFiMngt::SetMdns(String i_data) {
+bool WiFiMngt::SetMdns(String i_data) {
+  bool valid = (i_data.length() > 0) && (i_data.length() < EEPROM_ADDR_MDNS_RECORD_LENGTH) && !i_data.startsWith("-") && !i_data.endsWith("-");
+  for (unsigned int i = 0; (true == valid) && (i < i_data.length()); i++) {
+    char c = i_data.charAt(i);
+    valid = ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '-');
+  }
+  if (false == valid) {
+    log->AddEvent(LogLevel_Warning, F("Camera name is not valid: "), i_data);
+    return false;
+  }
+
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
   mDNS_record = i_data;
-  config->SaveMdnsRecord(mDNS_record);
+  xSemaphoreGive(CfgMutex);
+  config->SaveMdnsRecord(i_data);
+  return true;
 }
 
 /**

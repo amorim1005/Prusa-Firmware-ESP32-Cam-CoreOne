@@ -445,8 +445,14 @@ void Server_InitWebServer_Sets() {
     /* set photo quality */
     if (request->hasParam("photo_quality")) {
       SystemLog.AddEvent(LogLevel_Verbose, F("Set photo_quality"));
-      SystemCamera.SetPhotoQuality(73 - request->getParam("photo_quality")->value().toInt());
-      response_msg = MSG_SAVE_OK;
+      /* the slider is reversed (right = better), check its range before the conversion, a wrapped value could look valid */
+      long value = request->getParam("photo_quality")->value().toInt();
+      if ((value >= CAMERA_JPEG_QUALITY_MIN) && (value <= CAMERA_JPEG_QUALITY_MAX) &&
+          SystemCamera.SetPhotoQuality((CAMERA_JPEG_QUALITY_MIN + CAMERA_JPEG_QUALITY_MAX) - value)) {
+        response_msg = MSG_SAVE_OK;
+      } else {
+        response_msg = "ERROR! Image quality must be " + String(CAMERA_JPEG_QUALITY_MIN) + " to " + String(CAMERA_JPEG_QUALITY_MAX);
+      }
       response = true;
     }
 
@@ -814,56 +820,48 @@ void Server_InitWebServer_Sets() {
   /* route for set basic auth */
   server.on("/basicauth_cfg", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set basic auth user name and password"));
-    bool ret = false;
-    String ret_msg = "";
 
     if (Server_CheckWriteRequest(request) == false)
       return;
 
-    /* get username */
-    if (request->hasArg("auth_username")) {
-      WebBasicAuth.UserName = request->arg("auth_username");
+    /* check every value before anything is changed: a rejected value must not reach the running login.
+       An empty password means "unchanged", like the PrusaLink password */
+    String username = request->arg("auth_username");
+    String password = request->arg("auth_password");
+    bool setUsername = request->hasArg("auth_username");
+    bool setPassword = request->hasArg("auth_password") && (password.length() > 0);
+    bool setEnable = request->hasArg("basicauth_enable");
+    String ret_msg = "";
 
-      /* check min and max length  */
-      if ((WebBasicAuth.UserName.length() > 0) && (WebBasicAuth.UserName.length() < EEPROM_ADDR_BASIC_AUTH_USERNAME_LENGTH)) {
-        SystemConfig.SaveBasicAuthUsername(WebBasicAuth.UserName);
-        ret = true;
-      } else {
-        ret = false;
-        ret_msg = "Maximum username length: " + String(EEPROM_ADDR_BASIC_AUTH_USERNAME_LENGTH);
-      }
+    if ((true == setUsername) && ((username.length() == 0) || (username.length() >= EEPROM_ADDR_BASIC_AUTH_USERNAME_LENGTH))) {
+      ret_msg = "User name: 1 to " + String(EEPROM_ADDR_BASIC_AUTH_USERNAME_LENGTH - 1) + " characters";
+    } else if ((true == setPassword) && (password.length() >= EEPROM_ADDR_BASIC_AUTH_PASSWORD_LENGTH)) {
+      ret_msg = "Maximum password length: " + String(EEPROM_ADDR_BASIC_AUTH_PASSWORD_LENGTH - 1);
+    } else if ((false == setUsername) && (false == setPassword) && (false == setEnable)) {
+      ret_msg = "Nothing to save";
     }
 
-    /* get password */
-    if (request->hasArg("auth_password")) {
-      WebBasicAuth.Password = request->arg("auth_password");
-
-      /* check min and max length  */
-      if ((WebBasicAuth.Password.length() > 0) && (WebBasicAuth.Password.length() < EEPROM_ADDR_BASIC_AUTH_PASSWORD_LENGTH)) {
-        SystemConfig.SaveBasicAuthPassword(WebBasicAuth.Password);
-        ret = true;
-      } else {
-        ret = false;
-        ret_msg = "Maximum password length: " + String(EEPROM_ADDR_BASIC_AUTH_PASSWORD_LENGTH);
-      }
-    }
-
-    /* get enable / disable we bauth */
-    if (request->hasArg("basicauth_enable")) {
-      WebBasicAuth.EnableAuth = Server_TransfeStringToBool(request->arg("basicauth_enable"));
-      SystemConfig.SaveBasicAuthFlag(WebBasicAuth.EnableAuth);
-      ret = true;
-    }
-
-    /* send OK response */
-    if (true == ret) {
-      request->send(200, F("text/html"), MSG_SAVE_OK);
-
-    } else {
+    if (ret_msg.length() > 0) {
       String msg = MSG_SAVE_NOTOK;
       msg += " " + ret_msg;
       request->send(200, F("text/html"), msg.c_str());
+      return;
     }
+
+    if (true == setUsername) {
+      WebBasicAuth.UserName = username;
+      SystemConfig.SaveBasicAuthUsername(username);
+    }
+    if (true == setPassword) {
+      WebBasicAuth.Password = password;
+      SystemConfig.SaveBasicAuthPassword(password);
+    }
+    if (true == setEnable) {
+      WebBasicAuth.EnableAuth = Server_TransfeStringToBool(request->arg("basicauth_enable"));
+      SystemConfig.SaveBasicAuthFlag(WebBasicAuth.EnableAuth);
+    }
+
+    request->send(200, F("text/html"), MSG_SAVE_OK);
   });
 
   /* route for set mDNS record */
@@ -875,13 +873,12 @@ void Server_InitWebServer_Sets() {
     /* check cfg for mdns */
     if (request->hasParam("mdns")) {
       String tmp = request->getParam("mdns")->value();
-      if (tmp.length() < EEPROM_ADDR_MDNS_RECORD_LENGTH) {
+      if (true == SystemWifiMngt.SetMdns(tmp)) {
         request->send(200, F("text/html"), MSG_SAVE_OK_REBOOT);
-        SystemWifiMngt.SetMdns(tmp);
         Connect.UpdateDeviceInformation();
 
       } else {
-        String msg = "Error save mDNS. Maximum length: " + String(EEPROM_ADDR_MDNS_RECORD_LENGTH);
+        String msg = "ERROR! Camera name: 1 to " + String(EEPROM_ADDR_MDNS_RECORD_LENGTH - 1) + " letters, digits and '-', not '-' at the start or the end";
         request->send(200, F("text/html"), msg.c_str());
       }
     }
