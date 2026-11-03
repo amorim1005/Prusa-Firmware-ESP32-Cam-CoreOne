@@ -73,16 +73,6 @@ void PrusaConnect::LoadCfgFromEeprom() {
 }
 
 /**
- * @brief take picture
- *
- * @param none
- * @return none
- */
-void PrusaConnect::TakePicture() {
-  camera->CapturePhoto();
-}
-
-/**
  * @brief Open a new HTTPS connection to the backend
  * 
  * @return true - connected
@@ -807,16 +797,6 @@ String PrusaConnect::GetPrusaConnectHostname() {
   return PrusaConnectHostname;
 }
 
-/**
- * @brief Get backend availability status
- *
- * @param none
- * @return BackendAvailabilitStatus - backend status
- */
-BackendAvailabilitStatus PrusaConnect::GetBackendAvailabilitStatus() {
-  return BackendAvailability;
-}
-
 /** 
  * @brief Convert backend availability status to string
  * @param BackendAvailabilitStatus - backend status
@@ -900,15 +880,6 @@ void PrusaConnect::SetSendingIntervalCounter(uint16_t i_data) {
 
 void PrusaConnect::SetSendingIntervalExpired() {
   SendingIntervalCounter = UINT16_MAX;
-}
-
-/**
- * @brief Get sending interval counter
- * 
- * @return uint16_t - counter
- */
-uint16_t PrusaConnect::GetSendingIntervalCounter() {
-  return SendingIntervalCounter;
 }
 
 /**

@@ -47,9 +47,6 @@ public:
   void AddEvent(LogLevel_enum, String, bool = true, bool = true);
   void AddEvent(LogLevel_enum, const __FlashStringHelper*, String, bool = true, bool = true);
   void SetLogLevel(LogLevel_enum);
-  void SetFileName(String);
-  void SetFilePath(String);
-  void SetFileMaxSize(uint16_t);
   void SetNtpTimeSynced(bool);
 
   String GetFileName();

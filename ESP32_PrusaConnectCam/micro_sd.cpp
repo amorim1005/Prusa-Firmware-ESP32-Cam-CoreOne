@@ -238,85 +238,6 @@ bool MicroSd::CreateDir(fs::FS &fs, String path) {
 }
 
 /**
-   @brief remove directory on the micro SD card
-   @param fs::FS - card
-   @param String - dir name
-   @return bool - status
-*/
-bool MicroSd::RemoveDir(fs::FS &fs, String path) {
-  bool status = false;
-  if (true == CardDetected) {
-#if (true == CONSOLE_VERBOSE_DEBUG)
-    Serial.printf("Removing Dir: %s... ", path.c_str());
-#endif
-
-    if (fs.rmdir(path.c_str())) {
-      status = true;
-    }
-
-#if (true == CONSOLE_VERBOSE_DEBUG)
-    Serial.println((status == true) ? "Removed" : "Failed");
-#endif
-  }
-  return status;
-}
-
-/**
-   @brief Read file and print data to console
-   @param fs::FS - card
-   @param String - file name
-   @return none
-*/
-void MicroSd::ReadFileConsole(fs::FS &fs, String path) {
-  if (true == CardDetected) {
-    Serial.printf("Reading file: %s\n", path.c_str());
-
-    File file = fs.open(path.c_str());
-    if (!file) {
-      Serial.println(F("Failed to open file for reading"));
-      return;
-    }
-
-    Serial.print(F("Read from file: "));
-    while (file.available()) {
-      Serial.write(file.read());
-    }
-  }
-}
-
-/**
-   @brief Write message to file
-   @param fs::FS - card
-   @param String - file name
-   @param String - message
-   @return bool - status
-*/
-bool MicroSd::WriteFile(fs::FS &fs, String path, String message) {
-  bool status = false;
-  if (true == CardDetected) {
-#if (true == CONSOLE_VERBOSE_DEBUG)
-    Serial.printf("Writing file: %s... ", path.c_str());
-#endif
-
-    File file = fs.open(path.c_str(), FILE_WRITE);
-    if (!file) {
-#if (true == CONSOLE_VERBOSE_DEBUG)
-      Serial.printf("Failed to open file for writing");
-#endif
-    } else {
-      if (file.print(message.c_str())) {
-        status = true;
-      }
-
-#if (true == CONSOLE_VERBOSE_DEBUG)
-      Serial.println((status == true) ? "File written" : "Write Failed");
-#endif
-    }
-  }
-  return status;
-}
-
-/**
    @brief Added text to end of file
    @param fs::FS - card
    @param String - file name
@@ -456,30 +377,6 @@ bool MicroSd::RenameFile(fs::FS &fs, String path1, String path2) {
 }
 
 /**
-   @brief Delete file on the SD card
-   @param fs::FS - card
-   @param String - file name
-   @return bool - status
-*/
-bool MicroSd::DeleteFile(fs::FS &fs, String path) {
-  bool status = false;
-  if (true == CardDetected) {
-#if (true == CONSOLE_VERBOSE_DEBUG)
-    Serial.printf("Deleting file: %s... ", path.c_str());
-#endif
-    if (fs.remove(path.c_str())) {
-      status = true;
-    }
-
-#if (true == CONSOLE_VERBOSE_DEBUG)
-    Serial.println((status == true) ? "File deleted" : "Delete Failed");
-#endif
-  }
-
-  return status;
-}
-
-/**
    @brief Get file size in the kb
    @param fs::FS - card
    @param String - file name
@@ -610,7 +507,7 @@ void MicroSd::CheckCardUsedStatus() {
   UsedSpacePercent = 100 - FreeSpacePercent;
 
 #if (true == CONSOLE_VERBOSE_DEBUG)  
-  Serial.printf("Card size: %d MB, Total: %d MB, Used: %d MB, Free: %d GB, Free: %d %% \n", CardSizeMB, CardTotalMB, CardUsedMB, CardFreeMB, FreeSpacePercent);
+  Serial.printf("Card size: %d MB, Total: %d MB, Used: %d MB, Free: %d MB, Free: %d %% \n", CardSizeMB, CardTotalMB, CardUsedMB, CardFreeMB, FreeSpacePercent);
 #endif
 }
 
@@ -765,30 +662,12 @@ bool MicroSd::GetCardDetectAfterBoot() {
 }
 
 /**
-   @brief Get card total MB
-   @param none
-   @return uint16_t - size
-*/
-uint16_t MicroSd::GetCardTotalMB() {
-  return CardTotalMB;
-}
-
-/**
    @brief Get card used MB
    @param none
    @return uint16_t - size
 */
 uint16_t MicroSd::GetCardUsedMB() {
   return CardUsedMB;
-}
-
-/**
-   @brief Get card free MB
-   @param none
-   @return uint16_t - size
-*/
-uint16_t MicroSd::GetCardFreeMB() {
-  return CardFreeMB;
 }
 
 /**

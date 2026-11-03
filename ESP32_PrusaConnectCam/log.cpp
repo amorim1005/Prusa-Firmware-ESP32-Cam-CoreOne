@@ -315,33 +315,6 @@ void Logs::AddEvent(LogLevel_enum level, const __FlashStringHelper *msg, String 
  }
 
 /**
-   @info Set file name
-   @param String - file name
-   @return none
-*/
-void Logs::SetFileName(String i_data) {
-  FileName = i_data;
-}
-
-/**
-   @info Set file path
-   @param String - file path
-   @return none
-*/
-void Logs::SetFilePath(String i_data) {
-  FilePath = i_data;
-}
-
-/**
-   @info Set file max size
-   @param uint16_t - file max size
-   @return none
-*/
-void Logs::SetFileMaxSize(uint16_t i_data) {
-  FileMaxSize = i_data;
-}
-
-/**
    @info Set NTP time synced
    @param bool - NTP time synced
    @return none
@@ -410,7 +383,7 @@ void Logs::CheckMaxLogFileSize() {
 void Logs::CheckCardSpace() {
 #if (true == ENABLE_SD_CARD)
   CheckCardUsedStatus();
-  AddEvent(LogLevel_Verbose, "Card size: " + String(GetCardSizeMB()), + " MB, Used: " + String(GetCardUsedMB()) + " MB, Free: " + String(GetCardUsedMB()) + " MB");
+  AddEvent(LogLevel_Verbose, "Card size: " + String(GetCardSizeMB()) + " MB, Used: " + String(GetCardUsedMB()) + " MB, Free: " + String(GetCardSizeMB() - GetCardUsedMB()) + " MB");
 #endif
 }
 

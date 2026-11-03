@@ -32,7 +32,7 @@ function streamError() {
 }
 
 function streamCheck() {
-	fetch('json_input', { cache: 'no-store' }).then(function(response) {
+	fetch('json_thermal', { cache: 'no-store' }).then(function(response) {
 		return response.json();
 	}).then(function(obj) {
 		var temp = String(obj.mcu_temp).split(' - ')[0];

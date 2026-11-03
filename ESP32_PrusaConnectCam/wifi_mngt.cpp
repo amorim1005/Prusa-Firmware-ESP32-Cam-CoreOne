@@ -66,6 +66,13 @@ void WiFiMngt::Init() {
   SetWifiEvents();
   CreateApSsid();
 
+  /* the DHCP host name is the camera name: with several cameras every camera has its own name in the router.
+     The core gives it to the Wi-Fi client in WiFi.mode(), so it must be set before */
+  StartMdns = mDNS_record;
+  DhcpHostname = MakeDhcpHostname(mDNS_record);
+  WiFi.setHostname(DhcpHostname.c_str());
+  log->AddEvent(LogLevel_Info, "DHCP host name: " + DhcpHostname);
+
   /* check enable service AP mode */
   if (true == GetEnableServiceAp()) {
     log->AddEvent(LogLevel_Info, F("Service AP mode enabled"));
@@ -95,7 +102,6 @@ void WiFiMngt::Init() {
   log->AddEvent(LogLevel_Info, "WiFi MAC: " + WiFi.macAddress());
 
   esp_wifi_set_ps(WIFI_PS_NONE);
-  WiFi.setHostname(DEVICE_HOSTNAME);
   FirstConnected = false;
   //WiFi.setTxPower(WIFI_POWER_18_5dBm);
 
@@ -645,15 +651,6 @@ String WiFiMngt::GetStaBssid() {
 }
 
 /**
-   @brief function for get STA password
-   @param none
-   @return String - value
-*/
-String WiFiMngt::GetStaPassword() {
-  return WifiPassword;
-}
-
-/**
    @brief function for get STA status
    @param none
    @return String - value
@@ -705,6 +702,52 @@ String WiFiMngt::GetWifiMac() {
 */
 String WiFiMngt::GetMdns() {
   return mDNS_record;
+}
+
+/**
+   @brief Get the mDNS record used since the start. A new record from the WEB page is used after the next start
+   @param none
+   @return String - value
+*/
+String WiFiMngt::GetStartMdns() {
+  return StartMdns;
+}
+
+/**
+   @brief Get the DHCP host name used since the start
+   @param none
+   @return String - value
+*/
+String WiFiMngt::GetDhcpHostname() {
+  return DhcpHostname;
+}
+
+/**
+   @brief Make a valid DHCP host name from the camera name: lower case letters, digits and single '-',
+          at most WIFI_DHCP_HOSTNAME_MAX_LENGTH characters. "Core One Cam_2" -> "core-one-cam-2"
+   @param String - camera name (mDNS record)
+   @return String - DHCP host name, DEVICE_HOSTNAME when the name has no valid character
+*/
+String WiFiMngt::MakeDhcpHostname(String i_name) {
+  String ret = "";
+  i_name.toLowerCase();
+  for (unsigned int i = 0; (i < i_name.length()) && (ret.length() < WIFI_DHCP_HOSTNAME_MAX_LENGTH); i++) {
+    char c = i_name.charAt(i);
+    if (((c >= 'a') && (c <= 'z')) || ((c >= '0') && (c <= '9'))) {
+      ret += c;
+    } else if ((ret.length() > 0) && (ret.charAt(ret.length() - 1) != '-')) {
+      ret += '-';
+    }
+  }
+  while (ret.endsWith("-")) {
+    ret.remove(ret.length() - 1);
+  }
+  if (ret.length() == 0) {
+    ret = DEVICE_HOSTNAME;
+    ret.toLowerCase();
+  }
+
+  return ret;
 }
 
 /**
@@ -834,15 +877,6 @@ void WiFiMngt::SetEnableServiceAp(bool i_data) {
 void WiFiMngt::ConnectToSta() {
   config->SaveWifiCfgFlag(CFG_WIFI_SETTINGS_SAVED);
   WiFiStaConnect();
-}
-
-/**
-   @brief function for get active wifi configuration flag
-   @param none
-   @return bool - value
-*/
-bool WiFiMngt::GetkActifeWifiCfgFlag() {
-  return config->CheckActifeWifiCfgFlag();
 }
 
 /**

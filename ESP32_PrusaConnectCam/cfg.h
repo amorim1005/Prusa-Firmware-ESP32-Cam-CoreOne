@@ -125,13 +125,11 @@ public:
   String LoadPrusaLinkPassword();
   uint8_t LoadCameraSensor();
   uint16_t LoadUnplannedRestarts();
-  uint8_t LoadStatusLedMode();
 
 private:
   Logs *Log;              ///< Pointer to Logs object
   String WiFiMacAddress;  ///< WiFi MAC address
 
-  void ReadCfg();
   void DefaultCfg();
   bool CheckFirstMcuStart();
   void SaveFirstMcuStartFlag(uint8_t);

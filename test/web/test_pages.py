@@ -10,9 +10,11 @@ from playwright.sync_api import sync_playwright
 
 WEB = sys.argv[1]
 requests_seen = []
+posts_seen = []      # (path, body) of the POST requests
+WRITE_ROUTES = ('action_', 'set_', 'wifi_cfg', 'wifi_net_cfg', 'wifi_scan', 'basicauth_cfg', 'upload_firmware')
 
 STATUS = {
-    "mdns": "prusa-esp32cam", "upload_interval": "10", "fingerprint": "FPRINT123", "token": "abcdefghijklmnopqrst",
+    "mdns": "prusa-esp32cam", "upload_interval": "10", "fingerprint": "FPRINT123", "token": "****************qrst",
     "refreshInterval": 10, "photoquality": 12, "framesize": 6, "framesize_supported": "3,4,5,6",
     "camera_detected": "OV5640", "camera_autofocus": "Continuous", "brightness": 0, "contrast": 0, "saturation": 0,
     "image_rotation": 1, "hmirror": "false", "vflip": "true", "lensc": "true", "exposure_ctrl": "true",
@@ -39,9 +41,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def send(self, body, ctype='text/plain'):
+    def send(self, body, ctype='text/plain', code=200):
         data = body.encode() if isinstance(body, str) else body
-        self.send_response(200)
+        self.send_response(code)
         self.send_header('Content-Type', ctype)
         self.send_header('Content-Length', str(len(data)))
         self.end_headers()
@@ -51,7 +53,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path.lstrip('/') or 'index.html'
         requests_seen.append(self.path)
         if path == 'json_input':
-            return self.send(json.dumps(STATUS))
+            return self.send(json.dumps(STATUS), 'application/json')
+        if path == 'json_thermal':
+            return self.send(json.dumps({k: STATUS.get(k, 'false') for k in ('mcu_temp', 'thermal_throttling', 'thermal_slow')}), 'application/json')
         if path == 'json_wifi':
             return self.send(json.dumps(WIFI), 'application/json')
         for d in (WEB, os.path.join(WEB, 'assets/icons'), os.path.join(WEB, 'assets/logo')):
@@ -63,6 +67,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>', 'image/svg+xml')
         if path.endswith('.jpg'):
             return self.send(b'', 'image/jpeg')
+        if path.startswith(WRITE_ROUTES) and self.headers.get('X-Requested-With') != 'PrusaESP32Cam':
+            return self.send('Forbidden: changes are accepted only from the camera page', code=403)   # like the camera (CSRF)
         query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         if path == 'set_int' and 'framesize' in query:
             STATUS['framesize'] = int(query['framesize'][0])
@@ -73,6 +79,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == 'set_token':
             return self.send('Save OK. Camera registration starts now, it must be done within 15 minutes after adding the camera in Prusa Connect')
         return self.send('Save cfg OK')   # set_* routes
+
+    def do_POST(self):
+        path = urllib.parse.urlparse(self.path).path.lstrip('/')
+        body = self.rfile.read(int(self.headers.get('Content-Length', 0))).decode(errors='replace')
+        requests_seen.append(self.path)
+        posts_seen.append((self.path, body))
+        if self.headers.get('X-Requested-With') != 'PrusaESP32Cam':
+            return self.send('Forbidden: changes are accepted only from the camera page', code=403)
+        return self.send('Save cfg OK')
 
 
 server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -109,10 +124,10 @@ with sync_playwright() as p:
     print('index + Camera page')
     page.goto(base)
     page.wait_for_selector('#tokenid')
-    page.wait_for_function("document.getElementById('tokenid').value != ''")
+    page.wait_for_function("document.getElementById('tokenid').placeholder != ''")
     check(page.title() == 'prusa-esp32cam', 'title from json_input')
     check(page.inner_text('#refreshInterval') == '10', 'upload interval on the main page')
-    check(page.input_value('#tokenid') == 'abcdefghijklmnopqrst', 'token field filled')
+    check(page.input_value('#tokenid') == '' and page.get_attribute('#tokenid', 'placeholder') == '****************qrst', 'token shown masked, field empty for a new token')
     check(page.inner_text('#fingerprint') == 'FPRINT123', 'fingerprint text')
     check(page.inner_text('#camera_detected') == 'OV5640', 'detected sensor text')
     check(page.inner_text('#printer_state') == 'PRINTING' and page.inner_text('#job_progress') == '42 %', 'PrusaLink state and progress')
@@ -172,8 +187,15 @@ with sync_playwright() as p:
     check(page.is_visible('#save_status') and page.inner_text('#save_status') == 'Saved \u2714', 'saved confirmation: %s' % page.inner_text('#save_status'))
     page.wait_for_function("document.getElementById('save_status').style.display == 'none'", timeout=4000)
     check(True, 'saved confirmation hides itself')
-    page.evaluate("changeValue('abcdefghijklmnopqrst', 'set_token?token=', 'config')")
+    page.fill('#tokenid', 'abcdefghijklmnopqrst')
+    page.click('#vflipid + .checkbox_slider')
+    page.wait_for_timeout(300)
+    check(page.input_value('#tokenid') == 'abcdefghijklmnopqrst', 'a pasted token stays when another setting is changed')
+    requests_seen.clear()
+    page.evaluate("saveToken()")
+    check(any(r.startswith('/set_token?token=abcdefghijklmnopqrst') for r in requests_seen), 'token saved')
     check(page.inner_text('#save_status').startswith('Save OK. Camera registration starts now'), 'token: message with its text instead of a popup')
+    check(page.input_value('#tokenid') == '', 'token field empty after the save')
     page.evaluate("changeValue(5, 'set_int?fail=', 'config')")
     check(page.eval_on_selector('#save_status', 'e => e.style.backgroundColor') == 'rgb(211, 47, 47)', 'not saved: red message')
 
@@ -192,6 +214,10 @@ with sync_playwright() as p:
     page.click('a[href="page_auth.html"]')
     page.wait_for_function("document.getElementById('auth_username') && document.getElementById('auth_username').value == 'admin'")
     check(True, 'auth page filled')
+    posts_seen.clear()
+    page.evaluate("setAuth('admin', 'se cret&1')")
+    check(posts_seen and posts_seen[-1][0] == '/basicauth_cfg' and 'auth_password=se%20cret%261' in posts_seen[-1][1], 'login saved with POST, the password in the body: %s' % posts_seen)
+    check(page.inner_text('#save_status') == 'Saved \u2714', 'login saved with the camera page header')
     page.fill('#auth_password', 'secret')
     page.fill('#auth_password_confirm', 'secret')
     check(page.inner_text('#pass_match').startswith('\u2714'), 'password match mark is a check mark, not broken characters: %r' % page.inner_text('#pass_match'))

@@ -25,7 +25,9 @@ function get_data(val) {
 		
 		if (val == "config") {
 			setText('fingerprint', obj.fingerprint);
-			document.getElementById('tokenid').value = obj.token;
+			/* the camera sends only the end of the token, a new token is pasted into the empty field.
+			   The field is not cleared here: a pasted token stays when another setting is changed before Save */
+			document.getElementById('tokenid').placeholder = (obj.token != "") ? obj.token : "paste the token from Prusa Connect";
 			document.getElementById('refreshid').value = obj.refreshInterval;
 			document.getElementById('photo_qualityid').value = obj.photoquality;
 			/* show only the resolutions supported by the detected camera sensor */
@@ -344,8 +346,24 @@ function openImage() {
 	OpenImageclickCount++;
 }
 
+/* request that changes the camera. The header shows the camera that the request comes from its own page: a page of
+   another site cannot add it (CORS), so it cannot change the camera (CSRF). POST data is form encoded */
+function cameraRequest(method, url, async) {
+	var xhr = new XMLHttpRequest();
+	xhr.open(method, url, async);
+	xhr.setRequestHeader("X-Requested-With", "PrusaESP32Cam");
+	return xhr;
+}
+
+function cameraPost(url, data) {
+	var xhr = cameraRequest("POST", url, false);
+	xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	xhr.send(data);
+	return xhr;
+}
+
 function actionButton(url, reload, msg) {
-    var xhr = new XMLHttpRequest();
+    var xhr = cameraRequest('GET', url, true);
     
 	if (msg != '') {
 		alert(msg);
@@ -361,7 +379,6 @@ function actionButton(url, reload, msg) {
         }
     };
 
-    xhr.open('GET', url, true);
     xhr.send();
 }
 
@@ -393,24 +410,21 @@ function addClickListener(id) {
 
 /* wifi page */
 function setWifi(val_ssid, val_pass) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "wifi_cfg?wifi_ssid=" +  encodeURIComponent(val_ssid) + "&wifi_pass=" + encodeURIComponent(val_pass), false);
-	xmlHttp.send(null);
+	/* POST: the password is not in the URL */
+	var xmlHttp = cameraPost("wifi_cfg", "wifi_ssid=" + encodeURIComponent(val_ssid) + "&wifi_pass=" + encodeURIComponent(val_pass));
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
 function setWifiNet(val_ip, val_mask, val_gw, val_dns) {	
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
+	var xmlHttp = cameraRequest("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
 	xmlHttp.send(null);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
 function scanWifi() {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "wifi_scan?", false);
+	var xmlHttp = cameraRequest("GET", "wifi_scan?", false);
 	xmlHttp.send(null);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
@@ -447,13 +461,11 @@ function GetDataAndPrintTableWiFi() {
 
 /* PrusaLink cfg, the password is sent only when the user typed a new one */
 function setPrusaLink() {
-	var url = "set_prusalink?enable=" + document.getElementById('prusalinkid').checked
+	var data = "enable=" + document.getElementById('prusalinkid').checked
 		+ "&host=" + encodeURIComponent(document.getElementById('prusalink_hostid').value)
 		+ "&user=" + encodeURIComponent(document.getElementById('prusalink_userid').value)
 		+ "&password=" + encodeURIComponent(document.getElementById('prusalink_passwordid').value);
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", url, false);
-	xmlHttp.send(null);
+	var xmlHttp = cameraPost("set_prusalink", data);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	document.getElementById('prusalink_passwordid').value = "";
 	get_data("config");
@@ -461,16 +473,25 @@ function setPrusaLink() {
 
 /* auth page */
 function setAuth(val_name, val_pass) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "basicauth_cfg?" + "auth_username=" + encodeURIComponent(val_name) + "&auth_password=" + encodeURIComponent(val_pass), false);
-	xmlHttp.send(null);
+	var xmlHttp = cameraPost("basicauth_cfg", "auth_username=" + encodeURIComponent(val_name) + "&auth_password=" + encodeURIComponent(val_pass));
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("auth");
 }
 
+/* save a new Prusa Connect token, the field is cleared after a successful save */
+function saveToken() {
+	var field = document.getElementById('tokenid');
+	var xmlHttp = cameraRequest("GET", "set_token?token=" + encodeURIComponent(field.value), false);
+	xmlHttp.send(null);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
+	if ((xmlHttp.status == 200) && !xmlHttp.responseText.startsWith("ERROR")) {
+		field.value = "";
+	}
+	get_data("config");
+}
+
 function changeValue(val, url, reload, msg) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", url + val, false);
+	var xmlHttp = cameraRequest("GET", url + val, false);
 	xmlHttp.send(null);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data(reload);
@@ -533,8 +554,7 @@ function uploadFirmware() {
 	var formData = new FormData();
 	formData.append('firmware', file, file.name);
 
-	var xhr = new XMLHttpRequest();
-	xhr.open('POST', 'upload_firmware', true);
+	var xhr = cameraRequest('POST', 'upload_firmware', true);
 	xhr.upload.onprogress = function(e) {
 		if (e.lengthComputable) {
 			var p = Math.round(e.loaded * 100 / e.total);

@@ -79,7 +79,9 @@ private:
   unsigned long StaConnectedSince;      ///< time of the connection to the Wi-Fi network [ms], 0 = not connected
   unsigned long TaskWdg_previousMillis; ///< previous time for task STA watchdog
 
-  String mDNS_record;                 ///< mDNS record
+  String mDNS_record;                 ///< mDNS record, also the camera name. A new name is used by mDNS and DHCP after the next start
+  String StartMdns;                   ///< mDNS record used since the start
+  String DhcpHostname;                ///< DHCP host name used since the start, made from the mDNS record
   String WifiScanJson;                ///< global variable with wifi networks
 
   Configuration *config;              ///< pointer to configuration class
@@ -111,15 +113,16 @@ public:
   String GetServiceApSsid();
   String GetStaSsid();
   String GetStaBssid();
-  String GetStaPassword();
   String GetStaStatus();
   String GetStaIp();
   String GetAvailableWifiNetworks();
   String GetWiFiMode();
   String GetWifiMac();
   String GetMdns();
+  String GetStartMdns();
+  String GetDhcpHostname();
+  static String MakeDhcpHostname(String);
   bool GetEnableServiceAp();
-  bool GetkActifeWifiCfgFlag();
   bool GetNtpFirstTimeSync();
   bool GetFirstConnection();
   uint8_t GetNetIpMethod();

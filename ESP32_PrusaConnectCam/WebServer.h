@@ -47,13 +47,14 @@ void Server_InitWebServer_Update();
 void Server_InitWebServer_Stream();
 String Server_CheckFirmwareImage(const uint8_t *, size_t);
 
-void Server_pause();
-void Server_resume();
 
 void Server_handleCacheRequest(AsyncWebServerRequest*, const char*, const char*);
 void Server_handleNotFound(AsyncWebServerRequest *);
 String Server_GetJsonData();
 bool Server_CheckBasicAuth(AsyncWebServerRequest *);
+bool Server_HostAllowed(AsyncWebServerRequest *);
+bool Server_CheckHost(AsyncWebServerRequest *);
+bool Server_CheckWriteRequest(AsyncWebServerRequest *);
 
 void Server_streamJpg(AsyncWebServerRequest *);
 

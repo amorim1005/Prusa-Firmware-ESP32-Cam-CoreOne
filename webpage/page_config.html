@@ -1,8 +1,8 @@
-<style>@import url("styles.css?v=1.1.2-c15");</style>
+<style>@import url("styles.css?v=1.1.2-c16");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
-        <tr><td class="pc1">Connect Token</td><td ><input type="text" name="token" id=tokenid >&nbsp;<button class="btn_save" onclick="changeValue(encodeURIComponent(document.getElementById('tokenid').value), 'set_token?token=', 'config')">Save</button></td></tr>
+        <tr><td class="pc1">Connect Token</td><td ><input type="text" name="token" id=tokenid >&nbsp;<button class="btn_save" onclick="saveToken()">Save</button></td></tr>
         <tr><td class="pc1">Fingerprint</td><td class=pc2 id="fingerprint"></td></tr>
 		<tr>
 			<td class="pc1">Trigger Interval</td><td><label for="refresh"></label>
@@ -98,7 +98,7 @@
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c15"></script>
+<script src="scripts.js?v=1.1.2-c16"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();

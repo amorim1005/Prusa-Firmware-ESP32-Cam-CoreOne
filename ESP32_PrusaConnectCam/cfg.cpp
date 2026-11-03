@@ -45,54 +45,6 @@ void Configuration::Init() {
 }
 
 /**
-   @info Read MCU cfg from EEPROM
-   @param none
-   @return none
-*/
-void Configuration::ReadCfg() {
-  Log->AddEvent(LogLevel_Info, F("Load CFG from EEPROM"));
-  LoadRefreshInterval();
-  LoadToken();
-  LoadFingerprint();
-  LoadPhotoQuality();
-  LoadFrameSize();
-  LoadBrightness();
-  LoadContrast();
-  LoadSaturation();
-  LoadHmirror();
-  LoadVflip();
-  LoadLensCorrect();
-  LoadExposureCtrl();
-  LoadAwb();
-  LoadAwbGain();
-  LoadAwbMode();
-  LoadBpc();
-  LoadWpc();
-  LoadRawGama();
-  LoadWifiSsid();
-  LoadWifiPassowrd();
-  LoadBasicAuthUsername();
-  LoadBasicAuthPassword();
-  LoadBasicAuthFlag();
-  LoadMdnsRecord();
-  LoadAec2();
-  LoadAeLevel();
-  LoadAecValue();
-  LoadGainCtrl();
-  LoadAgcGain();
-  LoadPrusaConnectHostname();
-  LoadNetworkIpMethod();
-  LoadNetworkIp();
-  LoadNetworkMask();
-  LoadNetworkGateway();
-  LoadNetworkDns();
-  LoadCameraImageExifRotation();
-  LoadTimeLapseFunctionStatus();
-  Log->AddEvent(LogLevel_Info, F("Active WiFi client cfg: "), String(CheckActifeWifiCfgFlag() ? "true" : "false"));
-  Log->AddEvent(LogLevel_Info, F("Load CFG from EEPROM done"));
-}
-
-/**
    @info Function for check if it's first MCU start
    @param none
    @return bool - status
@@ -1481,20 +1433,6 @@ uint16_t Configuration::LoadUnplannedRestarts() {
   uint16_t ret = LoadUint16(EEPROM_ADDR_UNPLANNED_RESTARTS_START);
   if (0xFFFF == ret) {
     ret = 0;
-  }
-
-  return ret;
-}
-
-/**
- * @brief Load the status LED mode. After a firmware upgrade the EEPROM cell is 0xFF, it means STATUS_LED_MODE_ON
- *
- * @return uint8_t - STATUS_LED_MODE_xxx
- */
-uint8_t Configuration::LoadStatusLedMode() {
-  uint8_t ret = EEPROM.read(EEPROM_ADDR_STATUS_LED_MODE_START);
-  if (ret > STATUS_LED_MODE_OFF) {
-    ret = STATUS_LED_MODE_ON;
   }
 
   return ret;

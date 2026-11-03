@@ -57,14 +57,10 @@ public:
   void ListDir(fs::FS &, String, uint8_t);
   bool CheckDir(fs::FS &, String);
   bool CreateDir(fs::FS &, String);
-  bool RemoveDir(fs::FS &, String);
-  void ReadFileConsole(fs::FS &, String);
-  bool WriteFile(fs::FS &, String, String);
   bool AppendFile(fs::FS &, String, String);
   bool AppendFile(File*, String*, bool = true);
   void FlushFile(File*);
   bool RenameFile(fs::FS &, String, String);
-  bool DeleteFile(fs::FS &, String);
   uint32_t GetFileSize(fs::FS &, String);
   uint16_t FileCount(fs::FS &, String, String);
   bool RemoveFilesInDir(fs::FS &, String, int );
@@ -79,9 +75,7 @@ public:
   bool GetCardDetectedStatus();
   bool GetCardDetectAfterBoot();
   uint16_t GetCardSizeMB();
-  uint16_t GetCardTotalMB();
   uint16_t GetCardUsedMB();
-  uint16_t GetCardFreeMB();
   uint32_t GetFreeSpaceMB();
   uint8_t GetFreeSpacePercent();
   uint8_t GetUsedSpacePercent();

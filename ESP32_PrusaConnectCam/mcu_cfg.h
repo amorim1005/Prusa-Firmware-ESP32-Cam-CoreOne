@@ -15,10 +15,11 @@
 /* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c15"               ///< SW version
+#define SW_VERSION                  "1.1.2-c16"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
-#define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< device hostname
+#define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< DHCP host name when the camera name has no valid character. Normally the DHCP host name is the camera name (mDNS record)
+#define WIFI_DHCP_HOSTNAME_MAX_LENGTH 31                    ///< maximum length of the DHCP host name (the core keeps 32 bytes with the terminating 0)
 #define CAMERA_MAX_FAIL_CAPTURE     10                      ///< maximum count for failed capture
 #define CAMERA_SEMAPHORE_TIMEOUT    5000                    ///< maximum waiting time for the camera frame buffer semaphore [ms]
 
@@ -123,6 +124,9 @@
 #define LOOP_DELAY                  100                     ///< loop delay [ms]
 #define WIFI_CLIENT_WAIT_CON        false                   ///< wait for connecting to WiFi network
 #define WEB_CACHE_INTERVAL          86400                   ///< cache interval for browser [s] 86400s = 24h
+#define WEB_WRITE_HEADER_NAME       "X-Requested-With"      ///< header that every request changing the camera must have. A page of another site cannot add it (CORS), so it cannot change the camera (CSRF)
+#define WEB_WRITE_HEADER_VALUE      "PrusaESP32Cam"         ///< value of WEB_WRITE_HEADER_NAME, sent by scripts.js
+#define WEB_HOST_SUFFIXES           { "local", "lan", "home", "home.arpa", "localdomain", "internal", "fritz.box" } ///< accepted host names: IP address or the camera name (mDNS / DHCP), alone or with one of these suffixes. Other names are refused (DNS rebinding)
 
 /* ---------- RESET CFG CONFIGURATION  ----------*/
 #define CFG_RESET_TIME_WAIT         10000                   ///< wait to 10 000 ms = 10s for reset cfg during grounded CFG_RESET_PIN 

@@ -222,6 +222,7 @@ void Camera::InitCameraModule(framesize_t i_frameSize) {
 
   CameraConfig.frame_size = i_frameSize;            /* FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA|HD|FHD|QXGA|5MP */
   CameraConfig.jpeg_quality = PhotoQuality;         /* 10-63 lower number means higher quality */
+  CameraConfig.jpeg_buffer_size = 0;                /* 0 = driver default, width * height / 5 */
   CameraConfig.fb_count = 1;                        /* picture frame buffer alocation */
   CameraConfig.grab_mode = CAMERA_GRAB_LATEST;      /* CAMERA_GRAB_WHEN_EMPTY or CAMERA_GRAB_LATEST */
 #if (true == ENABLE_PSRAM)
@@ -800,7 +801,7 @@ bool Camera::StreamCaptureFrame() {
     StreamLatest = w;
     StreamLatestConsumed = false;
     StreamLatestTime = millis();
-    StreamFrameSeq++;
+    StreamFrameSeq = StreamFrameSeq + 1; /* volatile: no ++ in C++20 */
     xSemaphoreGive(streamMutex);
   }
 
@@ -904,9 +905,9 @@ void Camera::SetStreamStatus(bool i_status) {
       StreamLatest = -1;
       StreamLatestConsumed = false;
     }
-    StreamClients++;
+    StreamClients = StreamClients + 1;
   } else if (StreamClients > 0) {
-    StreamClients--;
+    StreamClients = StreamClients - 1;
   }
   StreamOnOff = (StreamClients > 0);
   xSemaphoreGive(streamMutex);

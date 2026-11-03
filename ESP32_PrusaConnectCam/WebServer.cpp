@@ -80,7 +80,21 @@ void Server_InitWebServer_JsonData() {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: get json_input"));
     if (Server_CheckBasicAuth(request) == false)
       return;
-    request->send(200, F("text/plain"), Server_GetJsonData().c_str());
+    request->send(200, F("application/json"), Server_GetJsonData().c_str());
+  });
+
+  /* route for a small json with the MCU temperature, the stream page asks it every few seconds */
+  server.on("/json_thermal", HTTP_GET, [](AsyncWebServerRequest* request) {
+    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: get json_thermal"));
+    if (Server_CheckBasicAuth(request) == false)
+      return;
+    JsonDocument doc_json;
+    String string_json = "";
+    doc_json["mcu_temp"] = String(McuTemperature.TemperatureCelsius) + " *C";
+    doc_json["thermal_throttling"] = Server_TranslateBoolToString(McuTemperature.ThermalThrottling);
+    doc_json["thermal_slow"] = Server_TranslateBoolToString(McuTemperature.StreamSlow);
+    serializeJson(doc_json, string_json);
+    request->send(200, F("application/json"), string_json.c_str());
   });
 
   /* route for json with wifi networks */
@@ -88,13 +102,13 @@ void Server_InitWebServer_JsonData() {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: get json_wifi"));
     if (Server_CheckBasicAuth(request) == false)
       return;
-    request->send(200, F("text/plain"), SystemWifiMngt.GetAvailableWifiNetworks().c_str());
+    request->send(200, F("application/json"), SystemWifiMngt.GetAvailableWifiNetworks().c_str());
   });
 
   /* route for san wi-fi networks */
   server.on("/wifi_scan", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: scan WI-FI networks"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
     request->send(200, F("text/html"), MSG_SCANNING);
     SystemWifiMngt.ScanWiFiNetwork();
@@ -327,7 +341,7 @@ void Server_InitWebServer_Actions() {
   /*route for capture photo */
   server.on("/action_capture", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /action_capture Take photo"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
     SystemCamera.CapturePhoto();
     request->send(200, "text/plain", "Take Photo");
@@ -336,7 +350,7 @@ void Server_InitWebServer_Actions() {
   /* route for send photo to prusa backend */
   server.on("/action_send", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /action_send send photo to cloud"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
     Connect.SetSendingIntervalExpired();
     request->send(200, "text/plain", "Send Photo");
@@ -345,7 +359,7 @@ void Server_InitWebServer_Actions() {
   /* reboot MCU */
   server.on("/action_reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /action_reboo reboot MCU!"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
     request->send(200, F("text/html"), MSG_REBOOT_MCU);
     delay(100); /* wait for sending data */
@@ -355,7 +369,7 @@ void Server_InitWebServer_Actions() {
   /* route for change LED status */
   server.on("/action_sderase", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /action_sderase remove files from SD card"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     StartRemoveSdCard = 1;
@@ -373,7 +387,7 @@ void Server_InitWebServer_Sets() {
   /* route to set integer value */
   server.on("/set_int", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_int"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     bool response = false;
@@ -523,7 +537,7 @@ void Server_InitWebServer_Sets() {
   /* route to set bool value */
   server.on("/set_bool", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_bool"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     bool response = false;
@@ -636,7 +650,7 @@ void Server_InitWebServer_Sets() {
   /* route for set token for authentification to prusa backend*/
   server.on("/set_token", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_token"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     if (request->hasParam("token")) {
@@ -661,14 +675,14 @@ void Server_InitWebServer_Sets() {
   });
 
   /* route for PrusaLink cfg /set_prusalink?enable=true&host=192.168.1.10&user=maker&password=xxx */
-  server.on("/set_prusalink", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/set_prusalink", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_prusalink"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     String msg = MSG_SAVE_OK;
-    if (request->hasParam("host")) {
-      String host = request->getParam("host")->value();
+    if (request->hasArg("host")) {
+      String host = request->arg("host");
       if (host.length() < EEPROM_ADDR_PRUSALINK_HOST_LENGTH) {
         SystemPrusaLink.SetHost(host);
       } else {
@@ -676,8 +690,8 @@ void Server_InitWebServer_Sets() {
       }
     }
 
-    if (request->hasParam("user")) {
-      String user = request->getParam("user")->value();
+    if (request->hasArg("user")) {
+      String user = request->arg("user");
       if (user.length() < EEPROM_ADDR_PRUSALINK_USER_LENGTH) {
         SystemPrusaLink.SetUser(user);
       } else {
@@ -686,8 +700,8 @@ void Server_InitWebServer_Sets() {
     }
 
     /* empty password parameter keeps the saved password, the WEB page never receives the password */
-    if (request->hasParam("password") && (request->getParam("password")->value().length() > 0)) {
-      String password = request->getParam("password")->value();
+    if (request->hasArg("password") && (request->arg("password").length() > 0)) {
+      String password = request->arg("password");
       if (password.length() < EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH) {
         SystemPrusaLink.SetPassword(password);
       } else {
@@ -695,8 +709,8 @@ void Server_InitWebServer_Sets() {
       }
     }
 
-    if (request->hasParam("enable")) {
-      SystemPrusaLink.SetEnable(Server_TransfeStringToBool(request->getParam("enable")->value()));
+    if (request->hasArg("enable")) {
+      SystemPrusaLink.SetEnable(Server_TransfeStringToBool(request->arg("enable")));
     }
 
     request->send(200, F("text/html"), msg.c_str());
@@ -705,7 +719,7 @@ void Server_InitWebServer_Sets() {
   /* route for set prusa connect hostname /set_hostname?hostname=*/
   server.on("/set_hostname", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_hostname"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
     request->send(200, F("text/html"), MSG_SAVE_OK);
 
@@ -715,21 +729,21 @@ void Server_InitWebServer_Sets() {
   });
 
   /* route for set WI-FI credentials */
-  server.on("/wifi_cfg", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/wifi_cfg", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set WI-FI credentials"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     String TmpPassword = "";
     String TmpSsid = "";
     /* get SSID */
-    if (request->hasParam("wifi_ssid")) {
-      TmpSsid = request->getParam("wifi_ssid")->value();
+    if (request->hasArg("wifi_ssid")) {
+      TmpSsid = request->arg("wifi_ssid");
     }
 
     /* get password */
-    if (request->hasParam("wifi_pass")) {
-      TmpPassword = request->getParam("wifi_pass")->value();
+    if (request->hasArg("wifi_pass")) {
+      TmpPassword = request->arg("wifi_pass");
     }
 
     /* check min and max length WI-FI ssid and password */
@@ -754,7 +768,7 @@ void Server_InitWebServer_Sets() {
   /* route for set WI-FI static IP address */
   server.on("/wifi_net_cfg", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set WI-FI static IP address"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     String tmpIp = "";
@@ -798,17 +812,17 @@ void Server_InitWebServer_Sets() {
 
 
   /* route for set basic auth */
-  server.on("/basicauth_cfg", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/basicauth_cfg", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set basic auth user name and password"));
     bool ret = false;
     String ret_msg = "";
 
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     /* get username */
-    if (request->hasParam("auth_username")) {
-      WebBasicAuth.UserName = request->getParam("auth_username")->value();
+    if (request->hasArg("auth_username")) {
+      WebBasicAuth.UserName = request->arg("auth_username");
 
       /* check min and max length  */
       if ((WebBasicAuth.UserName.length() > 0) && (WebBasicAuth.UserName.length() < EEPROM_ADDR_BASIC_AUTH_USERNAME_LENGTH)) {
@@ -821,8 +835,8 @@ void Server_InitWebServer_Sets() {
     }
 
     /* get password */
-    if (request->hasParam("auth_password")) {
-      WebBasicAuth.Password = request->getParam("auth_password")->value();
+    if (request->hasArg("auth_password")) {
+      WebBasicAuth.Password = request->arg("auth_password");
 
       /* check min and max length  */
       if ((WebBasicAuth.Password.length() > 0) && (WebBasicAuth.Password.length() < EEPROM_ADDR_BASIC_AUTH_PASSWORD_LENGTH)) {
@@ -835,8 +849,8 @@ void Server_InitWebServer_Sets() {
     }
 
     /* get enable / disable we bauth */
-    if (request->hasParam("basicauth_enable")) {
-      WebBasicAuth.EnableAuth = Server_TransfeStringToBool(request->getParam("basicauth_enable")->value());
+    if (request->hasArg("basicauth_enable")) {
+      WebBasicAuth.EnableAuth = Server_TransfeStringToBool(request->arg("basicauth_enable"));
       SystemConfig.SaveBasicAuthFlag(WebBasicAuth.EnableAuth);
       ret = true;
     }
@@ -855,7 +869,7 @@ void Server_InitWebServer_Sets() {
   /* route for set mDNS record */
   server.on("/set_mdns", HTTP_GET, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /set_mdns"));
-    if (Server_CheckBasicAuth(request) == false)
+    if (Server_CheckWriteRequest(request) == false)
       return;
 
     /* check cfg for mdns */
@@ -883,7 +897,7 @@ void Server_InitWebServer_Sets() {
 void Server_InitWebServer_Update() {
   server.on(
     "/upload_firmware", HTTP_POST, [](AsyncWebServerRequest* request) {
-      if (Server_CheckBasicAuth(request) == false)
+      if (Server_CheckWriteRequest(request) == false)
         return;
 
       if ((FirmwareUpload.Error.length() == 0) && (true == Update.isFinished())) {
@@ -905,6 +919,12 @@ void Server_InitWebServer_Update() {
         /* no answer from here, the request handler answers after the upload */
         if ((true == WebBasicAuth.EnableAuth) && (!request->authenticate(WebBasicAuth.UserName.c_str(), WebBasicAuth.Password.c_str()))) {
           FirmwareUpload.Error = F("Unauthorized");
+        } else if (request->header(WEB_WRITE_HEADER_NAME) != WEB_WRITE_HEADER_VALUE) {
+          /* only the camera page may install firmware, not a form of another site (CSRF) */
+          FirmwareUpload.Error = F("Forbidden: firmware is accepted only from the camera page");
+        } else if (false == Server_HostAllowed(request)) {
+          /* the flash is written here, before the request handler checks the host name (DNS rebinding) */
+          FirmwareUpload.Error = F("Forbidden: open the camera with its IP address or its mDNS name");
         } else {
           FirmwareUpload.Error = Server_CheckFirmwareImage(data, len);
         }
@@ -999,26 +1019,6 @@ void Server_InitWebServer_Stream() {
 }
 
 /**
-   @brief Pause WEB server
-   @param none
-   @return none
-*/
-void Server_pause() {
-  server.end();
-  SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: pause"));
-}
-
-/**
-   @brief Resume WEB server
-   @param none
-   @return none
-*/
-void Server_resume() {
-  server.begin();
-  SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: resume"));
-}
-
-/**
  * @brief Handle cache request
  * 
  * @param AsyncWebServerRequest* - http request
@@ -1069,7 +1069,14 @@ String Server_GetJsonData() {
   JsonDocument doc_json;
   Server_GetModuleUptime(uptime);
 
-  doc_json["token"] = Connect.GetToken();
+  /* only the end of the token: anybody in the network could read it here and upload images to the camera in Prusa Connect */
+  String token = Connect.GetToken();
+  String token_masked = "";
+  for (int i = 0; i < ((int)token.length() - 4); i++) {
+    token_masked += '*';
+  }
+  token_masked += token.substring((token.length() > 4) ? token.length() - 4 : 0);
+  doc_json["token"] = token_masked;
   doc_json["fingerprint"] = Connect.GetFingerprint();
   doc_json["refreshInterval"] = String(Connect.GetRefreshInterval());
   doc_json["photoquality"] = String(73 - SystemCamera.GetPhotoQuality());
@@ -1162,9 +1169,87 @@ String Server_GetJsonData() {
    @return bool - status
 */
 bool Server_CheckBasicAuth(AsyncWebServerRequest* request) {
+  if (false == Server_CheckHost(request)) {
+    return false;
+  }
+
   if ((!request->authenticate(WebBasicAuth.UserName.c_str(), WebBasicAuth.Password.c_str())) && (true == WebBasicAuth.EnableAuth)) {
     SystemLog.AddEvent(LogLevel_Verbose, F("Unauthorized! Sending longin request"));
     request->requestAuthentication();
+    return false;
+  }
+
+  return true;
+}
+
+/**
+   @brief Check the host name of the request against DNS rebinding: a site of an attacker whose name points to the
+          camera IP could otherwise read the camera pages. Accepted: an IP address or the camera name, alone or with
+          one of WEB_HOST_SUFFIXES. Camera names: the mDNS and DHCP names used since the start, and a new name saved
+          on the WEB page (used after the next start), so the page keeps working before and after the restart. Without a Host header (old clients) the
+          request is accepted. Does not answer the request
+   @param AsyncWebServerRequest - request
+   @return bool - true when the host name is accepted
+*/
+bool Server_HostAllowed(AsyncWebServerRequest* request) {
+  String host = request->host();
+  int port = host.indexOf(':');
+  if (port >= 0) {
+    host = host.substring(0, port);
+  }
+  host.toLowerCase();
+
+  IPAddress ip;
+  if ((host.length() == 0) || (true == ip.fromString(host))) {
+    return true;
+  }
+
+  String names[] = { SystemWifiMngt.GetStartMdns(), SystemWifiMngt.GetDhcpHostname(), SystemWifiMngt.GetMdns() };
+  static const char* suffixes[] = WEB_HOST_SUFFIXES;
+  for (String& name : names) {
+    name.toLowerCase();
+    if (host == name) {
+      return true;
+    }
+    for (const char* suffix : suffixes) {
+      if (host == (name + "." + suffix)) {
+        return true;
+      }
+    }
+  }
+
+  SystemLog.AddEvent(LogLevel_Warning, F("WEB server: refused host name "), host);
+  return false;
+}
+
+/**
+   @brief Check the host name of the request, see Server_HostAllowed
+   @param AsyncWebServerRequest - request
+   @return bool - true when the host name is accepted, false after a 403 answer
+*/
+bool Server_CheckHost(AsyncWebServerRequest* request) {
+  if (false == Server_HostAllowed(request)) {
+    request->send(403, F("text/plain"), F("Forbidden: open the camera with its IP address or its mDNS name"));
+    return false;
+  }
+
+  return true;
+}
+
+/**
+   @brief Check a request that changes the camera: login, host name, and the WEB_WRITE_HEADER_NAME header that only the
+          camera page sends. A page of another site cannot add the header, so it cannot change the camera (CSRF)
+   @param AsyncWebServerRequest - request
+   @return bool - true when the request may change the camera, false after an answer
+*/
+bool Server_CheckWriteRequest(AsyncWebServerRequest* request) {
+  if (false == Server_CheckBasicAuth(request)) {
+    return false;
+  }
+
+  if ((false == request->hasHeader(WEB_WRITE_HEADER_NAME)) || (request->header(WEB_WRITE_HEADER_NAME) != WEB_WRITE_HEADER_VALUE)) {
+    SystemLog.AddEvent(LogLevel_Warning, F("WEB server: refused request without the camera page header: "), request->url());
+    request->send(403, F("text/plain"), F("Forbidden: changes are accepted only from the camera page"));
     return false;
   }
 
@@ -1197,7 +1282,6 @@ void Server_streamJpg(AsyncWebServerRequest* request) {
     request->send(501);
     return;
   }
-  response->addHeader("Access-Control-Allow-Origin", "*");
   request->send(response);
 }
 

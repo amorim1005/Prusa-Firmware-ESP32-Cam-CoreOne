@@ -28,7 +28,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c15">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c16">
 </head>
 <body>
     <nav>
@@ -81,7 +81,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c15"></script>
+	<script src="scripts.js?v=1.1.2-c16"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -128,7 +128,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c15");</style>
+<style>@import url("styles.css?v=1.1.2-c16");</style>
 <body>
 	<center>
 		<table>
@@ -141,7 +141,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c15"></script>
+<script src="scripts.js?v=1.1.2-c16"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -152,7 +152,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c15");</style>
+<style>@import url("styles.css?v=1.1.2-c16");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -221,7 +221,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c15"></script>
+<script src="scripts.js?v=1.1.2-c16"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -231,11 +231,11 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c15");</style>
+<style>@import url("styles.css?v=1.1.2-c16");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
-        <tr><td class="pc1">Connect Token</td><td ><input type="text" name="token" id=tokenid >&nbsp;<button class="btn_save" onclick="changeValue(encodeURIComponent(document.getElementById('tokenid').value), 'set_token?token=', 'config')">Save</button></td></tr>
+        <tr><td class="pc1">Connect Token</td><td ><input type="text" name="token" id=tokenid >&nbsp;<button class="btn_save" onclick="saveToken()">Save</button></td></tr>
         <tr><td class="pc1">Fingerprint</td><td class=pc2 id="fingerprint"></td></tr>
 		<tr>
 			<td class="pc1">Trigger Interval</td><td><label for="refresh"></label>
@@ -331,7 +331,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c15"></script>
+<script src="scripts.js?v=1.1.2-c16"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -341,7 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c15");</style>
+<style>@import url("styles.css?v=1.1.2-c16");</style>
 <body>
 	<center>
         <table id="data">
@@ -410,7 +410,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c15"></script>
+<script src="scripts.js?v=1.1.2-c16"></script>
 <script>
 	get_data("system");
 </script>
@@ -969,7 +969,9 @@ function get_data(val) {
 		
 		if (val == "config") {
 			setText('fingerprint', obj.fingerprint);
-			document.getElementById('tokenid').value = obj.token;
+			/* the camera sends only the end of the token, a new token is pasted into the empty field.
+			   The field is not cleared here: a pasted token stays when another setting is changed before Save */
+			document.getElementById('tokenid').placeholder = (obj.token != "") ? obj.token : "paste the token from Prusa Connect";
 			document.getElementById('refreshid').value = obj.refreshInterval;
 			document.getElementById('photo_qualityid').value = obj.photoquality;
 			/* show only the resolutions supported by the detected camera sensor */
@@ -1288,8 +1290,24 @@ function openImage() {
 	OpenImageclickCount++;
 }
 
+/* request that changes the camera. The header shows the camera that the request comes from its own page: a page of
+   another site cannot add it (CORS), so it cannot change the camera (CSRF). POST data is form encoded */
+function cameraRequest(method, url, async) {
+	var xhr = new XMLHttpRequest();
+	xhr.open(method, url, async);
+	xhr.setRequestHeader("X-Requested-With", "PrusaESP32Cam");
+	return xhr;
+}
+
+function cameraPost(url, data) {
+	var xhr = cameraRequest("POST", url, false);
+	xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	xhr.send(data);
+	return xhr;
+}
+
 function actionButton(url, reload, msg) {
-    var xhr = new XMLHttpRequest();
+    var xhr = cameraRequest('GET', url, true);
     
 	if (msg != '') {
 		alert(msg);
@@ -1305,7 +1323,6 @@ function actionButton(url, reload, msg) {
         }
     };
 
-    xhr.open('GET', url, true);
     xhr.send();
 }
 
@@ -1337,24 +1354,21 @@ function addClickListener(id) {
 
 /* wifi page */
 function setWifi(val_ssid, val_pass) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "wifi_cfg?wifi_ssid=" +  encodeURIComponent(val_ssid) + "&wifi_pass=" + encodeURIComponent(val_pass), false);
-	xmlHttp.send(null);
+	/* POST: the password is not in the URL */
+	var xmlHttp = cameraPost("wifi_cfg", "wifi_ssid=" + encodeURIComponent(val_ssid) + "&wifi_pass=" + encodeURIComponent(val_pass));
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
 function setWifiNet(val_ip, val_mask, val_gw, val_dns) {	
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
+	var xmlHttp = cameraRequest("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
 	xmlHttp.send(null);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
 }
 
 function scanWifi() {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "wifi_scan?", false);
+	var xmlHttp = cameraRequest("GET", "wifi_scan?", false);
 	xmlHttp.send(null);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("wifi");
@@ -1391,13 +1405,11 @@ function GetDataAndPrintTableWiFi() {
 
 /* PrusaLink cfg, the password is sent only when the user typed a new one */
 function setPrusaLink() {
-	var url = "set_prusalink?enable=" + document.getElementById('prusalinkid').checked
+	var data = "enable=" + document.getElementById('prusalinkid').checked
 		+ "&host=" + encodeURIComponent(document.getElementById('prusalink_hostid').value)
 		+ "&user=" + encodeURIComponent(document.getElementById('prusalink_userid').value)
 		+ "&password=" + encodeURIComponent(document.getElementById('prusalink_passwordid').value);
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", url, false);
-	xmlHttp.send(null);
+	var xmlHttp = cameraPost("set_prusalink", data);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	document.getElementById('prusalink_passwordid').value = "";
 	get_data("config");
@@ -1405,16 +1417,25 @@ function setPrusaLink() {
 
 /* auth page */
 function setAuth(val_name, val_pass) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", "basicauth_cfg?" + "auth_username=" + encodeURIComponent(val_name) + "&auth_password=" + encodeURIComponent(val_pass), false);
-	xmlHttp.send(null);
+	var xmlHttp = cameraPost("basicauth_cfg", "auth_username=" + encodeURIComponent(val_name) + "&auth_password=" + encodeURIComponent(val_pass));
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data("auth");
 }
 
+/* save a new Prusa Connect token, the field is cleared after a successful save */
+function saveToken() {
+	var field = document.getElementById('tokenid');
+	var xmlHttp = cameraRequest("GET", "set_token?token=" + encodeURIComponent(field.value), false);
+	xmlHttp.send(null);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
+	if ((xmlHttp.status == 200) && !xmlHttp.responseText.startsWith("ERROR")) {
+		field.value = "";
+	}
+	get_data("config");
+}
+
 function changeValue(val, url, reload, msg) {
-	var xmlHttp = new XMLHttpRequest();
-	xmlHttp.open("GET", url + val, false);
+	var xmlHttp = cameraRequest("GET", url + val, false);
 	xmlHttp.send(null);
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	get_data(reload);
@@ -1477,8 +1498,7 @@ function uploadFirmware() {
 	var formData = new FormData();
 	formData.append('firmware', file, file.name);
 
-	var xhr = new XMLHttpRequest();
-	xhr.open('POST', 'upload_firmware', true);
+	var xhr = cameraRequest('POST', 'upload_firmware', true);
 	xhr.upload.onprogress = function(e) {
 		if (e.lengthComputable) {
 			var p = Math.round(e.loaded * 100 / e.total);
@@ -1548,9 +1568,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c15");</style>
+<style>@import url("styles.css?v=1.1.2-c16");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c15"></script>
+<script src="scripts.js?v=1.1.2-c16"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');
@@ -1593,7 +1613,7 @@ function streamError() {
 }
 
 function streamCheck() {
-	fetch('json_input', { cache: 'no-store' }).then(function(response) {
+	fetch('json_thermal', { cache: 'no-store' }).then(function(response) {
 		return response.json();
 	}).then(function(obj) {
 		var temp = String(obj.mcu_temp).split(' - ')[0];

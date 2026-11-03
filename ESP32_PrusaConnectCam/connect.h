@@ -72,7 +72,6 @@ public:
   void Init();
   void LoadCfgFromEeprom();
 
-  void TakePicture();
   bool SendPhotoToBackend(const uint8_t *, size_t);
   bool SendInfoToBackend();
   void TakePictureAndSendToBackend();
@@ -99,7 +98,6 @@ public:
   String GetToken();
   String GetFingerprint();
   String GetPrusaConnectHostname();
-  BackendAvailabilitStatus GetBackendAvailabilitStatus();
   String CovertBackendAvailabilitStatusToString(BackendAvailabilitStatus);
   bool GetTimeLapsPhotoSaveStatus();
   uint32_t GetUploadOkCount();
@@ -110,7 +108,6 @@ public:
   void IncreaseSendingIntervalCounter();
   void SetSendingIntervalCounter(uint16_t);
   void SetSendingIntervalExpired();
-  uint16_t GetSendingIntervalCounter();
   bool CheckSendingIntervalExpired(uint16_t);
 };
 
