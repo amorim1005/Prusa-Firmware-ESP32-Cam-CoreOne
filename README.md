@@ -12,9 +12,9 @@ kept, and the changes of this fork are in the commits on top of it.
 Firmware version: **1.1.2-c16** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
-> **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c13): web pages,
-> photos, Prusa Connect, stream and thermal guard work. The OV2640 and OV5640 sensors and the
-> PrusaLink integration have not been tested on a real board yet. Read the
+> **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c16): web pages,
+> photos, Prusa Connect, PrusaLink, stream, thermal guard and firmware update from file work. The
+> OV2640 and OV5640 sensors have not been tested on a real board yet. Read the
 > [known limitations](#known-limitations).
 
 **Main differences from the original firmware:**
@@ -510,10 +510,9 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 ## Known limitations
 
 - **Tested with the OV3660 sensor only.** The OV2640 and OV5640 sensors (and the OV5640 autofocus)
-  and PrusaLink have not been tested on a real board yet.
-- **PrusaLink on the Core One:** the PrusaLink specification defines `/api/v1/status` and *digest*
-  authentication. It is not confirmed that the Core One firmware answers exactly like that. If
-  *PrusaLink status* does not show `OK`, open an issue with the message shown.
+  have not been tested on a real board yet.
+- **PrusaLink** is tested with a Core One (status and printer state). If *PrusaLink status* does
+  not show `OK` on another printer, open an issue with the message shown.
 - **Thermal limits (80 / 88 °C)** are an estimate for the chip's internal temperature, set after the
   first test without a heatsink. Adjust them after seeing real values on the System page.
 - **At most 2 stream clients** at a time.
