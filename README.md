@@ -12,7 +12,8 @@ kept, and the changes of this fork are in the commits on top of it.
 Firmware version: **1.1.2-c17** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
-> **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c16): web pages,
+> **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
+> 2-hour print on a Prusa Core One): web pages,
 > photos, Prusa Connect, PrusaLink, stream, thermal guard and firmware update from file work. The
 > OV2640 and OV5640 sensors have not been tested on a real board yet. Read the
 > [known limitations](#known-limitations).
