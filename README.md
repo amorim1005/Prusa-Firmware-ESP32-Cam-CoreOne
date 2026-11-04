@@ -47,6 +47,7 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 - [Thermal guard and mounting in the Core One](#thermal-guard)
 - [Camera sensors and focus](#camera-sensors)
 - [Service AP, status LED and factory reset](#service-ap)
+- [Home Assistant](#home-assistant)
 - [Debug logs, serial console and web API](#debug-logs)
 - [Troubleshooting](#troubleshooting)
 - [Known limitations](#known-limitations)
@@ -443,6 +444,42 @@ Pins, photos and schematics: [the board](#board).
 
 ---
 
+<a name="home-assistant"></a>
+## Home Assistant
+
+The camera works in Home Assistant as an MJPEG camera: the dashboard shows the latest photo, and the
+live stream opens when you tap it.
+
+1. In the router, give the camera a **fixed IP address** (DHCP reservation), so the address does
+   not change.
+2. In Home Assistant: **Settings → Devices & services → Add integration → MJPEG IP Camera**.
+3. Fill in (replace `IP` with the camera address):
+
+   | Field | Value |
+   |---|---|
+   | Name | `Prusa Webcam` |
+   | MJPEG URL | `http://IP/stream.mjpg` |
+   | Still image URL | `http://IP/saved-photo.jpg` |
+   | Username / Password | empty, unless you enabled the login on the camera |
+   | Verify SSL certificate | off |
+
+4. Add a card to the dashboard (**Edit dashboard → Add card → Manual**):
+
+   ```yaml
+   type: picture-entity
+   entity: camera.prusa_webcam
+   camera_view: auto
+   show_name: false
+   show_state: false
+   ```
+
+The card shows the latest photo (the one sent to Prusa Connect), which does not heat the camera.
+Tap it to open the live stream; the stream stops when you close the window. With the stream open the
+camera gets warmer, see [Thermal guard](#thermal-guard).
+
+> Before version c18 the still image URL could fail with "Cannot connect" after a stream. With an
+> older version, leave the still image URL empty.
+
 <a name="debug-logs"></a>
 ## Debug logs, serial console and web API
 
@@ -486,10 +523,7 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 | `http://IP/get_logs` | Download the log from the micro SD card |
 | `http://IP/json_input` | All the status values (JSON), including the Health section |
 
-**Home Assistant.** Add the **MJPEG IP Camera** integration with MJPEG URL `http://IP/stream.mjpg`
-and still image URL `http://IP/saved-photo.jpg` (user name and password only with the login
-enabled). The dashboard shows the latest photo, which does not heat the camera; the live stream runs
-only while the camera window is open. Give the camera a fixed IP address in the router.
+For Home Assistant, see [Home Assistant](#home-assistant).
 
 ---
 
