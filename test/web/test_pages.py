@@ -237,7 +237,7 @@ with sync_playwright() as p:
         page.evaluate("LatestRelease = null; checkLatestRelease('1.1.2-c10')")
         page.wait_for_timeout(500)
         check(not page.is_visible('#latest_release_row'), what)
-    GITHUB.update({'status': 200, 'body': '{"tag_name": "v1.1.2-c15", "html_url": "https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/tag/v1.1.2-c15"}'})
+    GITHUB.update({'status': 200, 'body': '{"tag_name": "v1.1.2-c15", "html_url": "https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/tag/v1.1.2-c15"}'})
     page.evaluate("LatestRelease = null; checkLatestRelease('1.1.2-c10')")
     page.wait_for_function("document.getElementById('latest_release_row').style.display == ''")
     check(page.inner_text('#latest_release') == 'There is a new version. Latest release: 1.1.2-c15', 'newer release shown: %s' % page.inner_text('#latest_release'))

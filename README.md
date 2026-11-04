@@ -10,7 +10,7 @@ This repository is a **fork** of the official firmware
 kept, and the changes of this fork are in the commits on top of it.
 
 Firmware version: **1.1.2-c18** (see the [version history](#version-history)).
-The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
+The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
 > 2-hour print on a Prusa Core One): web pages,
@@ -64,7 +64,7 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 <a name="quick-start"></a>
 ## Quick start
 
-1. Download `ESP32_PrusaConnectCam.ino.merged.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest) and flash it
+1. Download `ESP32_PrusaConnectCam.ino.merged.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest) and flash it
    at address 0x0 from the browser, Chrome or Edge ([how to flash](#flash)).
 2. Connect to the Wi-Fi network `ESP32_camera_...` (open network, no password), open
    <http://192.168.0.1> and set up your Wi-Fi.
@@ -127,7 +127,7 @@ OV2640 [datasheet](doc/XIAO_ESP32S3/OV2640-datasheet.pdf).
 The easiest way needs only a **browser**: nothing to install and nothing to compile.
 
 1. **Download** `ESP32_PrusaConnectCam.ino.merged.bin` from the
-   **[latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest)**
+   **[latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest)**
    (the release also has a `SHA256SUMS.txt` to check the download).
 2. **Recommended: install the USB-serial drivers** before you connect the board (Windows; on
    macOS and Linux they are usually not needed):
@@ -576,7 +576,7 @@ and the camera installs it over Wi-Fi. Any firmware works, from this repository 
 
 | Firmware | File |
 |---|---|
-| This repository | `ESP32_PrusaConnectCam.ino.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest) |
+| This repository | `ESP32_PrusaConnectCam.ino.bin` from the [latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest) |
 | Original Prusa firmware | `XIAO_ESP32S3.bin` from the [Prusa releases](https://github.com/prusa3d/Prusa-Firmware-ESP32-Cam/releases) |
 
 How it works:

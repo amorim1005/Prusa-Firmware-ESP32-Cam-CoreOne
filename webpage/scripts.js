@@ -265,7 +265,7 @@ function checkLatestRelease(installed) {
 		showLatestRelease(installed);
 		return;
 	}
-	fetch('https://api.github.com/repos/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest', { cache: 'no-store' }).then(function(response) {
+	fetch('https://api.github.com/repos/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest', { cache: 'no-store' }).then(function(response) {
 		if (!response.ok) {
 			return {};
 		}

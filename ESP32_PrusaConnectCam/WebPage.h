@@ -78,7 +78,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><p class=p2>Prusa Connect ESP32 cam</p> </td>
 		<td><p class=p3>Author</p> <a href="https://github.com/johnyHV" class="p2" id="original-author-link" target="_blank" rel="noopener">Miroslav Pivovarsky</a> <p class=p3>and modified by</p> <a href="https://github.com/amorim1005" class="p2" id="author-link" target="_blank" rel="noopener">amorim1005</a> </td>
 		<td><a href="license.html" class="p3 page-link">Licence</a></td>
-		<td><a href="https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
+		<td><a href="https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
 	<script src="scripts.js?v=1.1.2-c18"></script>
@@ -1209,7 +1209,7 @@ function checkLatestRelease(installed) {
 		showLatestRelease(installed);
 		return;
 	}
-	fetch('https://api.github.com/repos/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest', { cache: 'no-store' }).then(function(response) {
+	fetch('https://api.github.com/repos/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest', { cache: 'no-store' }).then(function(response) {
 		if (!response.ok) {
 			return {};
 		}
