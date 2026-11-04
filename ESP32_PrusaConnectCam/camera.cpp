@@ -28,6 +28,10 @@ Camera::Camera(Configuration* i_conf, Logs* i_log) {
   StreamOnOff = false;
   frameBufferSemaphore = xSemaphoreCreateMutex();
   streamMutex = xSemaphoreCreateMutex();
+  savedPhotoMutex = xSemaphoreCreateMutex();
+  SavedPhotoBuf = NULL;
+  SavedPhotoLen = 0;
+  SavedPhotoCapacity = 0;
 
   /* stream buffers are allocated by the capture task, when a stream client connects */
   for (uint8_t i = 0; i < CAMERA_STREAM_BUFFERS; i++) {
@@ -631,6 +635,13 @@ void Camera::CapturePhoto() {
       PhotoExifData.offset = get_jpeg_data_offset(FrameBuffer);
       CameraCaptureSuccess = true;
 
+      /* keep a copy of the photo, the stream returns the frame buffer to the driver */
+      if ((PhotoExifData.header != NULL) && (PhotoExifData.offset < FrameBuffer->len)) {
+        SaveLastPhoto(PhotoExifData.header, PhotoExifData.len, FrameBuffer->buf + PhotoExifData.offset, FrameBuffer->len - PhotoExifData.offset);
+      } else {
+        SaveLastPhoto(NULL, 0, FrameBuffer->buf, FrameBuffer->len);
+      }
+
       if (PhotoExifData.header != NULL) {
         log->AddEvent(LogLevel_Verbose, F("Exif header OK! Len: "), String(PhotoExifData.len));
       } else {
@@ -967,6 +978,7 @@ bool Camera::GetPhotoCopy(uint8_t** o_buf, size_t* o_len) {
     }
     if (Buf != NULL) {
       memcpy(Buf, Frame, FrameLen);
+      SaveLastPhoto(NULL, 0, Frame, FrameLen);
       *o_buf = Buf;
       *o_len = FrameLen;
       /* real size of a photo with these settings, for the photo size estimate on the WEB page */
@@ -1027,6 +1039,74 @@ bool Camera::GetPhotoCopy(uint8_t** o_buf, size_t* o_len) {
   }
 
   xSemaphoreGive(frameBufferSemaphore);
+  return ret;
+}
+
+/**
+   @brief Save a copy of the last good photo (EXIF header + JPEG data). /saved-photo.jpg sends it when the camera
+          has no photo, for example after a stream, until the next photo is captured
+   @param const uint8_t* - EXIF header, NULL = none
+   @param size_t - EXIF header length
+   @param const uint8_t* - JPEG data
+   @param size_t - JPEG data length
+   @return none
+*/
+void Camera::SaveLastPhoto(const uint8_t* i_header, size_t i_header_len, const uint8_t* i_data, size_t i_data_len) {
+  if ((i_data == NULL) || (i_data_len == 0)) {
+    return;
+  }
+  if (i_header == NULL) {
+    i_header_len = 0;
+  }
+
+  size_t TotalLen = i_header_len + i_data_len;
+  xSemaphoreTake(savedPhotoMutex, portMAX_DELAY);
+  if (TotalLen > SavedPhotoCapacity) {
+    /* the buffer only grows, a photo with a smaller resolution fits in it */
+    if (SavedPhotoBuf != NULL) {
+      heap_caps_free(SavedPhotoBuf);
+    }
+    SavedPhotoBuf = (uint8_t*)heap_caps_malloc(TotalLen, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    SavedPhotoCapacity = (SavedPhotoBuf != NULL) ? TotalLen : 0;
+    SavedPhotoLen = 0;
+  }
+
+  if (SavedPhotoBuf != NULL) {
+    if (i_header_len > 0) {
+      memcpy(SavedPhotoBuf, i_header, i_header_len);
+    }
+    memcpy(SavedPhotoBuf + i_header_len, i_data, i_data_len);
+    SavedPhotoLen = TotalLen;
+  } else {
+    log->AddEvent(LogLevel_Warning, F("Saved photo: failed to allocate memory: "), String(TotalLen));
+  }
+  xSemaphoreGive(savedPhotoMutex);
+}
+
+/**
+   @brief Copy of the photo for the WEB page and other clients (/saved-photo.jpg): the current photo, or the last
+          saved photo when the camera has none. Not for the upload to Prusa Connect, it must never send an old photo
+   @param uint8_t** - copy of the photo, the caller frees it with free()
+   @param size_t* - length of the copy
+   @return bool - true = OK
+*/
+bool Camera::GetSavedPhotoCopy(uint8_t** o_buf, size_t* o_len) {
+  if (true == GetPhotoCopy(o_buf, o_len)) {
+    return true;
+  }
+
+  bool ret = false;
+  xSemaphoreTake(savedPhotoMutex, portMAX_DELAY);
+  if ((SavedPhotoBuf != NULL) && (SavedPhotoLen > 0)) {
+    uint8_t* Buf = (uint8_t*)heap_caps_malloc(SavedPhotoLen, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (Buf != NULL) {
+      memcpy(Buf, SavedPhotoBuf, SavedPhotoLen);
+      *o_buf = Buf;
+      *o_len = SavedPhotoLen;
+      ret = true;
+    }
+  }
+  xSemaphoreGive(savedPhotoMutex);
   return ret;
 }
 

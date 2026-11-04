@@ -158,6 +158,11 @@ capture: it copies the latest stream frame and uploads it. "Get photo" and `/sav
 the same. The stream is not interrupted and no extra CPU is used. The cost: that photo has no EXIF
 header and is not saved to the SD card.
 
+When the stream starts, the camera gives its photo buffer back to the driver. The camera keeps a
+copy of the last good photo in PSRAM, so `/saved-photo.jpg` (Home Assistant, for example) still
+gets a photo until the next one is taken. The upload to Prusa Connect never uses this copy, it
+always sends a new photo.
+
 ### Safety nets
 
 - Nobody waits for the camera forever: 5 s for the camera, 3 s for a stream frame.

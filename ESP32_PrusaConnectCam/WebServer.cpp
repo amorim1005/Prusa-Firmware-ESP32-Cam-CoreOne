@@ -43,7 +43,7 @@ void Server_InitWebServer() {
     /* the response sends its own copy of the photo, the camera can capture a new photo during the transfer */
     uint8_t* photo = NULL;
     size_t photo_len = 0;
-    if (false == SystemCamera.GetPhotoCopy(&photo, &photo_len)) {
+    if (false == SystemCamera.GetSavedPhotoCopy(&photo, &photo_len)) {
       request->send(404, "text/plain", "Photo not found!");
       return;
     }

@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c17** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c18** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-ESP32-Cam-CoreOne/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
@@ -479,12 +479,17 @@ Basic setup over the serial console: `setwifissid:SSID;` → `setwifipass:PASSWO
 | Address | Description |
 |---|---|
 | `http://IP/stream.mjpg` | Live stream (MJPEG), at most 2 clients |
-| `http://IP/saved-photo.jpg` | Latest photo |
+| `http://IP/saved-photo.jpg` | Latest photo. After a stream, the last saved photo until the next one is taken |
 | `http://IP/action_capture` | Capture a photo |
 | `http://IP/action_send` | Capture a photo and send it to Prusa Connect |
 | `http://IP/action_reboot` | Restart the camera |
 | `http://IP/get_logs` | Download the log from the micro SD card |
 | `http://IP/json_input` | All the status values (JSON), including the Health section |
+
+**Home Assistant.** Add the **MJPEG IP Camera** integration with MJPEG URL `http://IP/stream.mjpg`
+and still image URL `http://IP/saved-photo.jpg` (user name and password only with the login
+enabled). The dashboard shows the latest photo, which does not heat the camera; the live stream runs
+only while the camera window is open. Give the camera a fixed IP address in the router.
 
 ---
 
@@ -569,12 +574,13 @@ Service hostname and the 10 min interval), and the original firmware cannot read
 <a name="version-history"></a>
 ## Version history
 
-**1.1.2-c17**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
+**1.1.2-c18**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
 XIAO ESP32-S3 Sense (OV2640, OV3660 and OV5640 detected automatically, OV5640 autofocus), faster
 stream, thermal guard in two steps, PrusaLink, health checks, firmware update from file, open
 service AP for the setup, a simpler web page, protection against other web sites (CSRF, DNS
 rebinding), ESP32 core 3.3.12 with current libraries, and the fixes of a code review (login
-settings, settings shared between tasks, checked input values).
+settings, settings shared between tasks, checked input values), and the latest photo always available
+for Home Assistant.
 
 ---
 

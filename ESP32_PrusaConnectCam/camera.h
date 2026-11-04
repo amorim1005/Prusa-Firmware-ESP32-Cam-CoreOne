@@ -81,6 +81,10 @@ private:
   uint32_t LastPhotoSize;                   ///< size of the last photo that left the camera [B], 0 = no photo yet. The WEB page estimates the photo size from it
   uint8_t LastPhotoFrameSize;               ///< resolution of the last photo, index of the WEB page list
   uint8_t LastPhotoQuality;                 ///< JPEG quality of the last photo, 10-63, lower is better
+  uint8_t* SavedPhotoBuf;                   ///< copy of the last good photo in PSRAM, for /saved-photo.jpg when the camera has no photo (after a stream)
+  size_t SavedPhotoLen;                     ///< size of the saved photo copy [B], 0 = none
+  size_t SavedPhotoCapacity;                ///< allocated size of SavedPhotoBuf [B]
+  SemaphoreHandle_t savedPhotoMutex;        ///< mutex for the saved photo copy
   SemaphoreHandle_t streamMutex;            ///< mutex for the stream buffer state (short operations only)
   TaskHandle_t StreamTask;                  ///< stream capture task
   SemaphoreHandle_t frameBufferSemaphore;   ///< semaphore for frame buffer
@@ -133,6 +137,8 @@ public:
   void StreamClearFrameData();
   
   bool GetPhotoCopy(uint8_t **, size_t *);
+  bool GetSavedPhotoCopy(uint8_t **, size_t *);
+  void SaveLastPhoto(const uint8_t *, size_t, const uint8_t *, size_t);
   framesize_t TransformFrameSizeDataType(uint8_t);
   
 
