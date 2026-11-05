@@ -15,7 +15,7 @@
 /* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c19"               ///< SW version
+#define SW_VERSION                  "1.1.2-c20"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< DHCP host name when the camera name has no valid character. Normally the DHCP host name is the camera name (mDNS record)

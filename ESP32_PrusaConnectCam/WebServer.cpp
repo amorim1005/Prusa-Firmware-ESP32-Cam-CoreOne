@@ -107,7 +107,7 @@ void Server_InitWebServer_JsonData() {
 
   /* route for san wi-fi networks */
   server.on("/wifi_scan", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: scan WI-FI networks"));
+    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: scan Wi-Fi networks"));
     if (Server_CheckWriteRequest(request) == false)
       return;
     request->send(200, F("text/html"), MSG_SCANNING);
@@ -345,23 +345,6 @@ void Server_InitWebServer_Actions() {
       return;
     SystemCamera.CapturePhoto();
     request->send(200, "text/plain", "Take Photo");
-  });
-
-  /* route for the OV5640 autofocus buttons: cmd = single, continuous, pause, release */
-  server.on("/ov5640_af", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /ov5640_af"));
-    if (Server_CheckWriteRequest(request) == false)
-      return;
-    String cmd = request->hasParam("cmd") ? request->getParam("cmd")->value() : String("");
-    request->send(200, "text/plain", SystemCamera.AutofocusCommand(cmd));
-  });
-
-  /* route for the OV5640 exposure lock */
-  server.on("/ov5640_lock_exposure", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: /ov5640_lock_exposure"));
-    if (Server_CheckWriteRequest(request) == false)
-      return;
-    request->send(200, "text/plain", SystemCamera.LockExposureToCurrent());
   });
 
   /* route for send photo to prusa backend */
@@ -763,7 +746,7 @@ void Server_InitWebServer_Sets() {
 
   /* route for set WI-FI credentials */
   server.on("/wifi_cfg", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set WI-FI credentials"));
+    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set Wi-Fi credentials"));
     if (Server_CheckWriteRequest(request) == false)
       return;
 
@@ -779,17 +762,11 @@ void Server_InitWebServer_Sets() {
       TmpPassword = request->arg("wifi_pass");
     }
 
-    /* Wi-Fi Enterprise: the Wi-Fi password is not used, an empty password saves only the SSID.
-       Possible when the Enterprise user name and password are saved, it connects when Wi-Fi Enterprise is on */
-    bool EapReady = (true == SystemWifiMngt.GetStaEapEnable()) || ((SystemWifiMngt.GetStaEapUsername().length() > 0) && (true == SystemWifiMngt.GetStaEapPasswordSaved()));
-    if ((true == EapReady) && (TmpPassword.length() == 0) && (TmpSsid.length() > 0) && (TmpSsid.length() < EEPROM_ADDR_WIFI_SSID_LENGTH)) {
+    /* Wi-Fi Enterprise is on: the Wi-Fi password is not used, an empty password changes only the SSID */
+    if ((true == SystemWifiMngt.GetStaEapEnable()) && (TmpPassword.length() == 0) && (TmpSsid.length() > 0) && (TmpSsid.length() < EEPROM_ADDR_WIFI_SSID_LENGTH)) {
+      request->send(200, F("text/html"), MSG_SAVE_OK_WIFI);
       SystemWifiMngt.SetStaSsid(TmpSsid);
-      if (true == SystemWifiMngt.GetStaEapEnable()) {
-        request->send(200, F("text/html"), MSG_SAVE_OK_WIFI);
-        SystemWifiMngt.WiFiStaConnect();
-      } else {
-        request->send(200, F("text/html"), MSG_SAVE_OK);
-      }
+      SystemWifiMngt.WiFiStaConnect();
       return;
     }
 
@@ -816,12 +793,13 @@ void Server_InitWebServer_Sets() {
     }
   });
 
-  /* route for set Wi-Fi Enterprise (PEAP) credentials, the SSID is from /wifi_cfg. POST: the password is not in the URL */
+  /* route for save and connect a Wi-Fi Enterprise (PEAP) network. POST: the password is not in the URL */
   server.on("/wifi_wpa2_eap", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* request) {
     SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set Wi-Fi Enterprise credentials"));
     if (Server_CheckWriteRequest(request) == false)
       return;
 
+    String TmpSsid = request->hasArg("ssid") ? request->arg("ssid") : String("");
     String TmpIdentity = request->hasArg("identity") ? request->arg("identity") : String("");
     String TmpUser = request->hasArg("user") ? request->arg("user") : String("");
     String TmpPassword = request->hasArg("pass") ? request->arg("pass") : String("");
@@ -829,10 +807,11 @@ void Server_InitWebServer_Sets() {
     /* an empty password keeps the saved one, but the first save needs a password */
     bool PasswordOk = (TmpPassword.length() < EEPROM_ADDR_WIFI_EAP_PASSWORD_LENGTH) &&
                       ((TmpPassword.length() > 0) || (true == SystemWifiMngt.GetStaEapPasswordSaved()));
-    if ((TmpIdentity.length() < EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH) && (TmpUser.length() > 0) &&
+    if ((TmpSsid.length() > 0) && (TmpSsid.length() < EEPROM_ADDR_WIFI_SSID_LENGTH) &&
+        (TmpIdentity.length() < EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH) && (TmpUser.length() > 0) &&
         (TmpUser.length() < EEPROM_ADDR_WIFI_EAP_USERNAME_LENGTH) && (true == PasswordOk)) {
-      request->send(200, F("text/html"), (true == SystemWifiMngt.GetStaEapEnable()) ? MSG_SAVE_OK_WIFI : MSG_SAVE_OK);
-      SystemWifiMngt.SetStaEapCredentials(TmpIdentity, TmpUser, TmpPassword);
+      request->send(200, F("text/html"), MSG_SAVE_OK_WIFI);
+      SystemWifiMngt.SetStaEapNetwork(TmpSsid, TmpIdentity, TmpUser, TmpPassword);
     } else {
       request->send(200, F("text/html"), MSG_SAVE_NOTOK);
     }
@@ -840,7 +819,7 @@ void Server_InitWebServer_Sets() {
 
   /* route for set WI-FI static IP address */
   server.on("/wifi_net_cfg", HTTP_GET, [](AsyncWebServerRequest* request) {
-    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set WI-FI static IP address"));
+    SystemLog.AddEvent(LogLevel_Verbose, F("WEB server: set Wi-Fi static IP address"));
     if (Server_CheckWriteRequest(request) == false)
       return;
 
@@ -1152,7 +1131,6 @@ String Server_GetJsonData() {
   doc_json["framesize_supported"] = SystemCamera.GetSupportedFrameSizes();
   doc_json["camera_detected"] = SystemCamera.GetDetectedSensorName();
   doc_json["camera_autofocus"] = SystemCamera.GetAutofocusStatus();
-  doc_json["camera_ov5640"] = Server_TranslateBoolToString(SystemCamera.IsOv5640());
   doc_json["brightness"] = String(SystemCamera.GetBrightness());
   doc_json["contrast"] = String(SystemCamera.GetContrast());
   doc_json["saturation"] = String(SystemCamera.GetSaturation());

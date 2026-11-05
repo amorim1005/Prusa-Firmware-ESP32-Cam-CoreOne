@@ -341,7 +341,7 @@ String System_printMcuResetReasonSimple() {
    @return none
 */
 void System_TaskWifiManagement(void *pvParameters) {
-  SystemLog.AddEvent(LogLevel_Info, F("Task Wifi Management. core: "), String(xPortGetCoreID()));
+  SystemLog.AddEvent(LogLevel_Info, F("Task Wi-Fi Management. core: "), String(xPortGetCoreID()));
   TickType_t xLastWakeTime = xTaskGetTickCount();
 
   while (1) {
@@ -353,7 +353,7 @@ void System_TaskWifiManagement(void *pvParameters) {
     /* build the verbose message only when it is logged */
     if (SystemLog.GetLogLevel() >= LogLevel_Verbose) {
       SystemLog.AddEvent(LogLevel_Verbose, F("WiFiManagement task. Stack free size: "), String(uxTaskGetStackHighWaterMark(NULL)) + "B");
-      SystemLog.AddEvent(LogLevel_Verbose, F("WiFi status: "), String(WiFi.status()));
+      SystemLog.AddEvent(LogLevel_Verbose, F("Wi-Fi status: "), String(WiFi.status()));
     }
 
     /* reset wdg */

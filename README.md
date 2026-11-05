@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c19** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c20** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
@@ -234,10 +234,10 @@ when the router starts after the camera, for example after a power cut. After 3 
 (network not found, wrong password) it tries once every 28 s, so the service AP stays easy to find.
 
 **Wi-Fi Enterprise** (company or school network, WPA2/WPA3-Enterprise with PEAP, user name and
-password): Wi-Fi page → Advanced Wi-Fi settings → *Wi-Fi Enterprise*. 1) Save the user name and
-password there. 2) In *Connect to Wi-Fi network*, save the network name with an empty password.
-3) Switch on *Use Wi-Fi Enterprise*. The server certificate is not checked. Saving a normal Wi-Fi
-password switches it off. Not tested on a real Enterprise network yet.
+password): Wi-Fi page → Advanced Wi-Fi settings → *Wi-Fi Enterprise*: network name, user name and
+password, then **Save & Connect**. The server certificate is not checked. Saving a normal Wi-Fi
+network, or switching *Use Wi-Fi Enterprise* off, goes back to the normal Wi-Fi. Not tested on a
+real Enterprise network yet.
 
 **Remove the protective film from the lens.** New camera modules have a transparent film on the
 lens, which makes the image blurry.
@@ -402,15 +402,6 @@ approach as Seeed's examples.
   (used since c16) `CONFIG_CAMERA_AF_SUPPORT` is not set, so every call returns `ESP_ERR_NOT_SUPPORTED`.
 - Loading the autofocus firmware takes about 1–2 s and is repeated after every camera re-init (for
   example when you change the resolution), because the sensor loses it.
-- **Focus buttons (c19, only shown with the OV5640):** *Focus once* (focus and hold, good for a fixed
-  view of the bed), *Continuous*, *Pause* (hold the lens where it is) and *Release lens* (the lens goes
-  to its rest position and a close subject blurs: press *Focus once* and it gets sharp again, a quick
-  check that the autofocus works). A camera re-init starts continuous autofocus again.
-- **Lock exposure (c19, only with the OV5640, in Advanced settings):** on a fixed scene the OV5640
-  automatic exposure can swing between bright and dark. *Lock to current* keeps the exposure and gain
-  it uses now as the manual values; switch **Automatic Exposure Control** on to unlock. Ideas from the
-  fork of [SamLovick](https://github.com/SamLovick/Prusa-Firmware-ESP32-Cam/tree/xiao-esp32s3-ov5640).
-  Not tested on a real OV5640 yet.
 
 **Manual focus (OV2640, OV3660).** These lenses are usually focused well. They can be focused by
 hand with a [focus wrench](https://www.printables.com/cs/model/877739-esp32-cam-ov2640-focus-adjustment-wrench):
@@ -665,12 +656,21 @@ Service hostname and the 10 min interval), and the original firmware cannot read
 
 Newest first. Every version is based on the original Prusa firmware v1.1.2.
 
+**1.1.2-c20** (2026-11-05)
+- OV5640: back to the simple automatic focus (continuous autofocus and its state on the Camera
+  page); the focus buttons and the exposure lock of c19 are removed
+- Wi-Fi Enterprise: one form with network name, user name and password, and *Save & Connect*
+- Wi-Fi: a wrong password is also retried slowly (every 28 s after 3 failures)
+- Fixes of a code review: error messages in red, the autofocus state text protected between tasks,
+  an empty Wi-Fi password is refused again, log texts use "Wi-Fi"
+- Not tested on a real board yet
+
 **1.1.2-c19** (2026-11-05)
 - Wi-Fi from the coming original 1.1.3: hidden networks, reconnect after a start without network
   (for example after a power cut), one attempt every 28 s after 3 failures, Wi-Fi Enterprise (PEAP)
 - OV3660: brighter picture, the automatic gain is no longer limited (fix from the fork of dawidkulpa)
 - OV5640 only: Focus once / Continuous / Pause / Release lens buttons and Lock exposure (ideas from
-  the fork of SamLovick)
+  the fork of SamLovick, removed again in c20)
 - Not tested on a real board yet
 
 **1.1.2-c18** (2026-11-04)

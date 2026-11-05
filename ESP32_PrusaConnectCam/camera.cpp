@@ -55,6 +55,7 @@ Camera::Camera(Configuration* i_conf, Logs* i_log) {
   CameraType = (camera_pid_t)0;
   CameraName = F("Unknown");
   SensorMaxFrameSize = CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE;
+  afMutex = xSemaphoreCreateMutex();
   AutofocusStatus = F("Not supported by the camera sensor");
   AutofocusReady = false;
 
@@ -110,14 +111,14 @@ void Camera::Init() {
 void Camera::InitAutofocus() {
   AutofocusReady = false;
   if ((OV5640_PID != CameraType) || (sensor == NULL)) {
-    AutofocusStatus = F("Not supported by the camera sensor");
+    SetAutofocusStatus(F("Not supported by the camera sensor"));
     return;
   }
 
   /* the library checks the chip ID, an OV5640 module without the focus motor has the same ID */
   if (false == Ov5640Autofocus.start(sensor)) {
-    AutofocusStatus = F("Failed: OV5640 not found");
-    log->AddEvent(LogLevel_Error, AutofocusStatus);
+    SetAutofocusStatus(F("Failed: OV5640 not found"));
+    log->AddEvent(LogLevel_Error, GetAutofocusText());
     return;
   }
 
@@ -125,141 +126,43 @@ void Camera::InitAutofocus() {
   uint32_t start = millis();
   uint8_t ret = Ov5640Autofocus.focusInit();
   if (0 != ret) {
-    AutofocusStatus = "Failed: autofocus firmware not started (" + String(ret) + ")";
-    log->AddEvent(LogLevel_Error, AutofocusStatus);
+    SetAutofocusStatus("Failed: autofocus firmware not started (" + String(ret) + ")");
+    log->AddEvent(LogLevel_Error, GetAutofocusText());
     return;
   }
 
   ret = Ov5640Autofocus.autoFocusMode();
   if (0 != ret) {
-    AutofocusStatus = "Failed: continuous autofocus not started (" + String(ret) + ")";
-    log->AddEvent(LogLevel_Error, AutofocusStatus);
+    SetAutofocusStatus("Failed: continuous autofocus not started (" + String(ret) + ")");
+    log->AddEvent(LogLevel_Error, GetAutofocusText());
     return;
   }
 
-  AutofocusStatus = F("Continuous autofocus");
+  SetAutofocusStatus(F("Continuous autofocus"));
   AutofocusReady = true;
   log->AddEvent(LogLevel_Info, "OV5640 continuous autofocus started in " + String(millis() - start) + " ms");
 }
 
 /**
-   @brief Detected sensor is the OV5640: the WEB page shows the autofocus buttons and the exposure lock only then
-   @param none
-   @return bool - true = OV5640
+   @brief Set the autofocus status text, shared between the WEB server and the photo task
+   @param String - status
+   @return none
 */
-bool Camera::IsOv5640() {
-  return (OV5640_PID == CameraType);
+void Camera::SetAutofocusStatus(String i_status) {
+  xSemaphoreTake(afMutex, portMAX_DELAY);
+  AutofocusStatus = i_status;
+  xSemaphoreGive(afMutex);
 }
 
 /**
-   @brief Wait until the OV5640 autofocus firmware clears the command ACK register (command accepted)
+   @brief Copy of the autofocus status text
    @param none
-   @return bool - true = accepted
+   @return String - status
 */
-bool Camera::Ov5640AfWaitAck() {
-  for (uint16_t i = 0; i < 100; i++) {
-    if (0x00 == sensor->get_reg(sensor, OV5640_CMD_ACK, 0xff)) {
-      return true;
-    }
-    delay(5);
-  }
-  return false;
-}
-
-/**
-   @brief OV5640 autofocus command from the WEB page. Command sequence of Espressif ov5640_af.c, as in the fork of SamLovick.
-          A camera re-init (for example a new resolution) starts continuous autofocus again
-   @param String - "single" focus once and hold, "continuous", "pause" hold the lens, "release" lens to the rest position (defocus test)
-   @return String - result for the WEB page
-*/
-String Camera::AutofocusCommand(String i_cmd) {
-  if ((OV5640_PID != CameraType) || (false == AutofocusReady)) {
-    return F("ERROR: autofocus is not available");
-  }
-
-  /* the sensor must not be used during a camera re-init or a photo */
-  if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
-    return F("ERROR: camera is busy, try again");
-  }
-
-  bool ok = false;
-  String status = AutofocusStatus;
-  if ((i_cmd == "single") || (i_cmd == "continuous")) {
-    /* back to the idle state first, then start the focus */
-    sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, 0x01);
-    sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, 0x08);
-    if (true == Ov5640AfWaitAck()) {
-      sensor->set_reg(sensor, OV5640_CMD_ACK, 0xff, 0x01);
-      sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, (i_cmd == "single") ? AF_TRIG_SINGLE_AUTO_FOCUS : AF_CONTINUE_AUTO_FOCUS);
-      ok = Ov5640AfWaitAck();
-    }
-    status = (i_cmd == "single") ? F("Single autofocus") : F("Continuous autofocus");
-  } else if ((i_cmd == "pause") || (i_cmd == "release")) {
-    sensor->set_reg(sensor, OV5640_CMD_ACK, 0xff, 0x01);
-    sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, (i_cmd == "pause") ? 0x06 : 0x08);
-    ok = Ov5640AfWaitAck();
-    status = (i_cmd == "pause") ? F("Autofocus paused") : F("Lens released");
-  } else {
-    xSemaphoreGive(frameBufferSemaphore);
-    return F("ERROR: unknown autofocus command");
-  }
-  xSemaphoreGive(frameBufferSemaphore);
-
-  if (false == ok) {
-    log->AddEvent(LogLevel_Warning, "OV5640 autofocus command not accepted: " + i_cmd);
-    return F("ERROR: the camera did not accept the autofocus command");
-  }
-  AutofocusStatus = status;
-  log->AddEvent(LogLevel_Info, "OV5640 autofocus: " + status);
-  return status;
-}
-
-/**
-   @brief OV5640: keep the exposure and gain that the automatic control uses now, and switch the automatic control off.
-          On a fixed scene the OV5640 automatic exposure can swing between bright and dark. The values are saved as the
-          manual exposure and gain, switching "Automatic Exposure Control" on again unlocks it (from the fork of SamLovick)
-   @param none
-   @return String - result for the WEB page
-*/
-String Camera::LockExposureToCurrent() {
-  if ((OV5640_PID != CameraType) || (sensor == NULL)) {
-    return F("ERROR: only for the OV5640 sensor");
-  }
-
-  if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
-    return F("ERROR: camera is busy, try again");
-  }
-  int r0 = sensor->get_reg(sensor, 0x3500, 0xFF);
-  int r1 = sensor->get_reg(sensor, 0x3501, 0xFF);
-  int r2 = sensor->get_reg(sensor, 0x3502, 0xFF);
-  int g0 = sensor->get_reg(sensor, 0x350A, 0xFF);
-  int g1 = sensor->get_reg(sensor, 0x350B, 0xFF);
-  xSemaphoreGive(frameBufferSemaphore);
-
-  if ((r0 < 0) || (r1 < 0) || (r2 < 0)) {
-    return F("ERROR: exposure could not be read");
-  }
-
-  /* exposure 0x3500-0x3502 in 1/16 lines = the set_aec_value() value, gain 0x350A[1:0]:0x350B, 16 = 1x */
-  int32_t exposure = (int32_t)((((uint32_t)r0 << 16) | ((uint32_t)r1 << 8) | (uint32_t)r2) >> 4);
-  exposure = constrain(exposure, 1, 1200);
-  int32_t gain = agc_gain;
-  if ((g0 >= 0) && (g1 >= 0)) {
-    gain = constrain((((g0 & 0x03) << 8) | (g1 & 0xFF)) / 16, 0, 30);
-  }
-
-  aec_value = exposure;
-  config->SaveAecValue(aec_value);
-  exposure_ctrl = false;
-  config->SaveExposureCtrl(false);
-  agc_gain = gain;
-  config->SaveAgcGain(agc_gain);
-  gain_ctrl = false;
-  config->SaveGainCtrl(false);
-  ApplyCameraCfg();
-
-  String ret = "Exposure locked: exposure " + String(exposure) + ", gain " + String(gain);
-  log->AddEvent(LogLevel_Info, ret);
+String Camera::GetAutofocusText() {
+  xSemaphoreTake(afMutex, portMAX_DELAY);
+  String ret = AutofocusStatus;
+  xSemaphoreGive(afMutex);
   return ret;
 }
 
@@ -270,18 +173,18 @@ String Camera::LockExposureToCurrent() {
 */
 String Camera::GetAutofocusStatus() {
   if ((OV5640_PID != CameraType) || (false == AutofocusReady)) {
-    return AutofocusStatus;
+    return GetAutofocusText();
   }
 
   /* the sensor must not be read during a camera reinit. When the camera is busy, return the last status */
   if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(100))) {
-    return AutofocusStatus;
+    return GetAutofocusText();
   }
 
   /* FW_STATUS: 0x10 focused, 0x00-0x0F and 0x80-0x8F focusing, 0x70 idle */
   uint8_t state = Ov5640Autofocus.getFWStatus();
   xSemaphoreGive(frameBufferSemaphore);
-  String ret = AutofocusStatus;
+  String ret = GetAutofocusText();
   if (FW_STATUS_S_FOCUSED == state) {
     ret += F(" - focused");
   } else if ((state <= 0x0F) || ((state >= 0x80) && (state <= 0x8F))) {

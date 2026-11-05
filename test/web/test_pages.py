@@ -11,12 +11,12 @@ from playwright.sync_api import sync_playwright
 WEB = sys.argv[1]
 requests_seen = []
 posts_seen = []      # (path, body) of the POST requests
-WRITE_ROUTES = ('action_', 'set_', 'wifi_cfg', 'wifi_net_cfg', 'wifi_scan', 'wifi_wpa2_eap', 'basicauth_cfg', 'upload_firmware', 'ov5640_')
+WRITE_ROUTES = ('action_', 'set_', 'wifi_cfg', 'wifi_net_cfg', 'wifi_scan', 'wifi_wpa2_eap', 'basicauth_cfg', 'upload_firmware')
 
 STATUS = {
     "mdns": "prusa-esp32cam", "upload_interval": "10", "fingerprint": "FPRINT123", "token": "****************qrst",
     "refreshInterval": 10, "photoquality": 12, "framesize": 6, "framesize_supported": "3,4,5,6",
-    "camera_detected": "OV5640", "camera_autofocus": "Continuous", "camera_ov5640": "true",
+    "camera_detected": "OV5640", "camera_autofocus": "Continuous",
     "wpa2_eap": "false", "wpa2_eap_identity": "", "wpa2_eap_user": "student1", "brightness": 0, "contrast": 0, "saturation": 0,
     "image_rotation": 1, "hmirror": "false", "vflip": "true", "lensc": "true", "exposure_ctrl": "true",
     "awb": "true", "awb_gain": "true", "wb_mode": 0, "bpc": "false", "wpc": "true", "raw_gama": "true",
@@ -77,8 +77,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             STATUS['photoquality'] = int(query['photo_quality'][0])
         if path == 'set_int' and 'fail' in query:
             return self.send('Save cfg NOT OK!')
-        if path.startswith('ov5640_'):
-            return self.send('Single autofocus' if 'cmd=single' in self.path else 'Exposure locked: exposure 300, gain 2')
         if path == 'set_token':
             return self.send('Save OK. Camera registration starts now, it must be done within 15 minutes after adding the camera in Prusa Connect')
         return self.send('Save cfg OK')   # set_* routes
@@ -133,9 +131,7 @@ with sync_playwright() as p:
     check(page.input_value('#tokenid') == '' and page.get_attribute('#tokenid', 'placeholder') == '****************qrst', 'token shown masked, field empty for a new token')
     check(page.inner_text('#fingerprint') == 'FPRINT123', 'fingerprint text')
     check(page.inner_text('#camera_detected') == 'OV5640', 'detected sensor text')
-    check(page.is_visible('#ov5640_af_row') and page.eval_on_selector('#ov5640_lock_row', 'e => e.style.display') == '', 'OV5640: focus buttons and exposure lock shown')
-    page.click('text=Focus once')
-    check(any(r.startswith('/ov5640_af?cmd=single') for r in requests_seen) and page.inner_text('#save_status') == 'Single autofocus', 'Focus once sends ov5640_af?cmd=single, result shown')
+    check(page.inner_text('#camera_autofocus') == 'Continuous', 'autofocus status text')
     check(page.inner_text('#printer_state') == 'PRINTING' and page.inner_text('#job_progress') == '42 %', 'PrusaLink state and progress')
     check(page.inner_text('#status_vflip') == 'On', 'switch status text')
     check(page.is_checked('#prusalinkid'), 'PrusaLink switch checked')
@@ -219,8 +215,8 @@ with sync_playwright() as p:
     check(page.input_value('#wpa2_eap_user_id') == 'student1' and not page.is_checked('#wpa2_eapid'), 'Wi-Fi Enterprise fields filled, switch off')
     check(page.get_attribute('#wpa2_eap_pass_id', 'placeholder') == 'unchanged' and page.get_attribute('#wpa2_eap_pass_id', 'type') == 'password', 'Enterprise password hidden, empty = unchanged')
     posts_seen.clear()
-    page.evaluate("setWPA2EAP('', 'student1', 'p@ss word')")
-    check(posts_seen and posts_seen[-1][0] == '/wifi_wpa2_eap' and 'pass=p%40ss%20word' in posts_seen[-1][1], 'Enterprise saved with POST, the password in the body: %s' % posts_seen)
+    page.evaluate("setWPA2EAP('Campus', '', 'student1', 'p@ss word')")
+    check(posts_seen and posts_seen[-1][0] == '/wifi_wpa2_eap' and 'ssid=Campus' in posts_seen[-1][1] and 'pass=p%40ss%20word' in posts_seen[-1][1], 'Enterprise saved with POST, SSID and password in the body: %s' % posts_seen)
     check(page.inner_text('#save_status') == 'Saved \u2714', 'Enterprise saved message')
 
     print('Authentication page')
@@ -275,11 +271,6 @@ with sync_playwright() as p:
     print('stream page')
     check(page.query_selector('button[onclick*="stream.html"]') is not None, 'Start stream opens stream.html')
     STATUS.update({"thermal_throttling": "false", "thermal_slow": "false", "mcu_temp": "70 *C"})
-    STATUS['camera_ov5640'] = 'false'
-    page.goto(base)
-    page.wait_for_function("document.getElementById('camera_detected') && document.getElementById('camera_detected').textContent != ''")
-    check(not page.is_visible('#ov5640_af_row') and page.eval_on_selector('#ov5640_lock_row', 'e => e.style.display') == 'none', 'other sensors: no focus buttons, no exposure lock')
-    STATUS['camera_ov5640'] = 'true'
     page.goto(base + 'stream.html')
     page.wait_for_function("document.getElementById('stream').naturalWidth > 0")
     page.wait_for_timeout(300)

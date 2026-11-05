@@ -75,13 +75,13 @@ String lastTwoChars = command.substring(command.length() - 2);
   if (command.startsWith("setwifissid:") && command.endsWith(";")) {
     /* remove prefix "setwifissid:" and end of command symbol ";" */
     wifi_ssid = command.substring(12, command.length() -1);
-    log->AddEvent(LogLevel_Info, F("--> Console set WiFi SSID: "), wifi_ssid);
+    log->AddEvent(LogLevel_Info, F("--> Console set Wi-Fi SSID: "), wifi_ssid);
     wifim->SetStaSsid(wifi_ssid);
 
   } else if (command.startsWith("setwifipass:") && command.endsWith(";")) {
     /* remove prefix "setwifipass:" and end of command symbol ";" */
     wifi_pass = command.substring(12, command.length() -1);
-    log->AddEvent(LogLevel_Info, F("--> Console set WiFi password: "), wifi_pass);
+    log->AddEvent(LogLevel_Info, F("--> Console set Wi-Fi password: "), wifi_pass);
     wifim->SetStaPassword(wifi_pass);
   
   } else if (command.startsWith("setauthtoken:") && command.endsWith(";")) {
@@ -91,11 +91,11 @@ String lastTwoChars = command.substring(command.length() - 2);
     connect->SetToken(auth_token);
 
   } else if (command.startsWith("wificonnect") && command.endsWith(";")) {
-    log->AddEvent(LogLevel_Info, F("--> Console connecting to wifi..."));
+    log->AddEvent(LogLevel_Info, F("--> Console connecting to Wi-Fi..."));
     wifim->ConnectToSta();
 
   } else if (command.startsWith("getwifimode") && command.endsWith(";")) {
-    log->AddEvent(LogLevel_Info, F("--> Console print WiFi mode..."));
+    log->AddEvent(LogLevel_Info, F("--> Console print Wi-Fi mode..."));
     Serial.print("wifimode:" + wifim->GetWiFiMode() + ";");
 
   } else if (command.startsWith("getwifistastatus") && command.endsWith(";")) {
@@ -107,7 +107,7 @@ String lastTwoChars = command.substring(command.length() - 2);
     Serial.print("wifistaip:" + wifim->GetStaIp() + ";");
 
   } else if (command.startsWith("getserviceapssid") && command.endsWith(";")) {
-    log->AddEvent(LogLevel_Info, F("--> Console print service WiFi AP SSID..."));
+    log->AddEvent(LogLevel_Info, F("--> Console print service Wi-Fi AP SSID..."));
     Serial.print("getserviceapssid:" + wifim->GetServiceApSsid() + ";");
   
   } else if (command.startsWith("resolution:") && command.endsWith(";")) {

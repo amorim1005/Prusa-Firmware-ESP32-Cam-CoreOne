@@ -41,10 +41,6 @@ function get_data(val) {
 			document.getElementById('framesizeid').value = obj.framesize;
 			setText('camera_detected', obj.camera_detected);
 			setText('camera_autofocus', obj.camera_autofocus);
-			/* OV5640 only: autofocus buttons and exposure lock */
-			var ov5640 = (obj.camera_ov5640 == "true");
-			document.getElementById('ov5640_af_row').style.display = ov5640 ? "" : "none";
-			document.getElementById('ov5640_lock_row').style.display = ov5640 ? "" : "none";
 			document.getElementById('brightnessid').value = obj.brightness;
 			document.getElementById('contrastid').value = obj.contrast;
 			document.getElementById('saturationid').value = obj.saturation;
@@ -103,6 +99,9 @@ function get_data(val) {
 			setText('status_wpa2_eap', (obj.wpa2_eap == "true") ? "On" : "Off");
 			document.getElementById('wpa2_eap_identity_id').value = obj.wpa2_eap_identity;
 			document.getElementById('wpa2_eap_user_id').value = obj.wpa2_eap_user;
+			if (obj.wpa2_eap == "true") {
+				document.getElementById('wpa2_eap_ssid_id').value = obj.ssid;
+			}
 			setText('ssid', obj.ssid);
 			setText('rssi', obj.rssi);
 			setText('rssi_percentage', obj.rssi_percentage);
@@ -424,18 +423,9 @@ function setWifi(val_ssid, val_pass) {
 	get_data("wifi");
 }
 
-function ov5640Command(url) {
-	var xmlHttp = cameraRequest("GET", url, false);
-	xmlHttp.send(null);
-	showSaveResult(xmlHttp.responseText, xmlHttp.status);
-	get_data("config");
-	/* the focus state changes during a few seconds */
-	setTimeout(function() { get_data("config"); }, 2000);
-}
-
-function setWPA2EAP(val_identity, val_user, val_pass) {
+function setWPA2EAP(val_ssid, val_identity, val_user, val_pass) {
 	/* POST: the password is not in the URL. Empty password = the saved password stays */
-	var xmlHttp = cameraPost("wifi_wpa2_eap", "identity=" + encodeURIComponent(val_identity) + "&user=" + encodeURIComponent(val_user) + "&pass=" + encodeURIComponent(val_pass));
+	var xmlHttp = cameraPost("wifi_wpa2_eap", "ssid=" + encodeURIComponent(val_ssid) + "&identity=" + encodeURIComponent(val_identity) + "&user=" + encodeURIComponent(val_user) + "&pass=" + encodeURIComponent(val_pass));
 	showSaveResult(xmlHttp.responseText, xmlHttp.status);
 	document.getElementById('wpa2_eap_pass_id').value = "";
 	get_data("wifi");

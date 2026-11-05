@@ -96,9 +96,11 @@ private:
   String CameraName;                        ///< detected camera sensor name
   framesize_t SensorMaxFrameSize;           ///< maximum frame size of the detected sensor
   OV5640 Ov5640Autofocus;                   ///< OV5640 autofocus firmware loader
-  String AutofocusStatus;                   ///< autofocus status for the WEB page
+  String AutofocusStatus;                   ///< autofocus status for the WEB page, only with afMutex
+  SemaphoreHandle_t afMutex;                ///< mutex for AutofocusStatus: the WEB server and the photo task (camera re-init) change it
+  void SetAutofocusStatus(String);
+  String GetAutofocusText();
   bool AutofocusReady;                      ///< OV5640 autofocus firmware runs, the focus state can be read
-  bool Ov5640AfWaitAck();
 
   Configuration *config;                    ///< pointer to Configuration object
   Logs *log;                                ///< pointer to Logs object
@@ -150,9 +152,6 @@ public:
   String GetSupportedFrameSizes();
   String GetDetectedSensorName();
   String GetAutofocusStatus();
-  bool IsOv5640();
-  String AutofocusCommand(String);
-  String LockExposureToCurrent();
   void SetBrightness(int8_t);
   void SetContrast(int8_t);
   void SetSaturation(int8_t);

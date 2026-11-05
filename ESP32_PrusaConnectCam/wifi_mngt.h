@@ -153,7 +153,7 @@ public:
   void SetFirstConnection(bool);
   void SetNetworkConfig(String, String, String, String);
   void SetNetIpMethod(uint8_t);
-  void SetStaEapCredentials(String, String, String);
+  void SetStaEapNetwork(String, String, String, String);
   bool SetStaEapEnable(bool);
 };
 
