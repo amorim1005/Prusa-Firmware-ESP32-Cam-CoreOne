@@ -632,15 +632,26 @@ Service hostname and the 10 min interval), and the original firmware cannot read
 <a name="version-history"></a>
 ## Version history
 
-**1.1.2-c19**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
-XIAO ESP32-S3 Sense (OV2640, OV3660 and OV5640 detected automatically, OV5640 autofocus), faster
-stream, thermal guard in two steps, PrusaLink, health checks, firmware update from file, open
-service AP for the setup, a simpler web page, protection against other web sites (CSRF, DNS
-rebinding), ESP32 core 3.3.12 with current libraries, and the fixes of a code review (login
-settings, settings shared between tasks, checked input values), the latest photo always available
-for Home Assistant, and from other forks: Wi-Fi of the coming original 1.1.3 (hidden networks,
-reconnect after a start without network, slower retries, Wi-Fi Enterprise), a brighter OV3660
-picture, and OV5640 focus buttons and exposure lock.
+Newest first. Every version is based on the original Prusa firmware v1.1.2.
+
+**1.1.2-c19** (2026-11-05)
+- Wi-Fi from the coming original 1.1.3: hidden networks, reconnect after a start without network
+  (for example after a power cut), one attempt every 28 s after 3 failures, Wi-Fi Enterprise (PEAP)
+- OV3660: brighter picture, the automatic gain is no longer limited (fix from the fork of dawidkulpa)
+- OV5640 only: Focus once / Continuous / Pause / Release lens buttons and Lock exposure (ideas from
+  the fork of SamLovick)
+- Not tested on a real board yet
+
+**1.1.2-c18** (2026-11-04)
+- `/saved-photo.jpg` always returns the latest photo, also after a stream (Home Assistant)
+- README: Home Assistant setup
+
+**Up to 1.1.2-c17**: 11 bugs fixed, new Prusa Camera Service API, only the XIAO ESP32-S3 Sense
+(OV2640, OV3660 and OV5640 detected automatically, OV5640 autofocus), faster stream, thermal guard
+in two steps, PrusaLink, health checks, firmware update from file, open service AP for the setup, a
+simpler web page, protection against other web sites (CSRF, DNS rebinding), ESP32 core 3.3.12 with
+current libraries, and the fixes of a code review (login settings, settings shared between tasks,
+checked input values). c17 was tested on the OV3660 during a 2-hour print.
 
 ---
 

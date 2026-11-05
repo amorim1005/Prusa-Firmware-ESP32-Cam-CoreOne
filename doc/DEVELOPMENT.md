@@ -107,7 +107,7 @@ cache) to `SW_VERSION`. `--check` only reports what is out of date. Build **afte
 ### New version
 
 1. Change `SW_VERSION` in `mcu_cfg.h` and run `python3 webpage/webpage_h_generator.py`.
-2. Update the one-line [version history](../README.md#version-history).
+2. Add an entry at the top of the [version history](../README.md#version-history): version, date and a few short points.
 3. Build, run the [web page test](#tests), commit and push.
 4. Publish a GitHub release `v1.1.2-cNN` with the four `.bin` files and their `SHA256SUMS.txt`
    (the binaries are not kept in git).
