@@ -579,11 +579,11 @@ the camera's own JSON page (`/json_input`) once a minute, from a PC on the same 
 
 | Item | Setup |
 |---|---|
-| Board | Seeed XIAO ESP32S3 Sense, **OV3660** sensor, without heatsink |
+| Board | Seeed XIAO ESP32S3 Sense, **OV3660** sensor, **without any heatsink** |
 | Printer | Prusa Core One, PETG print with a filament change, about 2 hours |
 | Firmware | c17, installed over the web page (*Firmware update from file*), settings kept |
 | Settings | Upload every 10 s while printing (PrusaLink), 1280×1024 at the start, 2048×1536 from the 3rd minute |
-| Position | Camera on the desk next to the printer, **not inside the print chamber**: the temperatures below are at room temperature, inside the chamber the camera gets warmer |
+| Position | Camera on the desk next to the printer, **not inside the print chamber**, at room temperature. In the final mounting inside the Core One the chamber is warmer, but the camera has **2 heatsinks**; those temperatures will be added after a test there |
 
 | Result | Value |
 |---|---|
