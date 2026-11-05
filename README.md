@@ -598,8 +598,8 @@ the camera's own JSON page (`/json_input`) once a minute, from a PC on the same 
 | Live stream | About 2 frames per second at 2048×1536, photos kept uploading while the stream was open |
 | Prusa Connect | The camera shows next to the printer on the Dashboard with the current picture |
 
-Later, with c18: the camera added to **Home Assistant** as an *MJPEG IP Camera* worked at the first
-try (dashboard picture and live stream).
+After the print, still with c17: the camera added to **Home Assistant** as an *MJPEG IP Camera*
+(still image URL left empty, see [Home Assistant](#home-assistant)) worked at the first try.
 
 <a name="known-limitations"></a>
 ## Known limitations
