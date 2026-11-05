@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c18** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c19** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
@@ -228,6 +228,16 @@ in clear text, and the passwords are sent in the request body, never in the URL.
 token is shown only partly (`****************Uhq?`): paste a new token to change it.
 8. Optional: set up [PrusaLink](#prusalink).
 
+**Wi-Fi.** The camera also connects to a **hidden** network (type its name), and it keeps trying
+when the router starts after the camera, for example after a power cut. After 3 failed attempts
+(network not found, wrong password) it tries once every 28 s, so the service AP stays easy to find.
+
+**Wi-Fi Enterprise** (company or school network, WPA2/WPA3-Enterprise with PEAP, user name and
+password): Wi-Fi page → Advanced Wi-Fi settings → *Wi-Fi Enterprise*. 1) Save the user name and
+password there. 2) In *Connect to Wi-Fi network*, save the network name with an empty password.
+3) Switch on *Use Wi-Fi Enterprise*. The server certificate is not checked. Saving a normal Wi-Fi
+password switches it off. Not tested on a real Enterprise network yet.
+
 **Remove the protective film from the lens.** New camera modules have a transparent film on the
 lens, which makes the image blurry.
 
@@ -375,6 +385,11 @@ module, the new sensor is detected and saved.
   driver logs `FB-OVF`). The quality slider stops at 10, which avoids the worst cases.
 - If the image is upside down or mirrored, use **Vertical flip** / **Horizontal mirror** on the
   Camera page. The firmware does not flip any sensor by itself.
+- **OV3660 brightness (c19).** The original settings were written for the OV2640: on the OV3660 they
+  limited the automatic gain to "no gain" and wrote the manual exposure and gain also with the
+  automatic control on, so the picture was dark (fix from the fork of
+  [dawidkulpa](https://github.com/dawidkulpa/Prusa-Firmware-ESP32-Cam)). If you raised
+  **Brightness** to compensate, set it back to the middle.
 
 **OV5640 autofocus.** After every camera start the firmware loads the OmniVision autofocus firmware
 (4 KB) into the OV5640 and starts **continuous autofocus**. The Camera page shows the autofocus
@@ -386,6 +401,15 @@ approach as Seeed's examples.
   (used since c16) `CONFIG_CAMERA_AF_SUPPORT` is not set, so every call returns `ESP_ERR_NOT_SUPPORTED`.
 - Loading the autofocus firmware takes about 1–2 s and is repeated after every camera re-init (for
   example when you change the resolution), because the sensor loses it.
+- **Focus buttons (c19, only shown with the OV5640):** *Focus once* (focus and hold, good for a fixed
+  view of the bed), *Continuous*, *Pause* (hold the lens where it is) and *Release lens* (the lens goes
+  to its rest position and a close subject blurs: press *Focus once* and it gets sharp again, a quick
+  check that the autofocus works). A camera re-init starts continuous autofocus again.
+- **Lock exposure (c19, only with the OV5640, in Advanced settings):** on a fixed scene the OV5640
+  automatic exposure can swing between bright and dark. *Lock to current* keeps the exposure and gain
+  it uses now as the manual values; switch **Automatic Exposure Control** on to unlock. Ideas from the
+  fork of [SamLovick](https://github.com/SamLovick/Prusa-Firmware-ESP32-Cam/tree/xiao-esp32s3-ov5640).
+  Not tested on a real OV5640 yet.
 
 **Manual focus (OV2640, OV3660).** These lenses are usually focused well. They can be focused by
 hand with a [focus wrench](https://www.printables.com/cs/model/877739-esp32-cam-ov2640-focus-adjustment-wrench):
@@ -608,13 +632,15 @@ Service hostname and the 10 min interval), and the original firmware cannot read
 <a name="version-history"></a>
 ## Version history
 
-**1.1.2-c18**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
+**1.1.2-c19**, based on the original v1.1.2: 11 bugs fixed, new Prusa Camera Service API, only the
 XIAO ESP32-S3 Sense (OV2640, OV3660 and OV5640 detected automatically, OV5640 autofocus), faster
 stream, thermal guard in two steps, PrusaLink, health checks, firmware update from file, open
 service AP for the setup, a simpler web page, protection against other web sites (CSRF, DNS
 rebinding), ESP32 core 3.3.12 with current libraries, and the fixes of a code review (login
-settings, settings shared between tasks, checked input values), and the latest photo always available
-for Home Assistant.
+settings, settings shared between tasks, checked input values), the latest photo always available
+for Home Assistant, and from other forks: Wi-Fi of the coming original 1.1.3 (hidden networks,
+reconnect after a start without network, slower retries, Wi-Fi Enterprise), a brighter OV3660
+picture, and OV5640 focus buttons and exposure lock.
 
 ---
 

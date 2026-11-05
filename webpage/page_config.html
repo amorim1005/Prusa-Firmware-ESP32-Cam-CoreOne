@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -18,6 +18,12 @@
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
 		<tr><td class="pc1">Camera sensor</td><td class="pc2"><span id="camera_detected"></span> (detected automatically)</td></tr>
 		<tr><td class="pc1">Autofocus</td><td class="pc2"><span id="camera_autofocus"></span></td></tr>
+		<tr id="ov5640_af_row" style="display:none"><td class="pc1">Focus</td><td class="pc2">
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=single')">Focus once</button>
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=continuous')">Continuous</button>
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=pause')">Pause</button>
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=release')">Release lens</button>
+		</td></tr>
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
@@ -81,6 +87,7 @@
 				</td>
 			</tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
+			<tr id="ov5640_lock_row" style="display:none"><td class="pc1">Lock exposure (OV5640)</td><td class="pc2"><button class="btn_save" onclick="ov5640Command('ov5640_lock_exposure')">Lock to current</button> <span class="w2">keeps the present exposure and gain, switch on Automatic Exposure Control to unlock</span></td></tr>
 			<tr><td class="pc1">Automatic Exposure Control</td><td class="pc2"><label class="switch"><input type="checkbox" name="exposure_ctrl" id=exposure_ctrlid onchange="changeValue(this.checked, 'set_bool?exposure_ctrl=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_exposure_ctrl"></span></td></tr>
 			<tr><td class="pc1">Second Level Automatic Exposure Control</td><td class="pc2"><label class="switch"><input type="checkbox" name="aec2" id=aec2id onchange="changeValue(this.checked, 'set_bool?aec2=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_aec2"></span></td></tr>
 			<tr><td class="pc1">Automatic exposure level</td><td class="pc2">Low <input type="range" class="slider" name="ae_level" id=ae_levelid min="-2" max="2" step="1" onchange="changeValue(this.value, 'set_int?ae_level=', 'config')"> High</td></tr>
@@ -98,7 +105,7 @@
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();

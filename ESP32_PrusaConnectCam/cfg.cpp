@@ -129,6 +129,10 @@ void Configuration::DefaultCfg() {
   SavePrusaLinkPassword(FACTORY_CFG_PRUSALINK_PASSWORD);
   SaveUnplannedRestarts(0);
   SaveStatusLedMode(FACTORY_CFG_STATUS_LED_MODE);
+  SaveWifiEapEnable(FACTORY_CFG_WIFI_EAP_ENABLE);
+  SaveWifiEapIdentity(FACTORY_CFG_WIFI_EAP_IDENTITY);
+  SaveWifiEapUsername(FACTORY_CFG_WIFI_EAP_USERNAME);
+  SaveWifiEapPassword(FACTORY_CFG_WIFI_EAP_PASSWORD);
   Log->AddEvent(LogLevel_Warning, F("+++++++++++++++++++++++++++"));
 }
 
@@ -1436,6 +1440,87 @@ uint16_t Configuration::LoadUnplannedRestarts() {
   }
 
   return ret;
+}
+
+/**
+   @info save Wi-Fi Enterprise (PEAP) enable
+   @param bool - true = enabled
+   @return none
+*/
+void Configuration::SaveWifiEapEnable(bool i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save Wi-Fi Enterprise enable: "), String(i_data));
+  SaveUint8(EEPROM_ADDR_WIFI_EAP_ENABLE_START, (true == i_data) ? 1 : 0);
+}
+
+/**
+   @info save Wi-Fi Enterprise anonymous identity
+   @param String - identity
+   @return none
+*/
+void Configuration::SaveWifiEapIdentity(String i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save Wi-Fi Enterprise identity["), String(i_data.length()) + "]: " + i_data);
+  SaveString(EEPROM_ADDR_WIFI_EAP_IDENTITY_START, EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH, i_data);
+}
+
+/**
+   @info save Wi-Fi Enterprise user name
+   @param String - user name
+   @return none
+*/
+void Configuration::SaveWifiEapUsername(String i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save Wi-Fi Enterprise user name["), String(i_data.length()) + "]: " + i_data);
+  SaveString(EEPROM_ADDR_WIFI_EAP_USERNAME_START, EEPROM_ADDR_WIFI_EAP_USERNAME_LENGTH, i_data);
+}
+
+/**
+   @info save Wi-Fi Enterprise password
+   @param String - password
+   @return none
+*/
+void Configuration::SaveWifiEapPassword(String i_data) {
+  Log->AddEvent(LogLevel_Verbose, F("Save Wi-Fi Enterprise password["), String(i_data.length()) + "]"); /* SENSITIVE DATA! */
+  SaveString(EEPROM_ADDR_WIFI_EAP_PASSWORD_START, EEPROM_ADDR_WIFI_EAP_PASSWORD_LENGTH, i_data);
+}
+
+/**
+   @info load Wi-Fi Enterprise (PEAP) enable. Only 1 is enabled, a new byte after a firmware update (0 or 255) is disabled
+   @param none
+   @return bool - true = enabled
+*/
+bool Configuration::LoadWifiEapEnable() {
+  bool ret = (1 == EEPROM.read(EEPROM_ADDR_WIFI_EAP_ENABLE_START));
+  Log->AddEvent(LogLevel_Info, F("Wi-Fi Enterprise enable: "), String(ret));
+  return ret;
+}
+
+/**
+   @info load Wi-Fi Enterprise anonymous identity
+   @param none
+   @return String - identity
+*/
+String Configuration::LoadWifiEapIdentity() {
+  Log->AddEvent(LogLevel_Info, F("Wi-Fi Enterprise identity: "), false);
+  return LoadString(EEPROM_ADDR_WIFI_EAP_IDENTITY_START, EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH, true);
+}
+
+/**
+   @info load Wi-Fi Enterprise user name
+   @param none
+   @return String - user name
+*/
+String Configuration::LoadWifiEapUsername() {
+  Log->AddEvent(LogLevel_Info, F("Wi-Fi Enterprise user name: "), false);
+  return LoadString(EEPROM_ADDR_WIFI_EAP_USERNAME_START, EEPROM_ADDR_WIFI_EAP_USERNAME_LENGTH, true);
+}
+
+/**
+   @info load Wi-Fi Enterprise password
+   @param none
+   @return String - password
+*/
+String Configuration::LoadWifiEapPassword() {
+  Log->AddEvent(LogLevel_Info, F("Wi-Fi Enterprise password: "), false);
+  return LoadString(EEPROM_ADDR_WIFI_EAP_PASSWORD_START, EEPROM_ADDR_WIFI_EAP_PASSWORD_LENGTH, CONSOLE_VERBOSE_DEBUG);
 }
 
 /* EOF */

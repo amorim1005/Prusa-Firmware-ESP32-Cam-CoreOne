@@ -18,6 +18,7 @@
 #define MSG_SAVE_OK_WIFI      "Save OK. Connecting to Wi-Fi. Please wait several second"
 #define MSG_SAVE_OK           "Save cfg OK"                           ///< WEB app msg save OK
 #define MSG_SAVE_NOTOK        "Save cfg NOT OK!"                      ///< WEB app msg save NOT OK
+#define MSG_WIFI_EAP_NOT_CFG  "Wi-Fi Enterprise not enabled. Save the Wi-Fi network name (SSID), and the Enterprise user name and password first"
 #define MSG_SCANNING          "Scanning Wi-Fi networks. Wait 8s..."   ///< WEB app msg Scanning wifi
 
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -28,7 +29,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c18">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c19">
 </head>
 <body>
     <nav>
@@ -81,7 +82,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c18"></script>
+	<script src="scripts.js?v=1.1.2-c19"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -128,7 +129,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <body>
 	<center>
 		<table>
@@ -141,7 +142,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -152,7 +153,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -218,10 +219,18 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 			<tr><td class="w2" align="right">Default gateway</td><td><input type="text" name="net_gw" id=net_gw_id></td></tr>
 			<tr><td class="w2" align="right">DNS server</td><td><input type="text" name="net_dns" id=net_dns_id></td></tr>
 			<tr><td></td><td align="center"><button class="btn_save_w" onclick="setWifiNet(document.getElementById('net_ip_id').value, document.getElementById('net_mask_id').value, document.getElementById('net_gw_id').value, document.getElementById('net_dns_id').value)">Save</button></td></tr>
+			<tr><td style="height: 10px;"></td></tr>
+			<tr><td class="w1">Wi-Fi Enterprise (company or school network)</td></tr>
+			<tr><td class="w2" align="right">Anonymous identity (optional)</td><td><input type="text" name="wpa2_eap_identity" id=wpa2_eap_identity_id></td></tr>
+			<tr><td class="w2" align="right">User name</td><td><input type="text" name="wpa2_eap_user" id=wpa2_eap_user_id></td></tr>
+			<tr><td class="w2" align="right">Password</td><td><input type="password" name="wpa2_eap_pass" id=wpa2_eap_pass_id placeholder="unchanged"></td></tr>
+			<tr><td></td><td align="center"><button class="btn_save_w" onclick="setWPA2EAP(document.getElementById('wpa2_eap_identity_id').value, document.getElementById('wpa2_eap_user_id').value, document.getElementById('wpa2_eap_pass_id').value)">Save</button></td></tr>
+			<tr><td class="w2" align="right">Use Wi-Fi Enterprise </td><td><label class="switch"><input type="checkbox" name="wpa2_eap_enable" id="wpa2_eapid" onchange="changeValue(this.checked, 'set_bool?wpa2_eap_enable=', 'wifi')"><span class="checkbox_slider round"></span></label> <span class="w1" id="status_wpa2_eap"></span></td></tr>
+			<tr><td></td><td class="w2">WPA2/WPA3-Enterprise with PEAP. 1) Save the user name and password here. 2) In "Connect to Wi-Fi network", save the network name (SSID) with an empty password. 3) Switch on "Use Wi-Fi Enterprise". The server certificate is not checked. Saving a normal Wi-Fi password switches Wi-Fi Enterprise off.</td></tr>
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -231,7 +240,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -251,6 +260,12 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		<tr><td class="pc1">Image quality</td><td class="pc2">Low <input type="range" class="slider" name="photo_quality" id=photo_qualityid min="10" max="63" step="1" onchange="changeValue(this.value, 'set_int?photo_quality=', 'config')"> High</td></tr>
 		<tr><td class="pc1">Camera sensor</td><td class="pc2"><span id="camera_detected"></span> (detected automatically)</td></tr>
 		<tr><td class="pc1">Autofocus</td><td class="pc2"><span id="camera_autofocus"></span></td></tr>
+		<tr id="ov5640_af_row" style="display:none"><td class="pc1">Focus</td><td class="pc2">
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=single')">Focus once</button>
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=continuous')">Continuous</button>
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=pause')">Pause</button>
+			<button class="btn_save" onclick="ov5640Command('ov5640_af?cmd=release')">Release lens</button>
+		</td></tr>
 		<tr>
 			<td class="pc1">Resolution</td><td><label for="framesize"></label>
 				<select class="select" id="framesizeid" name="framesize" onchange="changeValue(this.value, 'set_int?framesize=', 'config')">
@@ -314,6 +329,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 				</td>
 			</tr>
 			<tr><td style="height: 1px;"></td><td style="height: 1px;"></td></tr>
+			<tr id="ov5640_lock_row" style="display:none"><td class="pc1">Lock exposure (OV5640)</td><td class="pc2"><button class="btn_save" onclick="ov5640Command('ov5640_lock_exposure')">Lock to current</button> <span class="w2">keeps the present exposure and gain, switch on Automatic Exposure Control to unlock</span></td></tr>
 			<tr><td class="pc1">Automatic Exposure Control</td><td class="pc2"><label class="switch"><input type="checkbox" name="exposure_ctrl" id=exposure_ctrlid onchange="changeValue(this.checked, 'set_bool?exposure_ctrl=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_exposure_ctrl"></span></td></tr>
 			<tr><td class="pc1">Second Level Automatic Exposure Control</td><td class="pc2"><label class="switch"><input type="checkbox" name="aec2" id=aec2id onchange="changeValue(this.checked, 'set_bool?aec2=', 'config')"><span class="checkbox_slider round"></span></label> <span id="status_aec2"></span></td></tr>
 			<tr><td class="pc1">Automatic exposure level</td><td class="pc2">Low <input type="range" class="slider" name="ae_level" id=ae_levelid min="-2" max="2" step="1" onchange="changeValue(this.value, 'set_int?ae_level=', 'config')"> High</td></tr>
@@ -331,7 +347,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -341,7 +357,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <body>
 	<center>
         <table id="data">
@@ -410,7 +426,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
 	get_data("system");
 </script>
@@ -985,6 +1001,10 @@ function get_data(val) {
 			document.getElementById('framesizeid').value = obj.framesize;
 			setText('camera_detected', obj.camera_detected);
 			setText('camera_autofocus', obj.camera_autofocus);
+			/* OV5640 only: autofocus buttons and exposure lock */
+			var ov5640 = (obj.camera_ov5640 == "true");
+			document.getElementById('ov5640_af_row').style.display = ov5640 ? "" : "none";
+			document.getElementById('ov5640_lock_row').style.display = ov5640 ? "" : "none";
 			document.getElementById('brightnessid').value = obj.brightness;
 			document.getElementById('contrastid').value = obj.contrast;
 			document.getElementById('saturationid').value = obj.saturation;
@@ -1039,6 +1059,10 @@ function get_data(val) {
 		if (val == "wifi") {
 			document.getElementById('serviceapid').checked = (obj.serviceap == "true");
 			setText('status_serviceap', (obj.serviceap == "true") ? "On" : "Off");
+			document.getElementById('wpa2_eapid').checked = (obj.wpa2_eap == "true");
+			setText('status_wpa2_eap', (obj.wpa2_eap == "true") ? "On" : "Off");
+			document.getElementById('wpa2_eap_identity_id').value = obj.wpa2_eap_identity;
+			document.getElementById('wpa2_eap_user_id').value = obj.wpa2_eap_user;
 			setText('ssid', obj.ssid);
 			setText('rssi', obj.rssi);
 			setText('rssi_percentage', obj.rssi_percentage);
@@ -1360,6 +1384,23 @@ function setWifi(val_ssid, val_pass) {
 	get_data("wifi");
 }
 
+function ov5640Command(url) {
+	var xmlHttp = cameraRequest("GET", url, false);
+	xmlHttp.send(null);
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
+	get_data("config");
+	/* the focus state changes during a few seconds */
+	setTimeout(function() { get_data("config"); }, 2000);
+}
+
+function setWPA2EAP(val_identity, val_user, val_pass) {
+	/* POST: the password is not in the URL. Empty password = the saved password stays */
+	var xmlHttp = cameraPost("wifi_wpa2_eap", "identity=" + encodeURIComponent(val_identity) + "&user=" + encodeURIComponent(val_user) + "&pass=" + encodeURIComponent(val_pass));
+	showSaveResult(xmlHttp.responseText, xmlHttp.status);
+	document.getElementById('wpa2_eap_pass_id').value = "";
+	get_data("wifi");
+}
+
 function setWifiNet(val_ip, val_mask, val_gw, val_dns) {	
 	var xmlHttp = cameraRequest("GET", "wifi_net_cfg?ip=" +  encodeURIComponent(val_ip) + "&mask=" + encodeURIComponent(val_mask) + "&gw=" + encodeURIComponent(val_gw) + "&dns=" + encodeURIComponent(val_dns), false);
 	xmlHttp.send(null);
@@ -1568,9 +1609,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');

@@ -32,6 +32,8 @@ WiFiMngt::WiFiMngt(Configuration *i_conf, Logs *i_log, Camera *i_cam) {
 
   NtpFirstSync = false;
   StartStaWdg = false;
+  WifiEapEnable = false;
+  StaConnectFailCount = 0;
   CfgMutex = xSemaphoreCreateMutex();
 }
 
@@ -43,7 +45,11 @@ WiFiMngt::WiFiMngt(Configuration *i_conf, Logs *i_log, Camera *i_cam) {
 void WiFiMngt::LoadCfgFromEeprom() {
   WifiSsid = config->LoadWifiSsid();
   WifiPassword = config->LoadWifiPassowrd();
-  
+  WifiEapEnable = config->LoadWifiEapEnable();
+  WifiEapIdentity = config->LoadWifiEapIdentity();
+  WifiEapUsername = config->LoadWifiEapUsername();
+  WifiEapPassword = config->LoadWifiEapPassword();
+
   mDNS_record = config->LoadMdnsRecord();
   EnableServiceAp = config->LoadEnableServiceAp();
 
@@ -122,7 +128,9 @@ void WiFiMngt::Init() {
       log->AddEvent(LogLevel_Info, "WiFi network IP Address: http://" + WiFi.localIP().toString());
 #endif
     } else {
-      log->AddEvent(LogLevel_Warning, "Wifi unavailable. Skip connecting to WiFi: " + WifiSsid);
+      /* hidden network, or the router starts after the camera (power cut): connect anyway, WiFiReconnect() retries (upstream PR #146) */
+      log->AddEvent(LogLevel_Warning, "Wifi not found at boot: " + GetStaSsid() + ". Hidden network or not available yet, will keep retrying");
+      WiFiStaConnect();
     }
   } else {
     ScanWiFiNetwork();
@@ -194,11 +202,19 @@ void WiFiMngt::WifiManagement() {
 */
 void WiFiMngt::WiFiReconnect() {
   if ((WiFi.status() != WL_CONNECTED) && (FirstConnected == true)) {
-    log->AddEvent(LogLevel_Warning, F("Reconnecting to WiFi. STA"));
-    WiFi.disconnect();
-    log->AddEvent(LogLevel_Warning, F("Disconnect from WiFi"));
-    WiFi.reconnect();
-    log->AddEvent(LogLevel_Warning, F("Reconnecting to WiFi. STA"));
+    /* in arduino-esp32 3.3.x disconnect() also aborts the running connection attempt. STA connected to the AP waits
+       for the IP address (DHCP): no disconnect, the WiFi watchdog restarts the MCU when no address comes (upstream 1.1.3) */
+    if (true == WiFi.STA.connected()) {
+      log->AddEvent(LogLevel_Warning, F("WiFi STA connected to AP, waiting for IP address"));
+    } else {
+      log->AddEvent(LogLevel_Warning, F("Reconnecting to WiFi. STA"));
+      WiFi.reconnect();
+    }
+  } else if ((WiFi.status() != WL_CONNECTED) && (FirstConnected == false) && (true == config->CheckActifeWifiCfgFlag()) && (false == WiFi.STA.connected())) {
+    /* not connected since boot (network not available at boot, hidden network): connect again.
+       Not when STA is associated and waits for the IP address, WiFi.begin() would disconnect it */
+    log->AddEvent(LogLevel_Warning, "Not connected to WiFi since boot. Retrying connection to: " + GetStaSsid());
+    WiFiStaConnect();
   } else if (WiFi.status() == WL_CONNECTED) {
     char cstr[150];
     sprintf(cstr, "Wifi connected. SSID: %s, BSSID: %s, RSSI: %d dBm, IP: %s, TX power: %s", WiFi.SSID().c_str(), WiFi.BSSIDstr().c_str(), WiFi.RSSI(), WiFi.localIP().toString().c_str(), TranslateTxPower(WiFi.getTxPower()).c_str());  //print 3 digits
@@ -248,11 +264,20 @@ void WiFiMngt::WiFiStaConnect() {
   xSemaphoreTake(CfgMutex, portMAX_DELAY);
   String ssid = WifiSsid;
   String password = WifiPassword;
+  bool eap = WifiEapEnable;
+  String eapUser = WifiEapUsername;
+  String eapIdentity = (WifiEapIdentity.length() > 0) ? WifiEapIdentity : WifiEapUsername;
+  String eapPassword = WifiEapPassword;
   xSemaphoreGive(CfgMutex);
 
   if (config->CheckActifeWifiCfgFlag() == true) {
     system_led.setTimer(STATUS_LED_STA_CONNECTING);
-    if (false == WiFiStaMultipleNetwork) {
+    if (true == eap) {
+      /* Wi-Fi Enterprise (WPA2/WPA3-Enterprise), PEAP without CA certificate. Empty identity = user name (upstream 1.1.3) */
+      const uint8_t* bssid = (true == WiFiStaMultipleNetwork) ? WiFiStaNetworkBssid : NULL;
+      WiFi.begin(ssid.c_str(), WPA2_AUTH_PEAP, eapIdentity.c_str(), eapUser.c_str(), eapPassword.c_str(), NULL, NULL, NULL, -1, 0, bssid);
+      log->AddEvent(LogLevel_Info, F("Connecting to STA SSID, Wi-Fi Enterprise PEAP"));
+    } else if (false == WiFiStaMultipleNetwork) {
 
 #if (WIFI_DISABLE_UNENCRYPTED_STA_PASS_CHECK == true)      
       if (password == "") {
@@ -271,8 +296,42 @@ void WiFiMngt::WiFiStaConnect() {
       log->AddEvent(LogLevel_Info, F("Connecting to STA BSSID"));
     }
     WiFi.setSleep(false);
-    WiFi.setAutoReconnect(true);
+    /* after WIFI_STA_FAST_RETRY_COUNT failed connections the next one is done by WiFiReconnect() every TASK_WIFI */
+    WiFi.setAutoReconnect(StaConnectFailCount < WIFI_STA_FAST_RETRY_COUNT);
   }
+}
+
+/**
+   @brief Failed connection to STA, called from the disconnect event. The core repeats the connection immediately after
+          201 NO_AP_FOUND (scan of all channels every ~3 s) and 203 ASSOC_FAIL (many attempts per second). The radio is shared
+          with the service AP, a phone does not find the service AP. After WIFI_STA_FAST_RETRY_COUNT failures the automatic
+          reconnect of the core is disabled, the next connection is done by WiFiReconnect() every TASK_WIFI (upstream 1.1.3)
+   @param uint8_t - disconnect reason
+   @return none
+*/
+void WiFiMngt::StaConnectFailed(uint8_t i_reason) {
+  if ((WIFI_REASON_NO_AP_FOUND != i_reason) && (WIFI_REASON_ASSOC_FAIL != i_reason)) {
+    return;
+  }
+
+  if (StaConnectFailCount < UINT8_MAX) {
+    StaConnectFailCount = StaConnectFailCount + 1;
+  }
+
+  if ((StaConnectFailCount >= WIFI_STA_FAST_RETRY_COUNT) && (true == WiFi.getAutoReconnect())) {
+    WiFi.setAutoReconnect(false);
+    log->AddEvent(LogLevel_Warning, "WiFi STA connection failed " + String(StaConnectFailCount) + "x. Next attempt every " + String(TASK_WIFI / 1000) + " s");
+  }
+}
+
+/**
+   @brief STA connected, called from the got IP event. The automatic reconnect of the core is enabled again
+   @param none
+   @return none
+*/
+void WiFiMngt::StaConnectDone() {
+  StaConnectFailCount = 0;
+  WiFi.setAutoReconnect(true);
 }
 
 /**
@@ -448,12 +507,8 @@ void WiFiMngt::WiFiWatchdog() {
     log->AddEvent(LogLevel_Verbose, "Time: " + String(currentMillis - TaskWdg_previousMillis) + "/" + String(WIFI_STA_WDG_TIMEOUT));
     
     if (false == StartStaWdg) {
-      if (ScanWifiNetwork(GetStaSsid()) >= 1) {
-        log->AddEvent(LogLevel_Warning, F("WiFi STA connection lost. Start watchdog timer!"));
-      } else {
-        log->AddEvent(LogLevel_Warning, F("WiFi STA connection lost. No available network!"));
-      }
-      
+      /* without a WiFi scan: it was only for the log message, and it did not fit in the stack of the WiFiWatchdog task (upstream PR #146) */
+      log->AddEvent(LogLevel_Warning, F("WiFi STA connection lost. Start watchdog timer!"));
       StartStaWdg = true;
       TaskWdg_previousMillis = currentMillis;
     }
@@ -624,6 +679,21 @@ String WiFiMngt::TranslateWiFiEncrypion(wifi_auth_mode_t i_data) {
       break;
     case WIFI_AUTH_WAPI_PSK:
       ret = F("WAPI");
+      break;
+    case WIFI_AUTH_OWE:
+      ret = F("OWE");
+      break;
+    case WIFI_AUTH_WPA_ENTERPRISE:
+      ret = F("WPA-Enterprise");
+      break;
+    case WIFI_AUTH_WPA3_ENTERPRISE:
+      ret = F("WPA3-Enterprise");
+      break;
+    case WIFI_AUTH_WPA2_WPA3_ENTERPRISE:
+      ret = F("WPA2/WPA3-Enterprise");
+      break;
+    case WIFI_AUTH_WPA3_ENT_192:
+      ret = F("WPA3-Enterprise-192");
       break;
     default:
       ret = F("unknown");
@@ -842,6 +912,113 @@ String WiFiMngt::GetNetStaticDns() {
 }
 
 /**
+   @brief function for get Wi-Fi Enterprise (PEAP) enable
+   @param none
+   @return bool - true = enabled
+*/
+bool WiFiMngt::GetStaEapEnable() {
+  return WifiEapEnable;
+}
+
+/**
+   @brief function for get Wi-Fi Enterprise anonymous identity
+   @param none
+   @return String - identity
+*/
+String WiFiMngt::GetStaEapIdentity() {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = WifiEapIdentity;
+  xSemaphoreGive(CfgMutex);
+  return ret;
+}
+
+/**
+   @brief function for get Wi-Fi Enterprise user name
+   @param none
+   @return String - user name
+*/
+String WiFiMngt::GetStaEapUsername() {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  String ret = WifiEapUsername;
+  xSemaphoreGive(CfgMutex);
+  return ret;
+}
+
+/**
+   @brief function for check if a Wi-Fi Enterprise password is saved. The password itself is never sent to the WEB page
+   @param none
+   @return bool - true = saved
+*/
+bool WiFiMngt::GetStaEapPasswordSaved() {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  bool ret = (WifiEapPassword.length() > 0);
+  xSemaphoreGive(CfgMutex);
+  return ret;
+}
+
+/**
+   @brief function for set Wi-Fi Enterprise credentials. Connect again only when Wi-Fi Enterprise is enabled
+   @param String - anonymous identity, empty = user name
+   @param String - user name
+   @param String - password, empty = unchanged
+   @return none
+*/
+void WiFiMngt::SetStaEapCredentials(String i_identity, String i_user, String i_pass) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  WifiEapIdentity = i_identity;
+  WifiEapUsername = i_user;
+  if (i_pass.length() > 0) {
+    WifiEapPassword = i_pass;
+  }
+  xSemaphoreGive(CfgMutex);
+
+  config->SaveWifiEapIdentity(i_identity);
+  config->SaveWifiEapUsername(i_user);
+  if (i_pass.length() > 0) {
+    config->SaveWifiEapPassword(i_pass);
+  }
+
+  if (true == WifiEapEnable) {
+    StaConnectFailCount = 0;
+    WiFiStaConnect();
+  }
+}
+
+/**
+   @brief function for enable/disable Wi-Fi Enterprise (PEAP) and connect again
+   @param bool - true = enable
+   @return bool - false = not enabled, the SSID, user name or password is not saved
+*/
+bool WiFiMngt::SetStaEapEnable(bool i_data) {
+  xSemaphoreTake(CfgMutex, portMAX_DELAY);
+  bool ready = (WifiSsid.length() > 0) && (WifiEapUsername.length() > 0) && (WifiEapPassword.length() > 0);
+  xSemaphoreGive(CfgMutex);
+
+  if ((true == i_data) && (false == ready)) {
+    log->AddEvent(LogLevel_Warning, F("Wi-Fi Enterprise: SSID, user name or password is not saved"));
+    return false;
+  }
+
+  if (i_data == WifiEapEnable) {
+    return true;
+  }
+
+  WifiEapEnable = i_data;
+  config->SaveWifiEapEnable(WifiEapEnable);
+
+  if (true == WifiEapEnable) {
+    config->SaveWifiCfgFlag(CFG_WIFI_SETTINGS_SAVED);
+  } else {
+    /* back to the Wi-Fi password, the Wi-Fi driver uses EAP until it is disabled */
+    esp_wifi_sta_enterprise_disable();
+  }
+  StaConnectFailCount = 0;
+  WiFiStaConnect();
+
+  return true;
+}
+
+/**
    @brief function for set STA credentials
    @param String - ssid
    @param String - password
@@ -852,6 +1029,7 @@ void WiFiMngt::SetStaCredentials(String i_ssid, String i_pass) {
   WifiSsid = i_ssid;
   WifiPassword = i_pass;
   xSemaphoreGive(CfgMutex);
+  StaConnectFailCount = 0;
 
   config->SaveWifiSsid(i_ssid);
   config->SaveWifiPassword(i_pass);
@@ -1019,6 +1197,7 @@ void WiFiMngt_WiFiEventGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   SystemLog.AddEvent(LogLevel_Info, "WiFi Got DNS 1: " + WiFi.dnsIP(0).toString());
   SystemLog.AddEvent(LogLevel_Info, "WiFi Got DNS 2: " + WiFi.dnsIP(1).toString());
   SystemWifiMngt.SetFirstConnection(true);
+  SystemWifiMngt.StaConnectDone();
 
   /* update device information */
   Connect.UpdateDeviceInformation();
@@ -1079,6 +1258,7 @@ void WiFiMngt_WiFiEventLostIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 void WiFiMngt_WiFiEventStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   SystemLog.AddEvent(LogLevel_Warning, String("WiFi disconnected from access point. Reason: ") + String(info.wifi_sta_disconnected.reason));
   system_led.setTimer(STATUS_LED_ERROR);
+  SystemWifiMngt.StaConnectFailed(info.wifi_sta_disconnected.reason);
 }
 
 /**

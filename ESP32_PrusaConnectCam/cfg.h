@@ -79,6 +79,10 @@ public:
   void SaveCameraSensor(uint8_t);
   void SaveUnplannedRestarts(uint16_t);
   void SaveStatusLedMode(uint8_t);
+  void SaveWifiEapEnable(bool);
+  void SaveWifiEapIdentity(String);
+  void SaveWifiEapUsername(String);
+  void SaveWifiEapPassword(String);
 
   uint16_t LoadRefreshInterval();
   String LoadToken();
@@ -125,6 +129,10 @@ public:
   String LoadPrusaLinkPassword();
   uint8_t LoadCameraSensor();
   uint16_t LoadUnplannedRestarts();
+  bool LoadWifiEapEnable();
+  String LoadWifiEapIdentity();
+  String LoadWifiEapUsername();
+  String LoadWifiEapPassword();
 
 private:
   Logs *Log;              ///< Pointer to Logs object

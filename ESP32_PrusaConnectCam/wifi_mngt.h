@@ -15,6 +15,7 @@
 #include <esp_task_wdt.h>
 #include <ESPmDNS.h>
 #include <esp_wifi.h>
+#include <esp_eap_client.h>
 #include <esp32-hal-cpu.h>
 
 #include "mcu_cfg.h"
@@ -53,6 +54,11 @@ class WiFiMngt {
 private:
   String WifiSsid;                    ///< WI-FI SSID
   String WifiPassword;                ///< WI-FI password
+  bool WifiEapEnable;                 ///< Wi-Fi Enterprise (PEAP) is enabled, connect with WifiEapUsername and WifiEapPassword
+  String WifiEapIdentity;             ///< Wi-Fi Enterprise anonymous identity, empty = user name
+  String WifiEapUsername;             ///< Wi-Fi Enterprise user name
+  String WifiEapPassword;             ///< Wi-Fi Enterprise password
+  volatile uint8_t StaConnectFailCount; ///< consecutive failed STA connections (network not found, rejected by the AP)
   bool ServiceMode;                   ///< flag for enable service AP mode after MCU start, until SERVICE_AP_OFF_DELAY after the connection to the Wi-Fi network
   String WiFiMode;                    ///< Wi-Fi mode (AP, STA, STA_AP)
   String SericeApSsid;                ///< Service AP SSID
@@ -99,6 +105,8 @@ public:
   void WiFiReconnect();
   void SetWifiEvents();
   void WiFiStaConnect();
+  void StaConnectFailed(uint8_t);
+  void StaConnectDone();
   void SyncNtpTime();
 
   void ScanWiFiNetwork();
@@ -131,6 +139,10 @@ public:
   String GetNetStaticMask();
   String GetNetStaticGateway();
   String GetNetStaticDns();
+  bool GetStaEapEnable();
+  String GetStaEapIdentity();
+  String GetStaEapUsername();
+  bool GetStaEapPasswordSaved();
 
   void SetStaCredentials(String, String);
   void SetStaSsid(String);
@@ -141,6 +153,8 @@ public:
   void SetFirstConnection(bool);
   void SetNetworkConfig(String, String, String, String);
   void SetNetIpMethod(uint8_t);
+  void SetStaEapCredentials(String, String, String);
+  bool SetStaEapEnable(bool);
 };
 
 extern WiFiMngt SystemWifiMngt;   ///< global variable for wifi management

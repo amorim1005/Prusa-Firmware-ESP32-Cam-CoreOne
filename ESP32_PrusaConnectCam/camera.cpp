@@ -56,6 +56,7 @@ Camera::Camera(Configuration* i_conf, Logs* i_log) {
   CameraName = F("Unknown");
   SensorMaxFrameSize = CAMERA_UNKNOWN_SENSOR_MAX_FRAMESIZE;
   AutofocusStatus = F("Not supported by the camera sensor");
+  AutofocusReady = false;
 
   PhotoExifData.header = NULL;
   PhotoExifData.len = 0;
@@ -107,6 +108,7 @@ void Camera::Init() {
    @return none
 */
 void Camera::InitAutofocus() {
+  AutofocusReady = false;
   if ((OV5640_PID != CameraType) || (sensor == NULL)) {
     AutofocusStatus = F("Not supported by the camera sensor");
     return;
@@ -136,7 +138,129 @@ void Camera::InitAutofocus() {
   }
 
   AutofocusStatus = F("Continuous autofocus");
+  AutofocusReady = true;
   log->AddEvent(LogLevel_Info, "OV5640 continuous autofocus started in " + String(millis() - start) + " ms");
+}
+
+/**
+   @brief Detected sensor is the OV5640: the WEB page shows the autofocus buttons and the exposure lock only then
+   @param none
+   @return bool - true = OV5640
+*/
+bool Camera::IsOv5640() {
+  return (OV5640_PID == CameraType);
+}
+
+/**
+   @brief Wait until the OV5640 autofocus firmware clears the command ACK register (command accepted)
+   @param none
+   @return bool - true = accepted
+*/
+bool Camera::Ov5640AfWaitAck() {
+  for (uint16_t i = 0; i < 100; i++) {
+    if (0x00 == sensor->get_reg(sensor, OV5640_CMD_ACK, 0xff)) {
+      return true;
+    }
+    delay(5);
+  }
+  return false;
+}
+
+/**
+   @brief OV5640 autofocus command from the WEB page. Command sequence of Espressif ov5640_af.c, as in the fork of SamLovick.
+          A camera re-init (for example a new resolution) starts continuous autofocus again
+   @param String - "single" focus once and hold, "continuous", "pause" hold the lens, "release" lens to the rest position (defocus test)
+   @return String - result for the WEB page
+*/
+String Camera::AutofocusCommand(String i_cmd) {
+  if ((OV5640_PID != CameraType) || (false == AutofocusReady)) {
+    return F("ERROR: autofocus is not available");
+  }
+
+  /* the sensor must not be used during a camera re-init or a photo */
+  if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
+    return F("ERROR: camera is busy, try again");
+  }
+
+  bool ok = false;
+  String status = AutofocusStatus;
+  if ((i_cmd == "single") || (i_cmd == "continuous")) {
+    /* back to the idle state first, then start the focus */
+    sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, 0x01);
+    sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, 0x08);
+    if (true == Ov5640AfWaitAck()) {
+      sensor->set_reg(sensor, OV5640_CMD_ACK, 0xff, 0x01);
+      sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, (i_cmd == "single") ? AF_TRIG_SINGLE_AUTO_FOCUS : AF_CONTINUE_AUTO_FOCUS);
+      ok = Ov5640AfWaitAck();
+    }
+    status = (i_cmd == "single") ? F("Single autofocus") : F("Continuous autofocus");
+  } else if ((i_cmd == "pause") || (i_cmd == "release")) {
+    sensor->set_reg(sensor, OV5640_CMD_ACK, 0xff, 0x01);
+    sensor->set_reg(sensor, OV5640_CMD_MAIN, 0xff, (i_cmd == "pause") ? 0x06 : 0x08);
+    ok = Ov5640AfWaitAck();
+    status = (i_cmd == "pause") ? F("Autofocus paused") : F("Lens released");
+  } else {
+    xSemaphoreGive(frameBufferSemaphore);
+    return F("ERROR: unknown autofocus command");
+  }
+  xSemaphoreGive(frameBufferSemaphore);
+
+  if (false == ok) {
+    log->AddEvent(LogLevel_Warning, "OV5640 autofocus command not accepted: " + i_cmd);
+    return F("ERROR: the camera did not accept the autofocus command");
+  }
+  AutofocusStatus = status;
+  log->AddEvent(LogLevel_Info, "OV5640 autofocus: " + status);
+  return status;
+}
+
+/**
+   @brief OV5640: keep the exposure and gain that the automatic control uses now, and switch the automatic control off.
+          On a fixed scene the OV5640 automatic exposure can swing between bright and dark. The values are saved as the
+          manual exposure and gain, switching "Automatic Exposure Control" on again unlocks it (from the fork of SamLovick)
+   @param none
+   @return String - result for the WEB page
+*/
+String Camera::LockExposureToCurrent() {
+  if ((OV5640_PID != CameraType) || (sensor == NULL)) {
+    return F("ERROR: only for the OV5640 sensor");
+  }
+
+  if (!xSemaphoreTake(frameBufferSemaphore, pdMS_TO_TICKS(CAMERA_SEMAPHORE_TIMEOUT))) {
+    return F("ERROR: camera is busy, try again");
+  }
+  int r0 = sensor->get_reg(sensor, 0x3500, 0xFF);
+  int r1 = sensor->get_reg(sensor, 0x3501, 0xFF);
+  int r2 = sensor->get_reg(sensor, 0x3502, 0xFF);
+  int g0 = sensor->get_reg(sensor, 0x350A, 0xFF);
+  int g1 = sensor->get_reg(sensor, 0x350B, 0xFF);
+  xSemaphoreGive(frameBufferSemaphore);
+
+  if ((r0 < 0) || (r1 < 0) || (r2 < 0)) {
+    return F("ERROR: exposure could not be read");
+  }
+
+  /* exposure 0x3500-0x3502 in 1/16 lines = the set_aec_value() value, gain 0x350A[1:0]:0x350B, 16 = 1x */
+  int32_t exposure = (int32_t)((((uint32_t)r0 << 16) | ((uint32_t)r1 << 8) | (uint32_t)r2) >> 4);
+  exposure = constrain(exposure, 1, 1200);
+  int32_t gain = agc_gain;
+  if ((g0 >= 0) && (g1 >= 0)) {
+    gain = constrain((((g0 & 0x03) << 8) | (g1 & 0xFF)) / 16, 0, 30);
+  }
+
+  aec_value = exposure;
+  config->SaveAecValue(aec_value);
+  exposure_ctrl = false;
+  config->SaveExposureCtrl(false);
+  agc_gain = gain;
+  config->SaveAgcGain(agc_gain);
+  gain_ctrl = false;
+  config->SaveGainCtrl(false);
+  ApplyCameraCfg();
+
+  String ret = "Exposure locked: exposure " + String(exposure) + ", gain " + String(gain);
+  log->AddEvent(LogLevel_Info, ret);
+  return ret;
 }
 
 /**
@@ -145,7 +269,7 @@ void Camera::InitAutofocus() {
    @return String - status
 */
 String Camera::GetAutofocusStatus() {
-  if ((OV5640_PID != CameraType) || (false == AutofocusStatus.startsWith(F("Continuous")))) {
+  if ((OV5640_PID != CameraType) || (false == AutofocusReady)) {
     return AutofocusStatus;
   }
 
@@ -477,10 +601,21 @@ void Camera::ApplyCameraCfg() {
   CAMERA_SENSOR_SET(set_exposure_ctrl, exposure_ctrl);   // exposition controll 0 = disable , 1 = enable
   CAMERA_SENSOR_SET(set_aec2, aec2);                     // enable exposition controll 0 = disable , 1 = enable
   CAMERA_SENSOR_SET(set_ae_level, ae_level);             // automatic exposition level -2 to 2
-  CAMERA_SENSOR_SET(set_aec_value, aec_value);           // expozition time - 0 to 1200
+  /* OV3660: the automatic exposure and gain continue from the manual exposure time and gain registers, a manual value
+     written while the automatic control is on makes the picture dark. The gain ceiling of the OV3660 driver is the raw
+     gain limit and not gainceiling_t, 0 = no gain at all, the sensor default is kept. The manual gain is the real gain,
+     0 = black, the level 0 - 30 is sent as 1x - 31x. Other sensors use the same calls as before (from the fork of dawidkulpa) */
+  bool ov3660 = (OV3660_PID == sensor->id.PID);
+  if ((false == ov3660) || (false == exposure_ctrl)) {
+    CAMERA_SENSOR_SET(set_aec_value, aec_value);         // expozition time - 0 to 1200
+  }
   CAMERA_SENSOR_SET(set_gain_ctrl, gain_ctrl);           // automatic gain controll 0 = disable , 1 = enable
-  CAMERA_SENSOR_SET(set_agc_gain, agc_gain);             // automatic gain controll level 0 to 30
-  CAMERA_SENSOR_SET(set_gainceiling, (gainceiling_t)0);  // maximum gain 0 to 6
+  if (false == ov3660) {
+    CAMERA_SENSOR_SET(set_agc_gain, agc_gain);           // automatic gain controll level 0 to 30
+    CAMERA_SENSOR_SET(set_gainceiling, (gainceiling_t)0);  // maximum gain 0 to 6
+  } else if (false == gain_ctrl) {
+    CAMERA_SENSOR_SET(set_agc_gain, agc_gain + 1);       // OV3660 real gain 1x - 31x
+  }
   CAMERA_SENSOR_SET(set_bpc, bpc);                       // bad pixel correction 0 = disable , 1 = enable
   CAMERA_SENSOR_SET(set_wpc, wpc);                       // white pixel correction 0 = disable , 1 = enable
   CAMERA_SENSOR_SET(set_raw_gma, raw_gama);              // raw gama correction 0 = disable , 1 = enable

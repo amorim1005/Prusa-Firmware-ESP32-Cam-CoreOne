@@ -97,6 +97,8 @@ private:
   framesize_t SensorMaxFrameSize;           ///< maximum frame size of the detected sensor
   OV5640 Ov5640Autofocus;                   ///< OV5640 autofocus firmware loader
   String AutofocusStatus;                   ///< autofocus status for the WEB page
+  bool AutofocusReady;                      ///< OV5640 autofocus firmware runs, the focus state can be read
+  bool Ov5640AfWaitAck();
 
   Configuration *config;                    ///< pointer to Configuration object
   Logs *log;                                ///< pointer to Logs object
@@ -148,6 +150,9 @@ public:
   String GetSupportedFrameSizes();
   String GetDetectedSensorName();
   String GetAutofocusStatus();
+  bool IsOv5640();
+  String AutofocusCommand(String);
+  String LockExposureToCurrent();
   void SetBrightness(int8_t);
   void SetContrast(int8_t);
   void SetSaturation(int8_t);

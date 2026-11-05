@@ -15,7 +15,7 @@
 /* the only supported board is the XIAO ESP32-S3 Sense, its pins are in module_XIAO_ESP32-S3-cam.h */
 
 /* ---------------- BASIC MCU CFG  --------------*/
-#define SW_VERSION                  "1.1.2-c18"               ///< SW version
+#define SW_VERSION                  "1.1.2-c19"               ///< SW version
 #define SW_BUILD                    __DATE__ " " __TIME__   ///< build number
 #define CONSOLE_VERBOSE_DEBUG       false                   ///< enable/disable verbose debug log level for console
 #define DEVICE_HOSTNAME             "Prusa-ESP32cam"        ///< DHCP host name when the camera name has no valid character. Normally the DHCP host name is the camera name (mDNS record)
@@ -156,6 +156,7 @@
 
 /* ----------------- WiFi CFG -------------------*/
 #define WIFI_STA_WDG_TIMEOUT        60000                   ///< STA watchdog timeout [ms]
+#define WIFI_STA_FAST_RETRY_COUNT   3                       ///< failed STA connections (network not found, rejected by the AP) with the immediate retry of the core, then one attempt every TASK_WIFI
 #define WIFI_DISABLE_UNENCRYPTED_STA_PASS_CHECK false       ///< enable/disable WEP/WPA/WPA2/... encryption for STA mode . for the wifi network without encryption set to false
 
 /* ----------------- NTP CFG --------------------*/
@@ -215,6 +216,10 @@
 #define FACTORY_CFG_PRUSALINK_USER            F(PRUSALINK_DEFAULT_USER) ///< PrusaLink user name
 #define FACTORY_CFG_PRUSALINK_PASSWORD        F("")             ///< PrusaLink password
 #define FACTORY_CFG_STATUS_LED_MODE           STATUS_LED_MODE_ON ///< STATUS_LED_MODE_xxx
+#define FACTORY_CFG_WIFI_EAP_ENABLE           0                 ///< Wi-Fi Enterprise (PEAP), 1 = enabled
+#define FACTORY_CFG_WIFI_EAP_IDENTITY         F("")             ///< Wi-Fi Enterprise anonymous identity
+#define FACTORY_CFG_WIFI_EAP_USERNAME         F("")             ///< Wi-Fi Enterprise user name
+#define FACTORY_CFG_WIFI_EAP_PASSWORD         F("")             ///< Wi-Fi Enterprise password
 
 /* ---------------- CFG FLAGS  ------------------*/
 #define CFG_WIFI_SETTINGS_SAVED               0x0A              ///< flag saved config
@@ -376,6 +381,18 @@
 #define EEPROM_ADDR_STATUS_LED_MODE_START         (EEPROM_ADDR_UNPLANNED_RESTARTS_START + EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH)
 #define EEPROM_ADDR_STATUS_LED_MODE_LENGTH        1                                                                                       ///< status LED mode, STATUS_LED_MODE_xxx
 
+#define EEPROM_ADDR_WIFI_EAP_ENABLE_START         (EEPROM_ADDR_STATUS_LED_MODE_START + EEPROM_ADDR_STATUS_LED_MODE_LENGTH)
+#define EEPROM_ADDR_WIFI_EAP_ENABLE_LENGTH        1                                                                                       ///< Wi-Fi Enterprise, only 1 = enabled (a new byte after an update is 0 or 255)
+
+#define EEPROM_ADDR_WIFI_EAP_IDENTITY_START       (EEPROM_ADDR_WIFI_EAP_ENABLE_START + EEPROM_ADDR_WIFI_EAP_ENABLE_LENGTH)
+#define EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH      65                                                                                      ///< Wi-Fi Enterprise anonymous identity, 64 + 1 for the length
+
+#define EEPROM_ADDR_WIFI_EAP_USERNAME_START       (EEPROM_ADDR_WIFI_EAP_IDENTITY_START + EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH)
+#define EEPROM_ADDR_WIFI_EAP_USERNAME_LENGTH      65                                                                                      ///< Wi-Fi Enterprise user name, 64 + 1 for the length
+
+#define EEPROM_ADDR_WIFI_EAP_PASSWORD_START       (EEPROM_ADDR_WIFI_EAP_USERNAME_START + EEPROM_ADDR_WIFI_EAP_USERNAME_LENGTH)
+#define EEPROM_ADDR_WIFI_EAP_PASSWORD_LENGTH      65                                                                                      ///< Wi-Fi Enterprise password, 64 + 1 for the length
+
 #define EEPROM_SIZE (EEPROM_ADDR_REFRESH_INTERVAL_LENGTH + EEPROM_ADDR_FINGERPRINT_LENGTH + EEPROM_ADDR_TOKEN_LENGTH + \
                      EEPROM_ADDR_FRAMESIZE_LENGTH + EEPROM_ADDR_BRIGHTNESS_LENGTH + EEPROM_ADDR_CONTRAST_LENGTH + \
                      EEPROM_ADDR_SATURATION_LENGTH + EEPROM_ADDR_HMIRROR_LENGTH + EEPROM_ADDR_VFLIP_LENGTH + \
@@ -394,7 +411,9 @@
                      EEPROM_ADDR_RESERVED_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_ENABLE_LENGTH + EEPROM_ADDR_PRUSALINK_HOST_LENGTH + EEPROM_ADDR_PRUSALINK_USER_LENGTH + \
                      EEPROM_ADDR_PRUSALINK_PASSWORD_LENGTH + EEPROM_ADDR_CAMERA_SENSOR_LENGTH + \
-                     EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH + EEPROM_ADDR_STATUS_LED_MODE_LENGTH)    ///< how many bits do we need for eeprom memory
+                     EEPROM_ADDR_UNPLANNED_RESTARTS_LENGTH + EEPROM_ADDR_STATUS_LED_MODE_LENGTH + \
+                     EEPROM_ADDR_WIFI_EAP_ENABLE_LENGTH + EEPROM_ADDR_WIFI_EAP_IDENTITY_LENGTH + EEPROM_ADDR_WIFI_EAP_USERNAME_LENGTH + \
+                     EEPROM_ADDR_WIFI_EAP_PASSWORD_LENGTH)    ///< how many bits do we need for eeprom memory
 
 #endif
 

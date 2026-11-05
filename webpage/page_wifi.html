@@ -1,4 +1,4 @@
-<style>@import url("styles.css?v=1.1.2-c18");</style>
+<style>@import url("styles.css?v=1.1.2-c19");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -64,10 +64,18 @@
 			<tr><td class="w2" align="right">Default gateway</td><td><input type="text" name="net_gw" id=net_gw_id></td></tr>
 			<tr><td class="w2" align="right">DNS server</td><td><input type="text" name="net_dns" id=net_dns_id></td></tr>
 			<tr><td></td><td align="center"><button class="btn_save_w" onclick="setWifiNet(document.getElementById('net_ip_id').value, document.getElementById('net_mask_id').value, document.getElementById('net_gw_id').value, document.getElementById('net_dns_id').value)">Save</button></td></tr>
+			<tr><td style="height: 10px;"></td></tr>
+			<tr><td class="w1">Wi-Fi Enterprise (company or school network)</td></tr>
+			<tr><td class="w2" align="right">Anonymous identity (optional)</td><td><input type="text" name="wpa2_eap_identity" id=wpa2_eap_identity_id></td></tr>
+			<tr><td class="w2" align="right">User name</td><td><input type="text" name="wpa2_eap_user" id=wpa2_eap_user_id></td></tr>
+			<tr><td class="w2" align="right">Password</td><td><input type="password" name="wpa2_eap_pass" id=wpa2_eap_pass_id placeholder="unchanged"></td></tr>
+			<tr><td></td><td align="center"><button class="btn_save_w" onclick="setWPA2EAP(document.getElementById('wpa2_eap_identity_id').value, document.getElementById('wpa2_eap_user_id').value, document.getElementById('wpa2_eap_pass_id').value)">Save</button></td></tr>
+			<tr><td class="w2" align="right">Use Wi-Fi Enterprise </td><td><label class="switch"><input type="checkbox" name="wpa2_eap_enable" id="wpa2_eapid" onchange="changeValue(this.checked, 'set_bool?wpa2_eap_enable=', 'wifi')"><span class="checkbox_slider round"></span></label> <span class="w1" id="status_wpa2_eap"></span></td></tr>
+			<tr><td></td><td class="w2">WPA2/WPA3-Enterprise with PEAP. 1) Save the user name and password here. 2) In "Connect to Wi-Fi network", save the network name (SSID) with an empty password. 3) Switch on "Use Wi-Fi Enterprise". The server certificate is not checked. Saving a normal Wi-Fi password switches Wi-Fi Enterprise off.</td></tr>
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c18"></script>
+<script src="scripts.js?v=1.1.2-c19"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
