@@ -14,9 +14,9 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
 > 2-hour print on a Prusa Core One): web pages,
-> photos, Prusa Connect, PrusaLink, stream, thermal guard and firmware update from file work. The
-> OV2640 and OV5640 sensors have not been tested on a real board yet. Read the
-> [known limitations](#known-limitations).
+> photos, Prusa Connect, PrusaLink, stream, thermal guard and firmware update from file work. See the
+> [test report](#test-report). The OV2640 and OV5640 sensors have not been tested on a real board
+> yet. Read the [known limitations](#known-limitations).
 
 **Main differences from the original firmware:**
 
@@ -50,6 +50,7 @@ The compiled firmware is in the [latest release](https://github.com/amorim1005/P
 - [Home Assistant](#home-assistant)
 - [Debug logs, serial console and web API](#debug-logs)
 - [Troubleshooting](#troubleshooting)
+- [Test report](#test-report)
 - [Known limitations](#known-limitations)
 - [Firmware update from file](#firmware-update)
 - [Version history](#version-history)
@@ -569,6 +570,36 @@ For Home Assistant, see [Home Assistant](#home-assistant).
 | The web page loads slowly in the first minute | Normal right after the start |
 
 ---
+
+<a name="test-report"></a>
+## Test report
+
+**Version c17, 2026-11-04**, on a real camera during a real print. The camera status was read from
+the camera's own JSON page (`/json_input`) once a minute, from a PC on the same network.
+
+| Item | Setup |
+|---|---|
+| Board | Seeed XIAO ESP32S3 Sense, **OV3660** sensor, without heatsink |
+| Printer | Prusa Core One, PETG print with a filament change, about 2 hours |
+| Firmware | c17, installed over the web page (*Firmware update from file*), settings kept |
+| Settings | Upload every 10 s while printing (PrusaLink), 1280×1024 at the start, 2048×1536 from the 3rd minute |
+| Position | Camera on the desk next to the printer, **not inside the print chamber**: the temperatures below are at room temperature, inside the chamber the camera gets warmer |
+
+| Result | Value |
+|---|---|
+| Photos uploaded to Prusa Connect | **764 OK, 1 failed** (a single failed upload after 617 OK; the next one was OK again, no backoff) |
+| Restarts | **None**: 2 h 25 min without a restart, 0 unplanned restarts |
+| Upload interval | 10 s while PRINTING, about 6 photos per minute; back to 600 s (10 min) when FINISHED |
+| PrusaLink | Printer states read correctly: IDLE → PRINTING (with progress %) → ATTENTION (filament change) → FINISHED |
+| Camera temperature | **62.7–64.7 °C** during the whole print; **74.5 °C** for about a minute with the live stream open, back to about 65 °C after closing it. The thermal guard (80 °C) was never reached |
+| Photo size | about 43 KB at 1280×1024, about 96 KB at 2048×1536 (scene with little detail) |
+| Memory | Internal RAM 110 KB free (largest block 57 KB), PSRAM about 7.5 MB free, stable during the print |
+| Wi-Fi | Service AP switched off by itself about 1 minute after the connection to the home Wi-Fi (*AP + Client* → *Client*) |
+| Live stream | About 2 frames per second at 2048×1536, photos kept uploading while the stream was open |
+| Prusa Connect | The camera shows next to the printer on the Dashboard with the current picture |
+
+Later, with c18: the camera added to **Home Assistant** as an *MJPEG IP Camera* worked at the first
+try (dashboard picture and live stream).
 
 <a name="known-limitations"></a>
 ## Known limitations
