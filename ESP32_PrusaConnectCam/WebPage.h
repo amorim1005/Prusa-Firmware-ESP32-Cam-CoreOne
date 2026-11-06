@@ -29,7 +29,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 	<meta name="Prusa ESP32-cam" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c20">
+	<link rel="stylesheet" type="text/css" href="styles.css?v=1.1.2-c21">
 </head>
 <body>
     <nav>
@@ -82,7 +82,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<td><a href="https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One" id="github-link"><svg height="25"><image href="github-icon.svg"></svg></a></td>
 	</tr></table>
 </body>
-	<script src="scripts.js?v=1.1.2-c20"></script>
+	<script src="scripts.js?v=1.1.2-c21"></script>
 	<script>
 		/* load a page into #content and run its scripts in order, like the old jQuery load() */
 		function loadPage(page) {
@@ -129,7 +129,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_auth_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c20");</style>
+<style>@import url("styles.css?v=1.1.2-c21");</style>
 <body>
 	<center>
 		<table>
@@ -142,7 +142,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 		</table>
 	</center>
 </body>
-<script src="scripts.js?v=1.1.2-c20"></script>
+<script src="scripts.js?v=1.1.2-c21"></script>
 <script>
 	get_data("auth");
 	document.getElementById("auth_password").addEventListener("input", validatePasswords);
@@ -153,7 +153,7 @@ const char page_auth_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_wifi_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c20");</style>
+<style>@import url("styles.css?v=1.1.2-c21");</style>
 <body>
 	<table id="center_tb">
 		<tr><td></td><td style="width:40%">
@@ -231,7 +231,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 		</table>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c20"></script>
+<script src="scripts.js?v=1.1.2-c21"></script>
 <script>
 	setTimeout(function(){GetDataAndPrintTableWiFi();}, 500);
 	get_data("wifi");
@@ -241,7 +241,7 @@ const char page_wifi_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_config_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c20");</style>
+<style>@import url("styles.css?v=1.1.2-c21");</style>
 <body>
 	<center><table id="data">
 		<tr><td class="ps3">Basic settings</td><td></td></tr>
@@ -341,7 +341,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 		</table></center>
 	</div>
 </body>
-<script src="scripts.js?v=1.1.2-c20"></script>
+<script src="scripts.js?v=1.1.2-c21"></script>
 <script>
 	get_data("config");
 	setupCollapsibleButtons();
@@ -351,7 +351,7 @@ const char page_config_html[] PROGMEM = R"rawliteral(
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char page_system_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c20");</style>
+<style>@import url("styles.css?v=1.1.2-c21");</style>
 <body>
 	<center>
         <table id="data">
@@ -420,7 +420,7 @@ const char page_system_html[] PROGMEM = R"rawliteral(
         </table>
     </center>
 </body>
-<script src="scripts.js?v=1.1.2-c20"></script>
+<script src="scripts.js?v=1.1.2-c21"></script>
 <script>
 	get_data("system");
 </script>
@@ -1593,9 +1593,9 @@ function setupCollapsibleButtonsWiFi() {
 
 /* ------------------------------------------------------------------------------------------------------------ */
 const char license_html[] PROGMEM = R"rawliteral(
-<style>@import url("styles.css?v=1.1.2-c20");</style>
+<style>@import url("styles.css?v=1.1.2-c21");</style>
 <center><p>The software for device falls under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link">GPL-3.0 license terms</a>. To read the license terms please visit <a href="https://www.gnu.org/licenses/gpl-3.0.html" id="license-link-sec">this page</a>.</p></center>
-<script src="scripts.js?v=1.1.2-c20"></script>
+<script src="scripts.js?v=1.1.2-c21"></script>
 <script>
     addClickListener('license-link');
     addClickListener('license-link-sec');

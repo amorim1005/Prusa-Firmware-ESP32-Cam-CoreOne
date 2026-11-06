@@ -9,7 +9,7 @@ This repository is a **fork** of the official firmware
 (base version **v1.1.2**, commit `136c91c`, by Miroslav Pivovarsky). The full original history is
 kept, and the changes of this fork are in the commits on top of it.
 
-Firmware version: **1.1.2-c20** (see the [version history](#version-history)).
+Firmware version: **1.1.2-c21** (see the [version history](#version-history)).
 The compiled firmware is in the [latest release](https://github.com/amorim1005/Prusa-Firmware-XIAO-ESP32-S3-Sense-Webcam-Core-One/releases/latest).
 
 > **Tested** on a Seeed XIAO ESP32S3 Sense with the **OV3660** sensor (version c17, including a
@@ -656,6 +656,11 @@ Service hostname and the 10 min interval), and the original firmware cannot read
 
 Newest first. Every version is based on the original Prusa firmware v1.1.2.
 
+**1.1.2-c21** (2026-11-06)
+- A photo is sent as soon as the camera is connected to the Wi-Fi (after a start or a lost
+  connection). Before, with the printer idle, Prusa Connect waited up to 10 minutes for the first
+  photo
+
 **1.1.2-c20** (2026-11-05)
 - OV5640: back to the simple automatic focus (continuous autofocus and its state on the Camera
   page); the focus buttons and the exposure lock of c19 are removed
@@ -663,7 +668,8 @@ Newest first. Every version is based on the original Prusa firmware v1.1.2.
 - Wi-Fi: a wrong password is also retried slowly (every 28 s after 3 failures)
 - Fixes of a code review: error messages in red, the autofocus state text protected between tasks,
   an empty Wi-Fi password is refused again, log texts use "Wi-Fi"
-- Not tested on a real board yet
+- Tested on the OV3660: installed over the network, photo upload, PrusaLink, service AP off after
+  the Wi-Fi connection
 
 **1.1.2-c19** (2026-11-05)
 - Wi-Fi from the coming original 1.1.3: hidden networks, reconnect after a start without network

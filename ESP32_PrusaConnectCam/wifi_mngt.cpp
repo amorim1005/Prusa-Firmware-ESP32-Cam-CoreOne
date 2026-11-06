@@ -1217,6 +1217,11 @@ void WiFiMngt_WiFiEventGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   /* update device information */
   Connect.UpdateDeviceInformation();
 
+  /* send a photo now, after the start or a lost connection, also when the printer is idle and the interval is long */
+  if (0 == Connect.GetBackoffInterval()) {
+    Connect.SetSendingIntervalExpired();
+  }
+
   /* check first NTP time sync after boot */
   if (false == SystemWifiMngt.GetNtpFirstTimeSync()) {
     SystemWifiMngt.SyncNtpTime();
